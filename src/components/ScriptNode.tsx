@@ -3,6 +3,7 @@ import { NodeProps } from "@xyflow/react";
 import { usePipelineStore, NodeData } from "../stores/pipelineStore";
 import { BaseNode, NodeText } from "./BaseNode";
 import { RiCodeLine } from "@remixicon/react";
+import { defineGithubDarkTheme } from "@/lib/monacoTheme";
 
 const Editor = lazy(() => import("@monaco-editor/react"));
 
@@ -44,9 +45,10 @@ export function ScriptNode({ id, data, selected }: NodeProps) {
           <Editor
             height="150px"
             language="python"
-            theme="vs-dark"
+            theme="github-dark"
             value={nodeData.code || ""}
             onChange={handleCodeChange}
+            beforeMount={defineGithubDarkTheme}
             options={{
               minimap: { enabled: false },
               fontSize: 12,
