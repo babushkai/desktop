@@ -23,41 +23,49 @@ export function ModelExporterNode({ id, data }: NodeProps) {
   return (
     <div
       className={cn(
-        "rounded-lg border-2 p-3 min-w-[200px] transition-all duration-200",
+        // Structure
+        "rounded-xl p-4 min-w-[200px]",
+        // Glass effect
+        "glass-subtle backdrop-blur-xl",
+        // Theme colors
         theme.bgClass,
+        // Status
         statusColors[executionStatus],
-        "hover:shadow-lg hover:shadow-black/20"
+        // Interactions
+        "transition-all duration-200 ease-out",
+        "hover:shadow-premium-md hover:scale-[1.01]",
+        "hover:border-cyan-500/50"
       )}
     >
       <Handle
         type="target"
         position={Position.Left}
-        style={{
-          width: 12,
-          height: 12,
-          backgroundColor: theme.handleColor,
-          border: "2px solid #0f172a",
-        }}
+        className="!w-3 !h-3 !border-2 !border-slate-900/80 transition-all hover:!scale-125"
+        style={{ backgroundColor: theme.handleColor }}
       />
 
-      <div className="flex items-center gap-2 mb-3">
-        <Package className={cn("h-4 w-4", theme.accentClass)} />
-        <span className={cn("text-sm font-medium", theme.accentClass)}>
+      <div className="flex items-center gap-2.5 mb-4">
+        <div className="p-1.5 rounded-lg bg-cyan-500/10">
+          <Package className={cn("h-4 w-4", theme.accentClass)} />
+        </div>
+        <span className={cn("text-sm font-semibold tracking-tight", theme.accentClass)}>
           Model Exporter
         </span>
         {executionStatus === "running" && (
-          <Loader2 className="h-3 w-3 text-yellow-400 animate-spin" />
+          <Loader2 className="h-3 w-3 text-amber-400 animate-spin" />
         )}
       </div>
 
       {/* Export Format Dropdown */}
-      <div className="mb-2 nodrag">
-        <Label className="text-[10px] text-slate-400 mb-1 block">Format</Label>
+      <div className="mb-3 nodrag">
+        <Label className="text-[10px] uppercase tracking-widest text-slate-500 font-medium mb-1.5 block">
+          Format
+        </Label>
         <Select
           value={nodeData.exportFormat || "joblib"}
           onValueChange={(value) => updateNodeData(id, { exportFormat: value })}
         >
-          <SelectTrigger className="h-8 text-xs bg-slate-900/50 border-slate-600">
+          <SelectTrigger className="h-8 text-xs">
             <SelectValue placeholder="Select format" />
           </SelectTrigger>
           <SelectContent>
@@ -70,7 +78,7 @@ export function ModelExporterNode({ id, data }: NodeProps) {
 
       {/* Output Filename */}
       <div className="nodrag">
-        <Label className="text-[10px] text-slate-400 mb-1 block">
+        <Label className="text-[10px] uppercase tracking-widest text-slate-500 font-medium mb-1.5 block">
           Output Name
         </Label>
         <Input
@@ -78,7 +86,7 @@ export function ModelExporterNode({ id, data }: NodeProps) {
           placeholder="model_export"
           value={nodeData.outputFileName || ""}
           onChange={(e) => updateNodeData(id, { outputFileName: e.target.value })}
-          className="h-8 text-xs bg-slate-900/50 border-slate-600"
+          className="h-8 text-xs"
         />
       </div>
     </div>

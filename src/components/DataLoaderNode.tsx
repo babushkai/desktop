@@ -32,15 +32,24 @@ export function DataLoaderNode({ id, data }: NodeProps) {
   return (
     <div
       className={cn(
-        "rounded-lg border-2 p-3 min-w-[200px] transition-all duration-200",
+        // Structure
+        "rounded-xl p-4 min-w-[220px]",
+        // Glass effect
+        "glass-subtle backdrop-blur-xl",
+        // Theme colors
         theme.bgClass,
         theme.borderClass,
-        "hover:shadow-lg hover:shadow-black/20"
+        // Interactions
+        "transition-all duration-200 ease-out",
+        "hover:shadow-premium-md hover:scale-[1.01]",
+        "hover:border-emerald-500/50"
       )}
     >
-      <div className="flex items-center gap-2 mb-3">
-        <FolderOpen className={cn("h-4 w-4", theme.accentClass)} />
-        <span className={cn("text-sm font-medium", theme.accentClass)}>
+      <div className="flex items-center gap-2.5 mb-4">
+        <div className="p-1.5 rounded-lg bg-emerald-500/10">
+          <FolderOpen className={cn("h-4 w-4", theme.accentClass)} />
+        </div>
+        <span className={cn("text-sm font-semibold tracking-tight", theme.accentClass)}>
           Data Loader
         </span>
       </div>
@@ -49,7 +58,7 @@ export function DataLoaderNode({ id, data }: NodeProps) {
         variant="outline"
         size="sm"
         onClick={handleSelectFile}
-        className="w-full justify-start text-xs bg-slate-900/50 border-slate-600 hover:bg-slate-800 hover:border-slate-500 nodrag"
+        className="w-full justify-start text-xs glass-subtle glass-hover border-white/[0.08] nodrag transition-premium"
       >
         {fileName || "Select file..."}
       </Button>
@@ -63,12 +72,8 @@ export function DataLoaderNode({ id, data }: NodeProps) {
       <Handle
         type="source"
         position={Position.Right}
-        style={{
-          width: 12,
-          height: 12,
-          backgroundColor: theme.handleColor,
-          border: "2px solid #0f172a",
-        }}
+        className="!w-3 !h-3 !border-2 !border-slate-900/80 transition-all hover:!scale-125"
+        style={{ backgroundColor: theme.handleColor }}
       />
     </div>
   );
