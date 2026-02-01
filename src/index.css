@@ -1,0 +1,163 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", Roboto,
+      sans-serif;
+    background-color: theme("colors.background.DEFAULT");
+    color: theme("colors.text.primary");
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: theme("colors.text.muted");
+    border-radius: 4px;
+    opacity: 0.5;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: theme("colors.text.secondary");
+  }
+}
+
+@layer components {
+  /* Glass morphism panel */
+  .glass-panel {
+    @apply bg-background-surface/80 backdrop-blur-xl border border-white/5 rounded-lg;
+  }
+
+  /* Focus ring utility */
+  .focus-ring {
+    @apply outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  /* Node base styling */
+  .node-base {
+    @apply rounded-xl p-3 backdrop-blur-sm border border-white/10 transition-all duration-200;
+  }
+
+  /* Button base */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-all duration-200;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+    @apply disabled:pointer-events-none disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply btn bg-accent text-background hover:bg-accent/90 shadow-md px-4 py-2;
+  }
+
+  .btn-secondary {
+    @apply btn bg-background-elevated text-text-secondary hover:bg-background-surface hover:text-text-primary px-4 py-2;
+  }
+
+  .btn-ghost {
+    @apply btn hover:bg-background-elevated hover:text-text-primary px-3 py-2;
+  }
+
+  .btn-destructive {
+    @apply btn bg-state-error text-white hover:bg-state-error/90 shadow-md px-4 py-2;
+  }
+
+  /* Input base */
+  .input {
+    @apply w-full rounded-lg border border-white/10 bg-background-surface px-3 py-2 text-sm text-text-primary;
+    @apply placeholder:text-text-muted;
+    @apply focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-1 focus:ring-offset-background;
+    @apply disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  /* Select base */
+  .select {
+    @apply input appearance-none pr-8 cursor-pointer;
+  }
+}
+
+/* ReactFlow overrides for dark theme */
+.react-flow__background {
+  background-color: theme("colors.background.DEFAULT") !important;
+}
+
+.react-flow__minimap {
+  background-color: theme("colors.background.surface") !important;
+  border-radius: theme("borderRadius.lg") !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+}
+
+.react-flow__controls {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.react-flow__controls-button {
+  background: theme("colors.background.surface") !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  border-radius: theme("borderRadius.sm") !important;
+  color: theme("colors.text.secondary") !important;
+  transition: all 150ms ease-out !important;
+}
+
+.react-flow__controls-button:hover {
+  background: theme("colors.background.elevated") !important;
+  color: theme("colors.text.primary") !important;
+}
+
+.react-flow__controls-button svg {
+  fill: currentColor !important;
+}
+
+.react-flow__edge-path {
+  stroke: theme("colors.text.muted") !important;
+  stroke-width: 2 !important;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: theme("colors.accent.DEFAULT") !important;
+}
+
+.react-flow__handle {
+  width: 12px !important;
+  height: 12px !important;
+  background: theme("colors.background.elevated") !important;
+  border: 2px solid theme("colors.text.muted") !important;
+  transition: all 150ms ease-out !important;
+}
+
+.react-flow__handle:hover {
+  border-color: theme("colors.accent.DEFAULT") !important;
+  transform: scale(1.2);
+}
+
+.react-flow__handle-connecting {
+  background: theme("colors.accent.DEFAULT") !important;
+}
+
+.react-flow__handle-valid {
+  background: theme("colors.state.success") !important;
+}

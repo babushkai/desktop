@@ -1,4 +1,17 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, Fragment } from "react";
+import { Menu, Transition, Dialog } from "@headlessui/react";
+import {
+  RiPlayFill,
+  RiStopFill,
+  RiSaveLine,
+  RiFolderOpenLine,
+  RiAddLine,
+  RiSettings4Line,
+  RiDeleteBinLine,
+  RiArrowDownSLine,
+  RiCheckLine,
+  RiCloseLine,
+} from "@remixicon/react";
 import { usePipelineStore } from "../stores/pipelineStore";
 import {
   findPython,
@@ -14,6 +27,7 @@ import { generateTrainerCode, generateTrainerCodeWithSplit } from "../lib/traine
 import { generateEvaluatorCode, generateEvaluatorCodeWithSplit } from "../lib/evaluatorCodeGen";
 import { generateExporterCode } from "../lib/exporterCodeGen";
 import { generateDataSplitCode } from "../lib/dataSplitCodeGen";
+import { cn } from "@/lib/utils";
 
 export function Toolbar() {
   const {
@@ -35,12 +49,10 @@ export function Toolbar() {
 
   const [isEditingPath, setIsEditingPath] = useState(false);
   const [pathInput, setPathInput] = useState("");
-  const [showPipelineMenu, setShowPipelineMenu] = useState(false);
   const [pipelines, setPipelines] = useState<PipelineMetadata[]>([]);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveNameInput, setSaveNameInput] = useState("");
 
-  // Load Python path on mount
   useEffect(() => {
     const loadPythonPath = async () => {
       let path = await getPythonPath();
@@ -55,8 +67,7 @@ export function Toolbar() {
     loadPythonPath();
   }, [setStorePythonPath]);
 
-  const handleRun = async () => {
-    // Validate pipeline first
+  const handleRun = useCallback(async () => {
     const errors = validatePipeline();
     if (errors.length > 0) {
       clearLogs();
@@ -67,25 +78,19 @@ export function Toolbar() {
     clearLogs();
     setExecutionStatus("running");
 
-    // Find pipeline structure
     const trainerNode = nodes.find((n) => n.type === "trainer");
     const evaluatorNode = nodes.find((n) => n.type === "evaluator");
     const scriptNode = nodes.find((n) => n.type === "script");
     const dataSplitNode = nodes.find((n) => n.type === "dataSplit");
 
-    // Detect if using DataSplit flow
     const useDataSplit =
       dataSplitNode &&
       trainerNode &&
       edges.some((e) => e.source === dataSplitNode.id && e.target === trainerNode.id);
 
-    // Get DataLoader for input path
-    // In DataSplit flow: DataLoader -> DataSplit -> Trainer
-    // Otherwise: DataLoader -> Trainer/Script
     let inputPath: string | undefined;
 
     if (useDataSplit && dataSplitNode) {
-      // Find DataLoader connected to DataSplit
       const dsEdge = edges.find((e) => e.target === dataSplitNode.id);
       const dataLoaderNode = nodes.find((n) => n.id === dsEdge?.source);
       inputPath = dataLoaderNode?.data.filePath;
@@ -117,7 +122,6 @@ export function Toolbar() {
     };
 
     try {
-      // Step 0: Run DataSplit (if present and connected to Trainer)
       if (useDataSplit && dataSplitNode) {
         appendLog("--- Running Data Split ---");
         appendLog(`Input: ${inputPath}`);
@@ -132,7 +136,6 @@ export function Toolbar() {
         await runScriptAndWait(splitCode, inputPath, handleOutput);
       }
 
-      // Step 1: Run Trainer or Script
       if (trainerNode) {
         appendLog("");
         appendLog("--- Running Trainer ---");
@@ -146,10 +149,8 @@ export function Toolbar() {
 
         let trainerCode;
         if (useDataSplit) {
-          // Use pre-computed indices from DataSplit
           trainerCode = generateTrainerCodeWithSplit(trainerNode.data, inputPath);
         } else {
-          // Use internal split (backward compat)
           trainerCode = generateTrainerCode(trainerNode.data, inputPath);
         }
         await runScriptAndWait(trainerCode, inputPath, handleOutput);
@@ -161,7 +162,6 @@ export function Toolbar() {
         await runScriptAndWait(scriptNode.data.code!, inputPath, handleOutput);
       }
 
-      // Step 2: Run Evaluator (if connected to Trainer)
       if (evaluatorNode && trainerNode) {
         const evalEdge = edges.find((e) => e.target === evaluatorNode.id);
         if (evalEdge?.source === trainerNode.id) {
@@ -178,12 +178,10 @@ export function Toolbar() {
         }
       }
 
-      // Step 3: Run ModelExporter (if present)
       const modelExporterNode = nodes.find((n) => n.type === "modelExporter");
       if (modelExporterNode) {
         const exportEdge = edges.find((e) => e.target === modelExporterNode.id);
         if (exportEdge) {
-          // Valid sources: evaluator or trainer
           const sourceNode = nodes.find((n) => n.id === exportEdge.source);
           if (sourceNode?.type === "evaluator" || sourceNode?.type === "trainer") {
             appendLog("");
@@ -200,9 +198,9 @@ export function Toolbar() {
       appendLog(`ERROR: ${error}`);
       setExecutionStatus("error");
     }
-  };
+  }, [nodes, edges, validatePipeline, clearLogs, appendLog, setExecutionStatus]);
 
-  const handleCancel = async () => {
+  const handleCancel = useCallback(async () => {
     try {
       await cancelScript();
       appendLog("--- Script cancelled ---");
@@ -210,32 +208,29 @@ export function Toolbar() {
     } catch (error) {
       appendLog(`ERROR: ${error}`);
     }
-  };
+  }, [appendLog, setExecutionStatus]);
 
-  const handleSavePythonPath = async () => {
+  const handleSavePythonPath = useCallback(async () => {
     await setPythonPath(pathInput);
     setStorePythonPath(pathInput);
     setIsEditingPath(false);
-  };
+  }, [pathInput, setStorePythonPath]);
 
-  const handleSave = async () => {
+  const handleSave = useCallback(async () => {
     if (currentPipelineName) {
-      // Already has a name, save directly
       try {
         await savePipeline(currentPipelineName);
         appendLog(`Pipeline saved: ${currentPipelineName}`);
       } catch (error) {
         appendLog(`ERROR: Failed to save pipeline: ${error}`);
-        console.error("Save error:", error);
       }
     } else {
-      // Show save dialog for new pipeline
       setSaveNameInput("");
       setShowSaveDialog(true);
     }
-  };
+  }, [currentPipelineName, savePipeline, appendLog]);
 
-  const handleSaveConfirm = async () => {
+  const handleSaveConfirm = useCallback(async () => {
     const name = saveNameInput.trim() || `Pipeline ${Date.now()}`;
     setShowSaveDialog(false);
     try {
@@ -243,26 +238,26 @@ export function Toolbar() {
       appendLog(`Pipeline saved: ${name}`);
     } catch (error) {
       appendLog(`ERROR: Failed to save pipeline: ${error}`);
-      console.error("Save error:", error);
     }
-  };
+  }, [saveNameInput, savePipeline, appendLog]);
 
-  const handleLoadMenu = async () => {
+  const handleLoadMenu = useCallback(async () => {
     const list = await listPipelines();
     setPipelines(list);
-    setShowPipelineMenu(true);
-  };
+  }, []);
 
-  const handleLoadPipeline = async (id: string) => {
-    if (isDirty) {
-      const confirmed = window.confirm("Discard unsaved changes?");
-      if (!confirmed) return;
-    }
-    await loadPipeline(id);
-    setShowPipelineMenu(false);
-  };
+  const handleLoadPipeline = useCallback(
+    async (id: string) => {
+      if (isDirty) {
+        const confirmed = window.confirm("Discard unsaved changes?");
+        if (!confirmed) return;
+      }
+      await loadPipeline(id);
+    },
+    [isDirty, loadPipeline]
+  );
 
-  const handleDeletePipeline = async (id: string, e: React.MouseEvent) => {
+  const handleDeletePipeline = useCallback(async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const confirmed = window.confirm("Delete this pipeline?");
     if (confirmed) {
@@ -270,15 +265,15 @@ export function Toolbar() {
       const list = await listPipelines();
       setPipelines(list);
     }
-  };
+  }, []);
 
-  const handleNew = () => {
+  const handleNew = useCallback(() => {
     if (isDirty) {
       const confirmed = window.confirm("Discard unsaved changes?");
       if (!confirmed) return;
     }
     newPipeline();
-  };
+  }, [isDirty, newPipeline]);
 
   const hasExecutableNode = nodes.some(
     (n) => n.type === "script" || n.type === "trainer" || n.type === "evaluator"
@@ -287,348 +282,197 @@ export function Toolbar() {
   const isRunnable = hasExecutableNode && hasDataLoaderWithFile;
 
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 16,
-        padding: "12px 16px",
-        backgroundColor: "#0f3460",
-        borderBottom: "1px solid #394867",
-      }}
-    >
-      <h1 style={{ fontSize: 18, fontWeight: 600 }}>
+    <div className="flex items-center gap-4 px-4 py-3 bg-background-surface border-b border-white/5">
+      {/* Title */}
+      <h1 className="text-lg font-semibold text-text-primary">
         MLOps Desktop
         {currentPipelineName && (
-          <span style={{ fontWeight: 400, color: "#9ca3af", marginLeft: 8 }}>
-            — {currentPipelineName}{isDirty ? " *" : ""}
+          <span className="font-normal text-text-muted ml-2">
+            - {currentPipelineName}
+            {isDirty && " *"}
           </span>
         )}
         {!currentPipelineName && isDirty && (
-          <span style={{ fontWeight: 400, color: "#9ca3af", marginLeft: 8 }}>
-            — Untitled *
-          </span>
+          <span className="font-normal text-text-muted ml-2">- Untitled *</span>
         )}
       </h1>
 
       {/* Pipeline buttons */}
-      <div style={{ display: "flex", gap: 8 }}>
-        <button
-          onClick={handleNew}
-          style={{
-            padding: "6px 12px",
-            backgroundColor: "#394867",
-            color: "#eee",
-            border: "none",
-            borderRadius: 4,
-            cursor: "pointer",
-            fontSize: 12,
-          }}
-        >
+      <div className="flex items-center gap-2">
+        <button onClick={handleNew} className="btn-secondary">
+          <RiAddLine className="w-4 h-4" />
           New
         </button>
-        <button
-          onClick={handleSave}
-          style={{
-            padding: "6px 12px",
-            backgroundColor: "#394867",
-            color: "#eee",
-            border: "none",
-            borderRadius: 4,
-            cursor: "pointer",
-            fontSize: 12,
-          }}
-        >
+
+        <button onClick={handleSave} className="btn-secondary">
+          <RiSaveLine className="w-4 h-4" />
           Save
         </button>
-        <div style={{ position: "relative" }}>
-          <button
-            onClick={handleLoadMenu}
-            style={{
-              padding: "6px 12px",
-              backgroundColor: "#394867",
-              color: "#eee",
-              border: "none",
-              borderRadius: 4,
-              cursor: "pointer",
-              fontSize: 12,
-            }}
-          >
+
+        <Menu as="div" className="relative">
+          <Menu.Button onClick={handleLoadMenu} className="btn-secondary">
+            <RiFolderOpenLine className="w-4 h-4" />
             Load
-          </button>
-          {showPipelineMenu && (
-            <div
-              style={{
-                position: "absolute",
-                top: "100%",
-                left: 0,
-                marginTop: 4,
-                backgroundColor: "#1a1a2e",
-                border: "1px solid #394867",
-                borderRadius: 4,
-                minWidth: 200,
-                maxHeight: 300,
-                overflow: "auto",
-                zIndex: 100,
-              }}
-            >
+            <RiArrowDownSLine className="w-3 h-3 ml-1" />
+          </Menu.Button>
+
+          <Transition
+            as={Fragment}
+            enter="transition ease-out duration-100"
+            enterFrom="transform opacity-0 scale-95"
+            enterTo="transform opacity-100 scale-100"
+            leave="transition ease-in duration-75"
+            leaveFrom="transform opacity-100 scale-100"
+            leaveTo="transform opacity-0 scale-95"
+          >
+            <Menu.Items className="absolute left-0 mt-1 w-56 origin-top-left rounded-lg bg-background-surface border border-white/10 shadow-lg focus:outline-none z-50">
+              <div className="px-3 py-2 text-xs font-semibold text-text-muted uppercase tracking-wider">
+                Saved Pipelines
+              </div>
+              <div className="border-t border-white/5" />
               {pipelines.length === 0 ? (
-                <div style={{ padding: 12, color: "#9ca3af", fontSize: 12 }}>
-                  No saved pipelines
-                </div>
+                <div className="px-3 py-2 text-xs text-text-muted">No saved pipelines</div>
               ) : (
                 pipelines.map((p) => (
-                  <div
-                    key={p.id}
-                    onClick={() => handleLoadPipeline(p.id)}
-                    style={{
-                      padding: "8px 12px",
-                      cursor: "pointer",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      borderBottom: "1px solid #394867",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#394867")}
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
-                  >
-                    <span style={{ fontSize: 12 }}>{p.name}</span>
-                    <button
-                      onClick={(e) => handleDeletePipeline(p.id, e)}
-                      style={{
-                        padding: "2px 6px",
-                        backgroundColor: "#ef4444",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: 2,
-                        cursor: "pointer",
-                        fontSize: 10,
-                      }}
-                    >
-                      Del
-                    </button>
-                  </div>
+                  <Menu.Item key={p.id}>
+                    {({ active }) => (
+                      <button
+                        onClick={() => handleLoadPipeline(p.id)}
+                        className={cn(
+                          "w-full flex items-center justify-between px-3 py-2 text-sm text-left",
+                          active && "bg-background-elevated text-text-primary"
+                        )}
+                      >
+                        <span className="truncate">{p.name}</span>
+                        <button
+                          onClick={(e) => handleDeletePipeline(p.id, e)}
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-state-error/20 text-state-error"
+                        >
+                          <RiDeleteBinLine className="w-3 h-3" />
+                        </button>
+                      </button>
+                    )}
+                  </Menu.Item>
                 ))
               )}
-              <div
-                onClick={() => setShowPipelineMenu(false)}
-                style={{
-                  padding: "8px 12px",
-                  cursor: "pointer",
-                  color: "#9ca3af",
-                  fontSize: 11,
-                  textAlign: "center",
-                }}
-              >
-                Close
-              </div>
-            </div>
-          )}
-        </div>
-        {/* Save Dialog */}
-        {showSaveDialog && (
-          <div
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0,0,0,0.5)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 200,
-            }}
-            onClick={() => setShowSaveDialog(false)}
-          >
-            <div
-              style={{
-                backgroundColor: "#1a1a2e",
-                padding: 20,
-                borderRadius: 8,
-                border: "1px solid #394867",
-                minWidth: 300,
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div style={{ marginBottom: 12, fontWeight: 500 }}>Save Pipeline</div>
-              <input
-                type="text"
-                value={saveNameInput}
-                onChange={(e) => setSaveNameInput(e.target.value)}
-                placeholder="Enter pipeline name..."
-                autoFocus
-                onKeyDown={(e) => e.key === "Enter" && handleSaveConfirm()}
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  backgroundColor: "#0f0f23",
-                  border: "1px solid #394867",
-                  borderRadius: 4,
-                  color: "#eee",
-                  fontSize: 14,
-                  marginBottom: 12,
-                }}
-              />
-              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                <button
-                  onClick={() => setShowSaveDialog(false)}
-                  style={{
-                    padding: "6px 12px",
-                    backgroundColor: "#394867",
-                    color: "#eee",
-                    border: "none",
-                    borderRadius: 4,
-                    cursor: "pointer",
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveConfirm}
-                  style={{
-                    padding: "6px 12px",
-                    backgroundColor: "#4ade80",
-                    color: "#1a1a2e",
-                    border: "none",
-                    borderRadius: 4,
-                    cursor: "pointer",
-                  }}
-                >
-                  Save
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+            </Menu.Items>
+          </Transition>
+        </Menu>
       </div>
 
-      <div style={{ flex: 1 }} />
+      <div className="flex-1" />
 
       {/* Python path display/edit */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 12, color: "#9ca3af" }}>Python:</span>
+      <div className="flex items-center gap-2">
+        <RiSettings4Line className="w-4 h-4 text-text-muted" />
+        <span className="text-xs text-text-muted">Python:</span>
+
         {isEditingPath ? (
-          <>
+          <div className="flex items-center gap-2">
             <input
               type="text"
               value={pathInput}
               onChange={(e) => setPathInput(e.target.value)}
-              style={{
-                padding: "4px 8px",
-                backgroundColor: "#1a1a2e",
-                border: "1px solid #394867",
-                borderRadius: 4,
-                color: "#eee",
-                fontSize: 12,
-                width: 300,
-              }}
+              className="input w-72 h-7 text-xs font-mono"
             />
-            <button
-              onClick={handleSavePythonPath}
-              style={{
-                padding: "4px 8px",
-                backgroundColor: "#4ade80",
-                color: "#1a1a2e",
-                border: "none",
-                borderRadius: 4,
-                cursor: "pointer",
-                fontSize: 12,
-              }}
-            >
-              Save
+            <button onClick={handleSavePythonPath} className="btn-ghost h-7 w-7 p-0">
+              <RiCheckLine className="w-4 h-4 text-state-success" />
             </button>
-            <button
-              onClick={() => setIsEditingPath(false)}
-              style={{
-                padding: "4px 8px",
-                backgroundColor: "#6b7280",
-                color: "#eee",
-                border: "none",
-                borderRadius: 4,
-                cursor: "pointer",
-                fontSize: 12,
-              }}
-            >
-              Cancel
+            <button onClick={() => setIsEditingPath(false)} className="btn-ghost h-7 w-7 p-0">
+              <RiCloseLine className="w-4 h-4 text-text-muted" />
             </button>
-          </>
+          </div>
         ) : (
-          <>
-            <span style={{ fontSize: 12, color: "#eee", fontFamily: "monospace" }}>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-text-primary font-mono">
               {pythonPath || "Not found"}
             </span>
-            <button
-              onClick={() => setIsEditingPath(true)}
-              style={{
-                padding: "4px 8px",
-                backgroundColor: "#394867",
-                color: "#eee",
-                border: "none",
-                borderRadius: 4,
-                cursor: "pointer",
-                fontSize: 12,
-              }}
-            >
+            <button onClick={() => setIsEditingPath(true)} className="btn-ghost text-xs">
               Change
             </button>
-          </>
+          </div>
         )}
       </div>
 
-      <div style={{ width: 1, height: 24, backgroundColor: "#394867" }} />
+      <div className="w-px h-6 bg-white/10" />
 
       {/* Run/Cancel buttons */}
       {executionStatus === "running" ? (
-        <button
-          onClick={handleCancel}
-          style={{
-            padding: "8px 16px",
-            backgroundColor: "#ef4444",
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            cursor: "pointer",
-            fontWeight: 500,
-          }}
-        >
+        <button onClick={handleCancel} className="btn-destructive">
+          <RiStopFill className="w-4 h-4" />
           Cancel
         </button>
       ) : (
-        <button
-          onClick={handleRun}
-          disabled={!isRunnable}
-          style={{
-            padding: "8px 16px",
-            backgroundColor: isRunnable ? "#4ade80" : "#394867",
-            color: isRunnable ? "#1a1a2e" : "#6b7280",
-            border: "none",
-            borderRadius: 6,
-            cursor: isRunnable ? "pointer" : "not-allowed",
-            fontWeight: 500,
-          }}
-        >
+        <button onClick={handleRun} disabled={!isRunnable} className="btn-primary">
+          <RiPlayFill className="w-4 h-4" />
           Run
         </button>
       )}
 
       {/* Status indicator */}
       <div
-        style={{
-          width: 12,
-          height: 12,
-          borderRadius: "50%",
-          backgroundColor:
-            executionStatus === "running"
-              ? "#fbbf24"
-              : executionStatus === "success"
-              ? "#4ade80"
-              : executionStatus === "error"
-              ? "#ef4444"
-              : "#6b7280",
-        }}
+        className={cn(
+          "w-3 h-3 rounded-full transition-colors",
+          executionStatus === "running" && "bg-state-warning animate-pulse",
+          executionStatus === "success" && "bg-state-success",
+          executionStatus === "error" && "bg-state-error",
+          executionStatus === "idle" && "bg-text-muted"
+        )}
       />
+
+      {/* Save Dialog */}
+      <Transition appear show={showSaveDialog} as={Fragment}>
+        <Dialog as="div" className="relative z-50" onClose={() => setShowSaveDialog(false)}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-200"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-150"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-200"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-150"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+              >
+                <Dialog.Panel className="w-full max-w-md rounded-xl bg-background-surface border border-white/10 p-6 shadow-xl">
+                  <Dialog.Title className="text-lg font-semibold text-text-primary mb-4">
+                    Save Pipeline
+                  </Dialog.Title>
+                  <input
+                    type="text"
+                    value={saveNameInput}
+                    onChange={(e) => setSaveNameInput(e.target.value)}
+                    placeholder="Enter pipeline name..."
+                    autoFocus
+                    onKeyDown={(e) => e.key === "Enter" && handleSaveConfirm()}
+                    className="input mb-4"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button onClick={() => setShowSaveDialog(false)} className="btn-secondary">
+                      Cancel
+                    </button>
+                    <button onClick={handleSaveConfirm} className="btn-primary">
+                      Save
+                    </button>
+                  </div>
+                </Dialog.Panel>
+              </Transition.Child>
+            </div>
+          </div>
+        </Dialog>
+      </Transition>
     </div>
   );
 }

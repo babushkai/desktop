@@ -1,76 +1,41 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { usePipelineStore } from "../stores/pipelineStore";
+import { RiTerminalLine, RiDeleteBinLine } from "@remixicon/react";
+import { cn } from "@/lib/utils";
 
 export function OutputPanel() {
-  const { outputLogs, executionStatus, clearLogs } = usePipelineStore();
+  const outputLogs = usePipelineStore((s) => s.outputLogs);
+  const executionStatus = usePipelineStore((s) => s.executionStatus);
+  const clearLogs = usePipelineStore((s) => s.clearLogs);
+
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom when new logs arrive
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [outputLogs]);
 
+  const handleClear = useCallback(() => {
+    clearLogs();
+  }, [clearLogs]);
+
   return (
-    <div
-      style={{
-        height: 200,
-        backgroundColor: "#0f0f23",
-        borderTop: "1px solid #394867",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
+    <div className="h-52 flex flex-col bg-background border-t border-white/5">
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "8px 16px",
-          backgroundColor: "#1a1a2e",
-          borderBottom: "1px solid #394867",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 14, fontWeight: 500 }}>Output</span>
+      <div className="flex items-center justify-between px-4 py-2 bg-background-surface border-b border-white/5">
+        <div className="flex items-center gap-2">
+          <RiTerminalLine className="w-4 h-4 text-text-muted" />
+          <span className="text-sm font-medium text-text-primary">Output</span>
           {executionStatus === "running" && (
-            <span
-              style={{
-                fontSize: 12,
-                color: "#fbbf24",
-                display: "flex",
-                alignItems: "center",
-                gap: 4,
-              }}
-            >
-              <span
-                style={{
-                  display: "inline-block",
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  backgroundColor: "#fbbf24",
-                  animation: "pulse 1s infinite",
-                }}
-              />
+            <span className="flex items-center gap-1.5 text-xs text-state-warning">
+              <span className="w-2 h-2 rounded-full bg-state-warning animate-pulse" />
               Running...
             </span>
           )}
         </div>
-        <button
-          onClick={clearLogs}
-          style={{
-            padding: "4px 8px",
-            backgroundColor: "transparent",
-            color: "#9ca3af",
-            border: "1px solid #394867",
-            borderRadius: 4,
-            cursor: "pointer",
-            fontSize: 12,
-          }}
-        >
+        <button onClick={handleClear} className="btn-ghost text-xs h-7 px-2">
+          <RiDeleteBinLine className="w-3.5 h-3.5 mr-1" />
           Clear
         </button>
       </div>
@@ -78,45 +43,27 @@ export function OutputPanel() {
       {/* Log content */}
       <div
         ref={scrollRef}
-        style={{
-          flex: 1,
-          overflow: "auto",
-          padding: 16,
-          fontFamily: "monospace",
-          fontSize: 13,
-          lineHeight: 1.5,
-        }}
+        className="flex-1 overflow-auto p-4 font-mono text-sm leading-relaxed"
       >
         {outputLogs.length === 0 ? (
-          <span style={{ color: "#6b7280" }}>
+          <span className="text-text-muted">
             Output will appear here when you run a script...
           </span>
         ) : (
           outputLogs.map((log, i) => (
             <div
               key={i}
-              style={{
-                color: log.startsWith("ERROR")
-                  ? "#ef4444"
-                  : log.startsWith("---")
-                  ? "#9ca3af"
-                  : "#eee",
-              }}
+              className={cn(
+                log.startsWith("ERROR") && "text-state-error",
+                log.startsWith("---") && "text-text-muted",
+                !log.startsWith("ERROR") && !log.startsWith("---") && "text-text-primary"
+              )}
             >
               {log}
             </div>
           ))
         )}
       </div>
-
-      <style>
-        {`
-          @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-          }
-        `}
-      </style>
     </div>
   );
 }

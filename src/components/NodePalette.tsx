@@ -1,184 +1,125 @@
+import { useCallback } from "react";
 import { usePipelineStore } from "../stores/pipelineStore";
+import {
+  RiDatabase2Line,
+  RiCodeLine,
+  RiScissorsCutLine,
+  RiBrainLine,
+  RiBarChartBoxLine,
+  RiBox3Line,
+} from "@remixicon/react";
+import { cn } from "@/lib/utils";
+
+interface NodeButtonProps {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  onClick: () => void;
+  colorClass: string;
+}
+
+function NodeButton({ icon: Icon, label, onClick, colorClass }: NodeButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "w-full px-4 py-3 mb-2 rounded-lg",
+        "flex items-center gap-3",
+        "font-medium text-sm",
+        "transition-all duration-150",
+        "hover:scale-[1.02] hover:shadow-md",
+        "active:scale-[0.98]",
+        colorClass
+      )}
+    >
+      <Icon className="w-5 h-5" />
+      {label}
+    </button>
+  );
+}
 
 export function NodePalette() {
   const addNode = usePipelineStore((state) => state.addNode);
 
-  const handleAddDataLoader = () => {
+  const handleAddDataLoader = useCallback(() => {
     addNode("dataLoader", { x: 100, y: 100 + Math.random() * 100 });
-  };
+  }, [addNode]);
 
-  const handleAddScript = () => {
+  const handleAddScript = useCallback(() => {
     addNode("script", { x: 400, y: 100 + Math.random() * 100 });
-  };
+  }, [addNode]);
 
-  const handleAddDataSplit = () => {
+  const handleAddDataSplit = useCallback(() => {
     addNode("dataSplit", { x: 250, y: 100 + Math.random() * 100 });
-  };
+  }, [addNode]);
 
-  const handleAddTrainer = () => {
+  const handleAddTrainer = useCallback(() => {
     addNode("trainer", { x: 400, y: 100 + Math.random() * 100 });
-  };
+  }, [addNode]);
 
-  const handleAddEvaluator = () => {
+  const handleAddEvaluator = useCallback(() => {
     addNode("evaluator", { x: 700, y: 100 + Math.random() * 100 });
-  };
+  }, [addNode]);
 
-  const handleAddModelExporter = () => {
+  const handleAddModelExporter = useCallback(() => {
     addNode("modelExporter", { x: 900, y: 100 + Math.random() * 100 });
-  };
+  }, [addNode]);
 
   return (
-    <div
-      style={{
-        width: 200,
-        backgroundColor: "#0f3460",
-        padding: 16,
-        borderRight: "1px solid #394867",
-      }}
-    >
-      <h3 style={{ marginBottom: 16, fontSize: 14, color: "#9ca3af" }}>
+    <div className="w-52 p-4 bg-background-surface border-r border-white/5">
+      <h3 className="mb-4 text-sm font-medium text-text-muted uppercase tracking-wider">
         Nodes
       </h3>
 
-      <button
+      <NodeButton
+        icon={RiDatabase2Line}
+        label="Data Loader"
         onClick={handleAddDataLoader}
-        style={{
-          width: "100%",
-          padding: "12px 16px",
-          marginBottom: 8,
-          backgroundColor: "#4ade80",
-          color: "#1a1a2e",
-          border: "none",
-          borderRadius: 6,
-          cursor: "pointer",
-          fontWeight: 500,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <span style={{ fontSize: 18 }}>📁</span>
-        Data Loader
-      </button>
+        colorClass="bg-node-dataloader/90 hover:bg-node-dataloader text-emerald-950"
+      />
 
-      <button
+      <NodeButton
+        icon={RiCodeLine}
+        label="Script"
         onClick={handleAddScript}
-        style={{
-          width: "100%",
-          padding: "12px 16px",
-          marginBottom: 8,
-          backgroundColor: "#60a5fa",
-          color: "#1a1a2e",
-          border: "none",
-          borderRadius: 6,
-          cursor: "pointer",
-          fontWeight: 500,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <span style={{ fontSize: 18 }}>📜</span>
-        Script
-      </button>
+        colorClass="bg-node-script/90 hover:bg-node-script text-sky-950"
+      />
 
-      <button
+      <NodeButton
+        icon={RiScissorsCutLine}
+        label="Data Split"
         onClick={handleAddDataSplit}
-        style={{
-          width: "100%",
-          padding: "12px 16px",
-          marginBottom: 8,
-          backgroundColor: "#f472b6",
-          color: "#1a1a2e",
-          border: "none",
-          borderRadius: 6,
-          cursor: "pointer",
-          fontWeight: 500,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <span style={{ fontSize: 18 }}>✂️</span>
-        Data Split
-      </button>
+        colorClass="bg-node-datasplit/90 hover:bg-node-datasplit text-fuchsia-950"
+      />
 
-      <button
+      <NodeButton
+        icon={RiBrainLine}
+        label="Trainer"
         onClick={handleAddTrainer}
-        style={{
-          width: "100%",
-          padding: "12px 16px",
-          marginBottom: 8,
-          backgroundColor: "#a78bfa",
-          color: "#1a1a2e",
-          border: "none",
-          borderRadius: 6,
-          cursor: "pointer",
-          fontWeight: 500,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <span style={{ fontSize: 18 }}>🧠</span>
-        Trainer
-      </button>
+        colorClass="bg-node-trainer/90 hover:bg-node-trainer text-violet-950"
+      />
 
-      <button
+      <NodeButton
+        icon={RiBarChartBoxLine}
+        label="Evaluator"
         onClick={handleAddEvaluator}
-        style={{
-          width: "100%",
-          padding: "12px 16px",
-          marginBottom: 8,
-          backgroundColor: "#fb923c",
-          color: "#1a1a2e",
-          border: "none",
-          borderRadius: 6,
-          cursor: "pointer",
-          fontWeight: 500,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <span style={{ fontSize: 18 }}>📊</span>
-        Evaluator
-      </button>
+        colorClass="bg-node-evaluator/90 hover:bg-node-evaluator text-orange-950"
+      />
 
-      <button
+      <NodeButton
+        icon={RiBox3Line}
+        label="Model Exporter"
         onClick={handleAddModelExporter}
-        style={{
-          width: "100%",
-          padding: "12px 16px",
-          backgroundColor: "#5eead4",
-          color: "#1a1a2e",
-          border: "none",
-          borderRadius: 6,
-          cursor: "pointer",
-          fontWeight: 500,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <span style={{ fontSize: 18 }}>📦</span>
-        Model Exporter
-      </button>
+        colorClass="bg-node-exporter/90 hover:bg-node-exporter text-teal-950"
+      />
 
-      <div
-        style={{
-          marginTop: 24,
-          padding: 12,
-          backgroundColor: "#1a1a2e",
-          borderRadius: 6,
-          fontSize: 12,
-          color: "#9ca3af",
-        }}
-      >
-        <p style={{ marginBottom: 8 }}>
-          <strong>Tip:</strong> Build a pipeline with nodes.
+      <div className="mt-6 p-3 rounded-lg bg-background border border-white/5">
+        <p className="text-xs text-text-muted mb-2">
+          <span className="font-medium text-text-secondary">Tip:</span> Build a pipeline with
+          nodes.
         </p>
-        <p>DataLoader → DataSplit → Trainer → Evaluator → Model Exporter</p>
+        <p className="text-[10px] text-text-muted font-mono">
+          DataLoader → DataSplit → Trainer → Evaluator → Exporter
+        </p>
       </div>
     </div>
   );

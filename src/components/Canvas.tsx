@@ -1,3 +1,4 @@
+import { useMemo, useCallback } from "react";
 import {
   ReactFlow,
   Background,
@@ -5,6 +6,8 @@ import {
   MiniMap,
   Connection,
   NodeTypes,
+  BackgroundVariant,
+  Node,
 } from "@xyflow/react";
 import { usePipelineStore, VALID_CONNECTIONS } from "../stores/pipelineStore";
 import { DataLoaderNode } from "./DataLoaderNode";
@@ -23,17 +26,58 @@ const nodeTypes: NodeTypes = {
   modelExporter: ModelExporterNode,
 };
 
-export function Canvas() {
-  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, deleteNodes, selectedNodeId, setSelectedNodeId } =
-    usePipelineStore();
+const nodeColorMap: Record<string, string> = {
+  dataLoader: "#34d399",
+  script: "#38bdf8",
+  dataSplit: "#e879f9",
+  trainer: "#a78bfa",
+  evaluator: "#fb923c",
+  modelExporter: "#2dd4bf",
+};
 
-  const isValidConnection = (connection: Connection | { source: string; target: string }) => {
-    const sourceNode = nodes.find((n) => n.id === connection.source);
-    const targetNode = nodes.find((n) => n.id === connection.target);
-    return VALID_CONNECTIONS.some(
-      ([src, tgt]) => sourceNode?.type === src && targetNode?.type === tgt
-    );
-  };
+export function Canvas() {
+  const nodes = usePipelineStore((s) => s.nodes);
+  const edges = usePipelineStore((s) => s.edges);
+  const onNodesChange = usePipelineStore((s) => s.onNodesChange);
+  const onEdgesChange = usePipelineStore((s) => s.onEdgesChange);
+  const onConnect = usePipelineStore((s) => s.onConnect);
+  const deleteNodes = usePipelineStore((s) => s.deleteNodes);
+  const selectedNodeId = usePipelineStore((s) => s.selectedNodeId);
+  const setSelectedNodeId = usePipelineStore((s) => s.setSelectedNodeId);
+
+  const isValidConnection = useCallback(
+    (connection: Connection | { source: string; target: string }) => {
+      const sourceNode = nodes.find((n) => n.id === connection.source);
+      const targetNode = nodes.find((n) => n.id === connection.target);
+      return VALID_CONNECTIONS.some(
+        ([src, tgt]) => sourceNode?.type === src && targetNode?.type === tgt
+      );
+    },
+    [nodes]
+  );
+
+  const handleNodesDelete = useCallback(
+    (deleted: Node[]) => {
+      deleteNodes(deleted.map((n) => n.id));
+    },
+    [deleteNodes]
+  );
+
+  const handleSelectionChange = useCallback(
+    ({ nodes: selectedNodes }: { nodes: Node[] }) => {
+      const newSelectedId = selectedNodes.length === 1 ? selectedNodes[0].id : null;
+      if (newSelectedId !== selectedNodeId) {
+        setSelectedNodeId(newSelectedId);
+      }
+    },
+    [selectedNodeId, setSelectedNodeId]
+  );
+
+  const getNodeColor = useCallback((node: Node) => {
+    return nodeColorMap[node.type || ""] || "#64748b";
+  }, []);
+
+  const proOptions = useMemo(() => ({ hideAttribution: true }), []);
 
   return (
     <ReactFlow
@@ -42,42 +86,23 @@ export function Canvas() {
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
-      onNodesDelete={(deleted) => deleteNodes(deleted.map((n) => n.id))}
-      onSelectionChange={({ nodes: selectedNodes }) => {
-        const newSelectedId = selectedNodes.length === 1 ? selectedNodes[0].id : null;
-        if (newSelectedId !== selectedNodeId) {
-          setSelectedNodeId(newSelectedId);
-        }
-      }}
+      onNodesDelete={handleNodesDelete}
+      onSelectionChange={handleSelectionChange}
       nodeTypes={nodeTypes}
       isValidConnection={isValidConnection}
       deleteKeyCode={["Backspace", "Delete"]}
       fitView
-      style={{ backgroundColor: "#16213e" }}
+      proOptions={proOptions}
+      className="bg-background"
     >
-      <Background color="#394867" gap={16} />
-      <Controls />
-      <MiniMap
-        nodeColor={(node) => {
-          switch (node.type) {
-            case "dataLoader":
-              return "#4ade80";
-            case "script":
-              return "#60a5fa";
-            case "dataSplit":
-              return "#f472b6";
-            case "trainer":
-              return "#a78bfa";
-            case "evaluator":
-              return "#fb923c";
-            case "modelExporter":
-              return "#5eead4";
-            default:
-              return "#888";
-          }
-        }}
-        style={{ backgroundColor: "#1a1a2e" }}
+      <Background
+        variant={BackgroundVariant.Dots}
+        gap={20}
+        size={1}
+        color="rgba(148, 163, 184, 0.15)"
       />
+      <Controls />
+      <MiniMap nodeColor={getNodeColor} maskColor="rgba(10, 10, 15, 0.8)" />
     </ReactFlow>
   );
 }
