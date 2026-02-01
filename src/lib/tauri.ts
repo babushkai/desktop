@@ -35,3 +35,28 @@ export async function listenToScriptOutput(
     callback(event.payload);
   });
 }
+
+// Pipeline CRUD
+
+export interface PipelineMetadata {
+  id: string;
+  name: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function savePipeline(id: string, name: string, data: string): Promise<void> {
+  return invoke("save_pipeline", { id, name, data });
+}
+
+export async function loadPipeline(id: string): Promise<string | null> {
+  return invoke<string | null>("load_pipeline", { id });
+}
+
+export async function listPipelines(): Promise<PipelineMetadata[]> {
+  return invoke<PipelineMetadata[]>("list_pipelines");
+}
+
+export async function deletePipeline(id: string): Promise<void> {
+  return invoke("delete_pipeline", { id });
+}
