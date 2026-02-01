@@ -1,7 +1,70 @@
-import { useEffect, useRef, useCallback } from "react";
-import { usePipelineStore } from "../stores/pipelineStore";
-import { RiTerminalLine, RiDeleteBinLine } from "@remixicon/react";
+import { useEffect, useRef, useCallback, useState } from "react";
+import { usePipelineStore, ExecutionStatus } from "../stores/pipelineStore";
+import {
+  RiTerminalLine,
+  RiDeleteBinLine,
+  RiLoader4Line,
+  RiCheckLine,
+  RiCloseLine,
+  RiTimeLine,
+} from "@remixicon/react";
 import { cn } from "@/lib/utils";
+
+interface StatusConfig {
+  label: string;
+  icon: React.ReactNode;
+  colorClass: string;
+  bgClass: string;
+}
+
+function getStatusConfig(status: ExecutionStatus): StatusConfig {
+  switch (status) {
+    case "idle":
+      return {
+        label: "Idle",
+        icon: <RiTimeLine className="w-3 h-3" />,
+        colorClass: "text-text-muted",
+        bgClass: "bg-white/10",
+      };
+    case "running":
+      return {
+        label: "Running",
+        icon: <RiLoader4Line className="w-3 h-3 animate-spin" />,
+        colorClass: "text-accent",
+        bgClass: "bg-accent/20",
+      };
+    case "success":
+      return {
+        label: "Success",
+        icon: <RiCheckLine className="w-3 h-3" />,
+        colorClass: "text-state-success",
+        bgClass: "bg-state-success/20",
+      };
+    case "error":
+      return {
+        label: "Failed",
+        icon: <RiCloseLine className="w-3 h-3" />,
+        colorClass: "text-state-error",
+        bgClass: "bg-state-error/20",
+      };
+  }
+}
+
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
+  const mins = Math.floor(ms / 60000);
+  const secs = ((ms % 60000) / 1000).toFixed(0);
+  return `${mins}m ${secs}s`;
+}
+
+function formatTimestamp(date: Date): string {
+  return date.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
 
 export function OutputPanel() {
   const outputLogs = usePipelineStore((s) => s.outputLogs);
@@ -9,6 +72,40 @@ export function OutputPanel() {
   const clearLogs = usePipelineStore((s) => s.clearLogs);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [startTime, setStartTime] = useState<Date | null>(null);
+  const [endTime, setEndTime] = useState<Date | null>(null);
+  const [elapsedMs, setElapsedMs] = useState<number>(0);
+
+  // Track execution timing
+  useEffect(() => {
+    if (executionStatus === "running") {
+      const now = new Date();
+      setStartTime(now);
+      setEndTime(null);
+      setElapsedMs(0);
+    } else if (
+      executionStatus === "success" ||
+      executionStatus === "error"
+    ) {
+      const now = new Date();
+      setEndTime(now);
+      if (startTime) {
+        setElapsedMs(now.getTime() - startTime.getTime());
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [executionStatus]);
+
+  // Live elapsed time while running
+  useEffect(() => {
+    if (executionStatus !== "running" || !startTime) return;
+
+    const interval = setInterval(() => {
+      setElapsedMs(Date.now() - startTime.getTime());
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [executionStatus, startTime]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -18,20 +115,50 @@ export function OutputPanel() {
 
   const handleClear = useCallback(() => {
     clearLogs();
+    setStartTime(null);
+    setEndTime(null);
+    setElapsedMs(0);
   }, [clearLogs]);
+
+  const statusConfig = getStatusConfig(executionStatus);
 
   return (
     <div className="h-52 flex flex-col bg-background border-t border-white/5">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 bg-background-surface border-b border-white/5">
-        <div className="flex items-center gap-2">
-          <RiTerminalLine className="w-4 h-4 text-text-muted" />
-          <span className="text-sm font-medium text-text-primary">Output</span>
-          {executionStatus === "running" && (
-            <span className="flex items-center gap-1.5 text-xs text-state-warning">
-              <span className="w-2 h-2 rounded-full bg-state-warning animate-pulse" />
-              Running...
-            </span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <RiTerminalLine className="w-4 h-4 text-text-muted" />
+            <span className="text-sm font-medium text-text-primary">Output</span>
+          </div>
+
+          {/* Status Badge */}
+          <div
+            className={cn(
+              "flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium",
+              statusConfig.colorClass,
+              statusConfig.bgClass
+            )}
+          >
+            {statusConfig.icon}
+            <span>{statusConfig.label}</span>
+          </div>
+
+          {/* Execution Metadata */}
+          {(startTime || elapsedMs > 0) && (
+            <div className="flex items-center gap-3 text-xs text-text-muted">
+              {elapsedMs > 0 && (
+                <span className="flex items-center gap-1">
+                  <RiTimeLine className="w-3 h-3" />
+                  {formatDuration(elapsedMs)}
+                </span>
+              )}
+              {startTime && (
+                <span>
+                  {endTime ? "Finished" : "Started"} at {formatTimestamp(endTime || startTime)}
+                </span>
+              )}
+            </div>
           )}
         </div>
         <button onClick={handleClear} className="btn-ghost text-xs h-7 px-2">
@@ -43,7 +170,7 @@ export function OutputPanel() {
       {/* Log content */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-auto p-4 font-mono text-sm leading-relaxed"
+        className="flex-1 overflow-auto p-4 font-mono text-sm leading-relaxed whitespace-pre-wrap"
       >
         {outputLogs.length === 0 ? (
           <span className="text-text-muted">
@@ -54,6 +181,7 @@ export function OutputPanel() {
             <div
               key={i}
               className={cn(
+                "whitespace-pre-wrap break-words",
                 log.startsWith("ERROR") && "text-state-error",
                 log.startsWith("---") && "text-text-muted",
                 !log.startsWith("ERROR") && !log.startsWith("---") && "text-text-primary"

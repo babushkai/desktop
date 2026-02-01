@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Handle, Position } from "@xyflow/react";
+import { RiLoader4Line, RiCheckLine, RiCloseLine, RiPlayLine, RiDeleteBinLine } from "@remixicon/react";
 import { cn } from "@/lib/utils";
 
 export type NodeVariant =
@@ -10,10 +11,13 @@ export type NodeVariant =
   | "exporter"
   | "script";
 
+export type ExecutionState = "idle" | "running" | "success" | "failed";
+
 interface BaseNodeProps {
   variant: NodeVariant;
   title: string;
   icon?: React.ComponentType<{ className?: string }>;
+  executionState?: ExecutionState;
   isRunning?: boolean;
   isSelected?: boolean;
   hasInput?: boolean;
@@ -21,6 +25,8 @@ interface BaseNodeProps {
   minWidth?: number;
   children: React.ReactNode;
   className?: string;
+  onRun?: () => void;
+  onDelete?: () => void;
 }
 
 const variantStyles: Record<NodeVariant, { bg: string; text: string; glow: string; selectedRing: string; selectedGlow: string }> = {
@@ -68,10 +74,30 @@ const variantStyles: Record<NodeVariant, { bg: string; text: string; glow: strin
   },
 };
 
+const executionStateStyles: Record<ExecutionState, { border: string; icon: React.ReactNode | null }> = {
+  idle: {
+    border: "",
+    icon: null,
+  },
+  running: {
+    border: "ring-2 ring-blue-500",
+    icon: <RiLoader4Line className="w-3.5 h-3.5 text-blue-400 animate-spin" />,
+  },
+  success: {
+    border: "ring-2 ring-green-500",
+    icon: <RiCheckLine className="w-3.5 h-3.5 text-green-400" />,
+  },
+  failed: {
+    border: "ring-2 ring-red-500",
+    icon: <RiCloseLine className="w-3.5 h-3.5 text-red-400" />,
+  },
+};
+
 export function BaseNode({
   variant,
   title,
   icon: Icon,
+  executionState = "idle",
   isRunning,
   isSelected,
   hasInput = false,
@@ -79,46 +105,113 @@ export function BaseNode({
   minWidth = 200,
   children,
   className,
+  onRun,
+  onDelete,
 }: BaseNodeProps) {
   const styles = variantStyles[variant];
+  const execStyles = executionStateStyles[executionState];
+
+  // Determine the ring style based on priority: execution state > selected > running
+  const getRingStyle = () => {
+    if (executionState !== "idle") {
+      return execStyles.border;
+    }
+    if (isSelected) {
+      return `ring-2 ${styles.selectedRing}`;
+    }
+    if (isRunning) {
+      return "ring-2 ring-state-warning/50";
+    }
+    return "";
+  };
 
   return (
-    <div
-      className={cn(
-        "node-base transition-shadow duration-200",
-        styles.bg,
-        isSelected ? styles.selectedGlow : styles.glow,
-        isSelected && `ring-2 ${styles.selectedRing}`,
-        isRunning && !isSelected && "ring-2 ring-state-warning/50",
-        className
-      )}
-      style={{ minWidth }}
-    >
-      {hasInput && (
-        <Handle
-          type="target"
-          position={Position.Left}
-          className="!w-3 !h-3 !bg-background-elevated !border-2 !border-text-muted hover:!border-accent transition-colors"
-        />
-      )}
-
-      {hasOutput && (
-        <Handle
-          type="source"
-          position={Position.Right}
-          className="!w-3 !h-3 !bg-background-elevated !border-2 !border-text-muted hover:!border-accent transition-colors"
-        />
-      )}
-
-      <div className={cn("flex items-center gap-2 mb-3 text-xs font-medium", styles.text)}>
-        {Icon && <Icon className="w-4 h-4" />}
-        <span>{title}</span>
-        {isRunning && (
-          <span className="ml-auto w-2 h-2 rounded-full bg-state-warning animate-pulse" />
+    <div className="group relative">
+      {/* Hover Control Bar */}
+      <div
+        className={cn(
+          "absolute -top-10 left-1/2 -translate-x-1/2 z-10",
+          "flex items-center gap-1 px-2 py-1.5",
+          "bg-background/80 backdrop-blur-md",
+          "rounded-lg shadow-lg border border-white/10",
+          "opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0",
+          "transition-all duration-200 ease-out"
+        )}
+      >
+        {onRun && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRun();
+            }}
+            className={cn(
+              "nodrag p-1.5 rounded-md",
+              "text-text-secondary hover:text-green-400 hover:bg-green-400/10",
+              "transition-colors duration-150"
+            )}
+            title="Run node"
+          >
+            <RiPlayLine className="w-4 h-4" />
+          </button>
+        )}
+        {onDelete && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className={cn(
+              "nodrag p-1.5 rounded-md",
+              "text-text-secondary hover:text-red-400 hover:bg-red-400/10",
+              "transition-colors duration-150"
+            )}
+            title="Delete node"
+          >
+            <RiDeleteBinLine className="w-4 h-4" />
+          </button>
         )}
       </div>
 
-      <div className="space-y-2">{children}</div>
+      {/* Node Content */}
+      <div
+        className={cn(
+          "node-base transition-shadow duration-200",
+          styles.bg,
+          isSelected ? styles.selectedGlow : styles.glow,
+          getRingStyle(),
+          className
+        )}
+        style={{ minWidth }}
+      >
+        {hasInput && (
+          <Handle
+            type="target"
+            position={Position.Left}
+            className="!w-3 !h-3 !bg-background-elevated !border-2 !border-text-muted hover:!border-accent transition-colors"
+          />
+        )}
+
+        {hasOutput && (
+          <Handle
+            type="source"
+            position={Position.Right}
+            className="!w-3 !h-3 !bg-background-elevated !border-2 !border-text-muted hover:!border-accent transition-colors"
+          />
+        )}
+
+        <div className={cn("flex items-center gap-2 mb-3 text-xs font-medium", styles.text)}>
+          {Icon && <Icon className="w-4 h-4" />}
+          <span>{title}</span>
+          {execStyles.icon && (
+            <span className="ml-auto">{execStyles.icon}</span>
+          )}
+          {executionState === "idle" && isRunning && (
+            <span className="ml-auto w-2 h-2 rounded-full bg-state-warning animate-pulse" />
+          )}
+        </div>
+
+        <div className="space-y-2">{children}</div>
+      </div>
     </div>
   );
 }

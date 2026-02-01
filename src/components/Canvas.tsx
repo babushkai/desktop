@@ -1,8 +1,7 @@
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useState } from "react";
 import {
   ReactFlow,
   Background,
-  Controls,
   MiniMap,
   Connection,
   NodeTypes,
@@ -16,6 +15,8 @@ import { DataSplitNode } from "./DataSplitNode";
 import { TrainerNode } from "./TrainerNode";
 import { EvaluatorNode } from "./EvaluatorNode";
 import { ModelExporterNode } from "./ModelExporterNode";
+import { CanvasControls, CanvasMode } from "./CanvasControls";
+import { ZoomControls } from "./ZoomControls";
 
 const nodeTypes: NodeTypes = {
   dataLoader: DataLoaderNode,
@@ -44,6 +45,8 @@ export function Canvas() {
   const deleteNodes = usePipelineStore((s) => s.deleteNodes);
   const selectedNodeId = usePipelineStore((s) => s.selectedNodeId);
   const setSelectedNodeId = usePipelineStore((s) => s.setSelectedNodeId);
+
+  const [canvasMode, setCanvasMode] = useState<CanvasMode>("pointer");
 
   const isValidConnection = useCallback(
     (connection: Connection | { source: string; target: string }) => {
@@ -91,6 +94,8 @@ export function Canvas() {
       nodeTypes={nodeTypes}
       isValidConnection={isValidConnection}
       deleteKeyCode={["Backspace", "Delete"]}
+      panOnDrag={canvasMode === "hand"}
+      selectionOnDrag={canvasMode === "pointer"}
       fitView
       proOptions={proOptions}
       className="bg-background"
@@ -101,7 +106,8 @@ export function Canvas() {
         size={1}
         color="rgba(148, 163, 184, 0.15)"
       />
-      <Controls />
+      <CanvasControls onModeChange={setCanvasMode} />
+      <ZoomControls />
       <MiniMap nodeColor={getNodeColor} maskColor="rgba(10, 10, 15, 0.8)" />
     </ReactFlow>
   );
