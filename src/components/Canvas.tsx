@@ -4,12 +4,13 @@ import {
   Controls,
   MiniMap,
   Connection,
+  NodeTypes,
 } from "@xyflow/react";
 import { usePipelineStore } from "../stores/pipelineStore";
 import { DataLoaderNode } from "./DataLoaderNode";
 import { ScriptNode } from "./ScriptNode";
 
-const nodeTypes = {
+const nodeTypes: NodeTypes = {
   dataLoader: DataLoaderNode,
   script: ScriptNode,
 };
@@ -18,7 +19,7 @@ export function Canvas() {
   const { nodes, edges, onNodesChange, onEdgesChange, onConnect } =
     usePipelineStore();
 
-  const isValidConnection = (connection: Connection) => {
+  const isValidConnection = (connection: Connection | { source: string; target: string }) => {
     const sourceNode = nodes.find((n) => n.id === connection.source);
     const targetNode = nodes.find((n) => n.id === connection.target);
     return sourceNode?.type === "dataLoader" && targetNode?.type === "script";

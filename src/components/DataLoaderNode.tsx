@@ -2,7 +2,8 @@ import { Handle, Position, NodeProps } from "@xyflow/react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { usePipelineStore, NodeData } from "../stores/pipelineStore";
 
-export function DataLoaderNode({ id, data }: NodeProps<NodeData>) {
+export function DataLoaderNode({ id, data }: NodeProps) {
+  const nodeData = data as NodeData;
   const updateNodeData = usePipelineStore((state) => state.updateNodeData);
 
   const handleSelectFile = async () => {
@@ -21,7 +22,7 @@ export function DataLoaderNode({ id, data }: NodeProps<NodeData>) {
     }
   };
 
-  const fileName = data.filePath?.split("/").pop();
+  const fileName = nodeData.filePath?.split("/").pop();
 
   return (
     <div
@@ -61,7 +62,7 @@ export function DataLoaderNode({ id, data }: NodeProps<NodeData>) {
         {fileName || "Select file..."}
       </button>
 
-      {data.filePath && (
+      {nodeData.filePath && (
         <div
           style={{
             marginTop: 8,
@@ -70,7 +71,7 @@ export function DataLoaderNode({ id, data }: NodeProps<NodeData>) {
             wordBreak: "break-all",
           }}
         >
-          {data.filePath}
+          {nodeData.filePath}
         </div>
       )}
 
