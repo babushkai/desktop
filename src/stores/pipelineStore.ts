@@ -35,6 +35,10 @@ interface PipelineState {
   currentPipelineName: string | null;
   isDirty: boolean;
 
+  // Selection
+  selectedNodeId: string | null;
+  setSelectedNodeId: (id: string | null) => void;
+
   // Node operations
   addNode: (type: "dataLoader" | "script", position: { x: number; y: number }) => void;
   deleteNodes: (nodeIds: string[]) => void;
@@ -72,6 +76,9 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   currentPipelineId: null,
   currentPipelineName: null,
   isDirty: false,
+  selectedNodeId: null,
+
+  setSelectedNodeId: (id) => set({ selectedNodeId: id }),
 
   addNode: (type, position) => {
     const id = `${type}-${++nodeIdCounter}`;
