@@ -25,7 +25,10 @@
       "Bash(lsof:*)",
       "Bash(xargs kill:*)",
       "Bash(timeout 5 npm run dev:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(gh pr create:*)",
+      "Bash(git pull:*)"
     ]
   }
 }

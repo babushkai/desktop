@@ -108,7 +108,7 @@ describe("pipelineStore", () => {
       const { validatePipeline } = usePipelineStore.getState();
       const errors = validatePipeline();
 
-      expect(errors).toContain("Add a Script or Trainer node");
+      expect(errors).toContain("Add a Script, Trainer, or Evaluator node");
     });
 
     it("returns error when script has no connection", () => {
