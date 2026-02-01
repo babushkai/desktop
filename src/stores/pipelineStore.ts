@@ -18,7 +18,17 @@ export type NodeData = {
   label: string;
   filePath?: string;
   code?: string;
+  // Trainer fields
+  modelType?: string;
+  targetColumn?: string;
+  testSplit?: number;
 };
+
+// Single source of truth for valid connections
+export const VALID_CONNECTIONS: [string, string][] = [
+  ["dataLoader", "script"],
+  ["dataLoader", "trainer"],
+];
 
 export type ExecutionStatus = "idle" | "running" | "success" | "error";
 
@@ -40,7 +50,7 @@ interface PipelineState {
   setSelectedNodeId: (id: string | null) => void;
 
   // Node operations
-  addNode: (type: "dataLoader" | "script", position: { x: number; y: number }) => void;
+  addNode: (type: "dataLoader" | "script" | "trainer", position: { x: number; y: number }) => void;
   deleteNodes: (nodeIds: string[]) => void;
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
@@ -82,15 +92,24 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
 
   addNode: (type, position) => {
     const id = `${type}-${++nodeIdCounter}`;
+    const nodeDefaults: Record<string, Partial<NodeData>> = {
+      dataLoader: { label: "Data Loader" },
+      script: {
+        label: "Script",
+        code: "# Write your Python code here\nimport sys\n\ndata_path = sys.argv[1]\nprint(f'Input file: {data_path}')\n",
+      },
+      trainer: {
+        label: "Trainer",
+        modelType: "linear_regression",
+        targetColumn: "",
+        testSplit: 0.2,
+      },
+    };
     const newNode: Node<NodeData> = {
       id,
       type,
       position,
-      data: {
-        label: type === "dataLoader" ? "Data Loader" : "Script",
-        filePath: type === "dataLoader" ? undefined : undefined,
-        code: type === "script" ? "# Write your Python code here\nimport sys\n\ndata_path = sys.argv[1]\nprint(f'Input file: {data_path}')\n" : undefined,
-      },
+      data: nodeDefaults[type] as NodeData,
       style: type === "script" ? { width: 320, height: 280 } : undefined,
     };
     set((state) => ({ nodes: [...state.nodes, newNode], isDirty: true }));
@@ -119,12 +138,15 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   },
 
   onConnect: (connection) => {
-    // Validate: only allow DataLoader -> Script connections
     const { nodes } = get();
     const sourceNode = nodes.find((n) => n.id === connection.source);
     const targetNode = nodes.find((n) => n.id === connection.target);
 
-    if (sourceNode?.type === "dataLoader" && targetNode?.type === "script") {
+    const isValid = VALID_CONNECTIONS.some(
+      ([src, tgt]) => sourceNode?.type === src && targetNode?.type === tgt
+    );
+
+    if (isValid) {
       set((state) => ({
         edges: addEdge(connection, state.edges),
         isDirty: true,
@@ -147,22 +169,30 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
     const errors: string[] = [];
     const { nodes, edges } = get();
 
-    // Must have at least one script
-    if (!nodes.some((n) => n.type === "script")) {
-      errors.push("Add a Script node");
+    // Must have at least one executable node (script or trainer)
+    const executableNodes = nodes.filter((n) => n.type === "script" || n.type === "trainer");
+    if (executableNodes.length === 0) {
+      errors.push("Add a Script or Trainer node");
     }
 
-    // Script must have input connection
-    const scriptNodes = nodes.filter((n) => n.type === "script");
-    for (const script of scriptNodes) {
-      if (!edges.some((e) => e.target === script.id)) {
-        errors.push("Connect a Data Loader to the Script");
+    // Executable nodes must have input connection
+    for (const node of executableNodes) {
+      if (!edges.some((e) => e.target === node.id)) {
+        errors.push(`Connect a Data Loader to the ${node.data.label || node.type}`);
       }
     }
 
-    // DataLoader connected to script must have file selected
+    // Trainer nodes must have target column specified
+    const trainerNodes = nodes.filter((n) => n.type === "trainer");
+    for (const trainer of trainerNodes) {
+      if (!trainer.data.targetColumn) {
+        errors.push("Specify a target column in the Trainer");
+      }
+    }
+
+    // DataLoader connected to executable nodes must have file selected
     const connectedLoaders = edges
-      .filter((e) => scriptNodes.some((s) => s.id === e.target))
+      .filter((e) => executableNodes.some((n) => n.id === e.target))
       .map((e) => nodes.find((n) => n.id === e.source))
       .filter(Boolean);
 

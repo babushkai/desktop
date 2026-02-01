@@ -6,13 +6,15 @@ import {
   Connection,
   NodeTypes,
 } from "@xyflow/react";
-import { usePipelineStore } from "../stores/pipelineStore";
+import { usePipelineStore, VALID_CONNECTIONS } from "../stores/pipelineStore";
 import { DataLoaderNode } from "./DataLoaderNode";
 import { ScriptNode } from "./ScriptNode";
+import { TrainerNode } from "./TrainerNode";
 
 const nodeTypes: NodeTypes = {
   dataLoader: DataLoaderNode,
   script: ScriptNode,
+  trainer: TrainerNode,
 };
 
 export function Canvas() {
@@ -22,7 +24,9 @@ export function Canvas() {
   const isValidConnection = (connection: Connection | { source: string; target: string }) => {
     const sourceNode = nodes.find((n) => n.id === connection.source);
     const targetNode = nodes.find((n) => n.id === connection.target);
-    return sourceNode?.type === "dataLoader" && targetNode?.type === "script";
+    return VALID_CONNECTIONS.some(
+      ([src, tgt]) => sourceNode?.type === src && targetNode?.type === tgt
+    );
   };
 
   return (
@@ -54,6 +58,8 @@ export function Canvas() {
               return "#4ade80";
             case "script":
               return "#60a5fa";
+            case "trainer":
+              return "#a78bfa";
             default:
               return "#888";
           }
