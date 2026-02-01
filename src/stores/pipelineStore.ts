@@ -84,6 +84,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         filePath: type === "dataLoader" ? undefined : undefined,
         code: type === "script" ? "# Write your Python code here\nimport sys\n\ndata_path = sys.argv[1]\nprint(f'Input file: {data_path}')\n" : undefined,
       },
+      style: type === "script" ? { width: 320, height: 280 } : undefined,
     };
     set((state) => ({ nodes: [...state.nodes, newNode], isDirty: true }));
   },

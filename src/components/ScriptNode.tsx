@@ -1,8 +1,8 @@
-import { Handle, Position, NodeProps } from "@xyflow/react";
+import { Handle, Position, NodeProps, NodeResizer } from "@xyflow/react";
 import Editor from "@monaco-editor/react";
 import { usePipelineStore, NodeData } from "../stores/pipelineStore";
 
-export function ScriptNode({ id, data }: NodeProps) {
+export function ScriptNode({ id, data, selected }: NodeProps) {
   const nodeData = data as NodeData;
   const updateNodeData = usePipelineStore((state) => state.updateNodeData);
   const executionStatus = usePipelineStore((state) => state.executionStatus);
@@ -21,16 +21,27 @@ export function ScriptNode({ id, data }: NodeProps) {
       : "#60a5fa";
 
   return (
-    <div
-      style={{
-        backgroundColor: "#1e3a5f",
-        border: `2px solid ${borderColor}`,
-        borderRadius: 8,
-        padding: 12,
-        minWidth: 300,
-      }}
-    >
-      <Handle
+    <>
+      <NodeResizer
+        minWidth={300}
+        minHeight={200}
+        isVisible={selected}
+      />
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          flexDirection: "column",
+          backgroundColor: "#1e3a5f",
+          border: `2px solid ${borderColor}`,
+          borderRadius: 8,
+          padding: 12,
+          boxSizing: "border-box",
+          overflow: "hidden",
+        }}
+      >
+        <Handle
         type="target"
         position={Position.Left}
         style={{
@@ -67,9 +78,9 @@ export function ScriptNode({ id, data }: NodeProps) {
         )}
       </div>
 
-      <div className="nodrag" style={{ border: "1px solid #394867", borderRadius: 4 }}>
+      <div className="nodrag" style={{ flex: 1, border: "1px solid #394867", borderRadius: 4, minHeight: 100 }}>
         <Editor
-          height="150px"
+          height="100%"
           language="python"
           theme="vs-dark"
           value={nodeData.code || ""}
@@ -95,14 +106,15 @@ export function ScriptNode({ id, data }: NodeProps) {
         Input: sys.argv[1] = data file path
       </div>
 
-      <style>
-        {`
-          @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-          }
-        `}
-      </style>
-    </div>
+        <style>
+          {`
+            @keyframes pulse {
+              0%, 100% { opacity: 1; }
+              50% { opacity: 0.5; }
+            }
+          `}
+        </style>
+      </div>
+    </>
   );
 }

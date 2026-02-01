@@ -19,7 +19,9 @@
       "Bash(npm run test:run:*)",
       "Bash(cargo test:*)",
       "Bash(git fetch:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "Bash(find:*)",
+      "Bash(git checkout:*)"
     ]
   }
 }
