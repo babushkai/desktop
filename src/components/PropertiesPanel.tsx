@@ -1,59 +1,66 @@
-import Editor from "@monaco-editor/react";
+import { lazy, Suspense, useCallback } from "react";
 import { usePipelineStore, NodeData } from "../stores/pipelineStore";
+import { RiCodeLine } from "@remixicon/react";
+
+const Editor = lazy(() => import("@monaco-editor/react"));
+
+function EditorSkeleton() {
+  return (
+    <div className="flex-1 flex items-center justify-center bg-background">
+      <div className="flex items-center gap-2 text-text-muted">
+        <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+        <span className="text-sm">Loading editor...</span>
+      </div>
+    </div>
+  );
+}
 
 export function PropertiesPanel() {
-  const { nodes, selectedNodeId, updateNodeData } = usePipelineStore();
+  const nodes = usePipelineStore((s) => s.nodes);
+  const selectedNodeId = usePipelineStore((s) => s.selectedNodeId);
+  const updateNodeData = usePipelineStore((s) => s.updateNodeData);
+
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
   const nodeData = selectedNode?.data as NodeData | undefined;
 
-  // Only show panel for Script nodes
+  const handleCodeChange = useCallback(
+    (value: string | undefined) => {
+      if (selectedNodeId) {
+        updateNodeData(selectedNodeId, { code: value || "" });
+      }
+    },
+    [selectedNodeId, updateNodeData]
+  );
+
   if (!selectedNode || selectedNode.type !== "script") {
     return null;
   }
 
   return (
-    <div
-      style={{
-        width: 400,
-        backgroundColor: "#0f3460",
-        borderLeft: "1px solid #394867",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <div
-        style={{
-          padding: "12px 16px",
-          borderBottom: "1px solid #394867",
-          fontSize: 14,
-          fontWeight: 500,
-          color: "#60a5fa",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        📜 Script Editor
+    <div className="w-96 flex flex-col bg-background-surface border-l border-white/5 animate-slide-in-right">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-white/5">
+        <RiCodeLine className="w-4 h-4 text-node-script" />
+        <span className="text-sm font-medium text-node-script">Script Editor</span>
       </div>
-      <div style={{ flex: 1, minHeight: 0 }}>
-        <Editor
-          height="100%"
-          language="python"
-          theme="vs-dark"
-          value={nodeData?.code || ""}
-          onChange={(value) =>
-            selectedNodeId && updateNodeData(selectedNodeId, { code: value || "" })
-          }
-          options={{
-            minimap: { enabled: false },
-            fontSize: 13,
-            lineNumbers: "on",
-            scrollBeyondLastLine: false,
-            automaticLayout: true,
-            padding: { top: 8, bottom: 8 },
-            wordWrap: "on",
-          }}
-        />
+      <div className="flex-1 min-h-0">
+        <Suspense fallback={<EditorSkeleton />}>
+          <Editor
+            height="100%"
+            language="python"
+            theme="vs-dark"
+            value={nodeData?.code || ""}
+            onChange={handleCodeChange}
+            options={{
+              minimap: { enabled: false },
+              fontSize: 13,
+              lineNumbers: "on",
+              scrollBeyondLastLine: false,
+              automaticLayout: true,
+              padding: { top: 8, bottom: 8 },
+              wordWrap: "on",
+            }}
+          />
+        </Suspense>
       </div>
     </div>
   );

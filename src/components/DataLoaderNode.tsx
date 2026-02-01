@@ -1,13 +1,16 @@
-import { Handle, Position, NodeProps } from "@xyflow/react";
+import { useCallback } from "react";
+import { NodeProps } from "@xyflow/react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { usePipelineStore, NodeData } from "../stores/pipelineStore";
+import { BaseNode, NodeButton, NodeText } from "./BaseNode";
+import { RiDatabase2Line, RiFileLine } from "@remixicon/react";
 
-export function DataLoaderNode({ id, data }: NodeProps) {
+export function DataLoaderNode({ id, data, selected: isSelected }: NodeProps) {
   const nodeData = data as NodeData;
   const updateNodeData = usePipelineStore((state) => state.updateNodeData);
 
-  const handleSelectFile = async () => {
-    const selected = await open({
+  const handleSelectFile = useCallback(async () => {
+    const selectedFile = await open({
       multiple: false,
       filters: [
         {
@@ -17,74 +20,28 @@ export function DataLoaderNode({ id, data }: NodeProps) {
       ],
     });
 
-    if (selected && typeof selected === "string") {
-      updateNodeData(id, { filePath: selected });
+    if (selectedFile && typeof selectedFile === "string") {
+      updateNodeData(id, { filePath: selectedFile });
     }
-  };
+  }, [id, updateNodeData]);
 
   const fileName = nodeData.filePath?.split("/").pop();
 
   return (
-    <div
-      style={{
-        backgroundColor: "#065f46",
-        border: "2px solid #4ade80",
-        borderRadius: 8,
-        padding: 12,
-        minWidth: 180,
-      }}
+    <BaseNode
+      variant="dataloader"
+      title="Data Loader"
+      icon={RiDatabase2Line}
+      isSelected={isSelected}
+      hasOutput
+      minWidth={180}
     >
-      <div
-        style={{
-          fontSize: 12,
-          color: "#4ade80",
-          marginBottom: 8,
-          fontWeight: 500,
-        }}
-      >
-        📁 Data Loader
-      </div>
-
-      <button
-        onClick={handleSelectFile}
-        style={{
-          width: "100%",
-          padding: "8px 12px",
-          backgroundColor: "#1a1a2e",
-          color: "#eee",
-          border: "1px solid #4ade80",
-          borderRadius: 4,
-          cursor: "pointer",
-          fontSize: 12,
-          textAlign: "left",
-        }}
-      >
+      <NodeButton onClick={handleSelectFile} className="flex items-center gap-2">
+        <RiFileLine className="w-3.5 h-3.5" />
         {fileName || "Select file..."}
-      </button>
+      </NodeButton>
 
-      {nodeData.filePath && (
-        <div
-          style={{
-            marginTop: 8,
-            fontSize: 10,
-            color: "#9ca3af",
-            wordBreak: "break-all",
-          }}
-        >
-          {nodeData.filePath}
-        </div>
-      )}
-
-      <Handle
-        type="source"
-        position={Position.Right}
-        style={{
-          width: 12,
-          height: 12,
-          backgroundColor: "#4ade80",
-          border: "2px solid #065f46",
-        }}
-      />
-    </div>
+      {nodeData.filePath && <NodeText className="break-all">{nodeData.filePath}</NodeText>}
+    </BaseNode>
   );
 }
