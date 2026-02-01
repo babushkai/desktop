@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Play, Square, ChevronDown, Trash2, FileIcon, FolderOpen, Save, Plus } from "lucide-react";
 import { usePipelineStore } from "../stores/pipelineStore";
 import {
   findPython,
@@ -14,6 +15,22 @@ import { generateTrainerCode, generateTrainerCodeWithSplit } from "../lib/traine
 import { generateEvaluatorCode, generateEvaluatorCodeWithSplit } from "../lib/evaluatorCodeGen";
 import { generateExporterCode } from "../lib/exporterCodeGen";
 import { generateDataSplitCode } from "../lib/dataSplitCodeGen";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { cn } from "@/lib/utils";
 
 export function Toolbar() {
   const {
@@ -35,7 +52,6 @@ export function Toolbar() {
 
   const [isEditingPath, setIsEditingPath] = useState(false);
   const [pathInput, setPathInput] = useState("");
-  const [showPipelineMenu, setShowPipelineMenu] = useState(false);
   const [pipelines, setPipelines] = useState<PipelineMetadata[]>([]);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveNameInput, setSaveNameInput] = useState("");
@@ -250,7 +266,6 @@ export function Toolbar() {
   const handleLoadMenu = async () => {
     const list = await listPipelines();
     setPipelines(list);
-    setShowPipelineMenu(true);
   };
 
   const handleLoadPipeline = async (id: string) => {
@@ -259,7 +274,6 @@ export function Toolbar() {
       if (!confirmed) return;
     }
     await loadPipeline(id);
-    setShowPipelineMenu(false);
   };
 
   const handleDeletePipeline = async (id: string, e: React.MouseEvent) => {
@@ -287,347 +301,155 @@ export function Toolbar() {
   const isRunnable = hasExecutableNode && hasDataLoaderWithFile;
 
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 16,
-        padding: "12px 16px",
-        backgroundColor: "#0f3460",
-        borderBottom: "1px solid #394867",
-      }}
-    >
-      <h1 style={{ fontSize: 18, fontWeight: 600 }}>
+    <div className="flex items-center gap-4 px-4 py-3 bg-slate-800 border-b border-slate-700">
+      {/* Title and pipeline name */}
+      <h1 className="text-lg font-semibold">
         MLOps Desktop
         {currentPipelineName && (
-          <span style={{ fontWeight: 400, color: "#9ca3af", marginLeft: 8 }}>
+          <span className="font-normal text-slate-400 ml-2">
             — {currentPipelineName}{isDirty ? " *" : ""}
           </span>
         )}
         {!currentPipelineName && isDirty && (
-          <span style={{ fontWeight: 400, color: "#9ca3af", marginLeft: 8 }}>
+          <span className="font-normal text-slate-400 ml-2">
             — Untitled *
           </span>
         )}
       </h1>
 
       {/* Pipeline buttons */}
-      <div style={{ display: "flex", gap: 8 }}>
-        <button
-          onClick={handleNew}
-          style={{
-            padding: "6px 12px",
-            backgroundColor: "#394867",
-            color: "#eee",
-            border: "none",
-            borderRadius: 4,
-            cursor: "pointer",
-            fontSize: 12,
-          }}
-        >
+      <div className="flex gap-2">
+        <Button variant="secondary" size="sm" onClick={handleNew}>
+          <Plus className="h-4 w-4 mr-1" />
           New
-        </button>
-        <button
-          onClick={handleSave}
-          style={{
-            padding: "6px 12px",
-            backgroundColor: "#394867",
-            color: "#eee",
-            border: "none",
-            borderRadius: 4,
-            cursor: "pointer",
-            fontSize: 12,
-          }}
-        >
+        </Button>
+        <Button variant="secondary" size="sm" onClick={handleSave}>
+          <Save className="h-4 w-4 mr-1" />
           Save
-        </button>
-        <div style={{ position: "relative" }}>
-          <button
-            onClick={handleLoadMenu}
-            style={{
-              padding: "6px 12px",
-              backgroundColor: "#394867",
-              color: "#eee",
-              border: "none",
-              borderRadius: 4,
-              cursor: "pointer",
-              fontSize: 12,
-            }}
-          >
-            Load
-          </button>
-          {showPipelineMenu && (
-            <div
-              style={{
-                position: "absolute",
-                top: "100%",
-                left: 0,
-                marginTop: 4,
-                backgroundColor: "#1a1a2e",
-                border: "1px solid #394867",
-                borderRadius: 4,
-                minWidth: 200,
-                maxHeight: 300,
-                overflow: "auto",
-                zIndex: 100,
-              }}
-            >
-              {pipelines.length === 0 ? (
-                <div style={{ padding: 12, color: "#9ca3af", fontSize: 12 }}>
-                  No saved pipelines
-                </div>
-              ) : (
-                pipelines.map((p) => (
-                  <div
-                    key={p.id}
-                    onClick={() => handleLoadPipeline(p.id)}
-                    style={{
-                      padding: "8px 12px",
-                      cursor: "pointer",
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      borderBottom: "1px solid #394867",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#394867")}
-                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+        </Button>
+        <DropdownMenu onOpenChange={(open) => open && handleLoadMenu()}>
+          <DropdownMenuTrigger asChild>
+            <Button variant="secondary" size="sm">
+              <FolderOpen className="h-4 w-4 mr-1" />
+              Load
+              <ChevronDown className="h-3 w-3 ml-1" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="min-w-[200px]">
+            {pipelines.length === 0 ? (
+              <div className="px-3 py-2 text-sm text-slate-400">No saved pipelines</div>
+            ) : (
+              pipelines.map((p) => (
+                <DropdownMenuItem
+                  key={p.id}
+                  className="flex items-center justify-between"
+                  onClick={() => handleLoadPipeline(p.id)}
+                >
+                  <span className="flex items-center gap-2">
+                    <FileIcon className="h-4 w-4" />
+                    {p.name}
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0 text-red-400 hover:text-red-300 hover:bg-red-900/30"
+                    onClick={(e) => handleDeletePipeline(p.id, e)}
                   >
-                    <span style={{ fontSize: 12 }}>{p.name}</span>
-                    <button
-                      onClick={(e) => handleDeletePipeline(p.id, e)}
-                      style={{
-                        padding: "2px 6px",
-                        backgroundColor: "#ef4444",
-                        color: "#fff",
-                        border: "none",
-                        borderRadius: 2,
-                        cursor: "pointer",
-                        fontSize: 10,
-                      }}
-                    >
-                      Del
-                    </button>
-                  </div>
-                ))
-              )}
-              <div
-                onClick={() => setShowPipelineMenu(false)}
-                style={{
-                  padding: "8px 12px",
-                  cursor: "pointer",
-                  color: "#9ca3af",
-                  fontSize: 11,
-                  textAlign: "center",
-                }}
-              >
-                Close
-              </div>
-            </div>
-          )}
-        </div>
-        {/* Save Dialog */}
-        {showSaveDialog && (
-          <div
-            style={{
-              position: "fixed",
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              backgroundColor: "rgba(0,0,0,0.5)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              zIndex: 200,
-            }}
-            onClick={() => setShowSaveDialog(false)}
-          >
-            <div
-              style={{
-                backgroundColor: "#1a1a2e",
-                padding: 20,
-                borderRadius: 8,
-                border: "1px solid #394867",
-                minWidth: 300,
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div style={{ marginBottom: 12, fontWeight: 500 }}>Save Pipeline</div>
-              <input
-                type="text"
-                value={saveNameInput}
-                onChange={(e) => setSaveNameInput(e.target.value)}
-                placeholder="Enter pipeline name..."
-                autoFocus
-                onKeyDown={(e) => e.key === "Enter" && handleSaveConfirm()}
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  backgroundColor: "#0f0f23",
-                  border: "1px solid #394867",
-                  borderRadius: 4,
-                  color: "#eee",
-                  fontSize: 14,
-                  marginBottom: 12,
-                }}
-              />
-              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                <button
-                  onClick={() => setShowSaveDialog(false)}
-                  style={{
-                    padding: "6px 12px",
-                    backgroundColor: "#394867",
-                    color: "#eee",
-                    border: "none",
-                    borderRadius: 4,
-                    cursor: "pointer",
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSaveConfirm}
-                  style={{
-                    padding: "6px 12px",
-                    backgroundColor: "#4ade80",
-                    color: "#1a1a2e",
-                    border: "none",
-                    borderRadius: 4,
-                    cursor: "pointer",
-                  }}
-                >
-                  Save
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuItem>
+              ))
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
-      <div style={{ flex: 1 }} />
+      {/* Save Dialog */}
+      <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Save Pipeline</DialogTitle>
+          </DialogHeader>
+          <Input
+            value={saveNameInput}
+            onChange={(e) => setSaveNameInput(e.target.value)}
+            placeholder="Enter pipeline name..."
+            autoFocus
+            onKeyDown={(e) => e.key === "Enter" && handleSaveConfirm()}
+          />
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setShowSaveDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveConfirm}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <div className="flex-1" />
 
       {/* Python path display/edit */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontSize: 12, color: "#9ca3af" }}>Python:</span>
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-slate-400">Python:</span>
         {isEditingPath ? (
           <>
-            <input
+            <Input
               type="text"
               value={pathInput}
               onChange={(e) => setPathInput(e.target.value)}
-              style={{
-                padding: "4px 8px",
-                backgroundColor: "#1a1a2e",
-                border: "1px solid #394867",
-                borderRadius: 4,
-                color: "#eee",
-                fontSize: 12,
-                width: 300,
-              }}
+              className="h-7 w-[300px] text-xs"
             />
-            <button
-              onClick={handleSavePythonPath}
-              style={{
-                padding: "4px 8px",
-                backgroundColor: "#4ade80",
-                color: "#1a1a2e",
-                border: "none",
-                borderRadius: 4,
-                cursor: "pointer",
-                fontSize: 12,
-              }}
-            >
+            <Button size="sm" onClick={handleSavePythonPath}>
               Save
-            </button>
-            <button
-              onClick={() => setIsEditingPath(false)}
-              style={{
-                padding: "4px 8px",
-                backgroundColor: "#6b7280",
-                color: "#eee",
-                border: "none",
-                borderRadius: 4,
-                cursor: "pointer",
-                fontSize: 12,
-              }}
-            >
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setIsEditingPath(false)}>
               Cancel
-            </button>
+            </Button>
           </>
         ) : (
           <>
-            <span style={{ fontSize: 12, color: "#eee", fontFamily: "monospace" }}>
+            <span className="text-xs font-mono text-slate-200">
               {pythonPath || "Not found"}
             </span>
-            <button
-              onClick={() => setIsEditingPath(true)}
-              style={{
-                padding: "4px 8px",
-                backgroundColor: "#394867",
-                color: "#eee",
-                border: "none",
-                borderRadius: 4,
-                cursor: "pointer",
-                fontSize: 12,
-              }}
-            >
+            <Button variant="secondary" size="sm" onClick={() => setIsEditingPath(true)}>
               Change
-            </button>
+            </Button>
           </>
         )}
       </div>
 
-      <div style={{ width: 1, height: 24, backgroundColor: "#394867" }} />
+      <div className="w-px h-6 bg-slate-600" />
 
       {/* Run/Cancel buttons */}
       {executionStatus === "running" ? (
-        <button
-          onClick={handleCancel}
-          style={{
-            padding: "8px 16px",
-            backgroundColor: "#ef4444",
-            color: "#fff",
-            border: "none",
-            borderRadius: 6,
-            cursor: "pointer",
-            fontWeight: 500,
-          }}
-        >
+        <Button variant="destructive" onClick={handleCancel}>
+          <Square className="h-4 w-4 mr-2" />
           Cancel
-        </button>
+        </Button>
       ) : (
-        <button
+        <Button
           onClick={handleRun}
           disabled={!isRunnable}
-          style={{
-            padding: "8px 16px",
-            backgroundColor: isRunnable ? "#4ade80" : "#394867",
-            color: isRunnable ? "#1a1a2e" : "#6b7280",
-            border: "none",
-            borderRadius: 6,
-            cursor: isRunnable ? "pointer" : "not-allowed",
-            fontWeight: 500,
-          }}
+          className={cn(
+            isRunnable
+              ? "bg-green-600 hover:bg-green-500 text-white"
+              : "bg-slate-700 text-slate-500"
+          )}
         >
+          <Play className="h-4 w-4 mr-2" />
           Run
-        </button>
+        </Button>
       )}
 
       {/* Status indicator */}
       <div
-        style={{
-          width: 12,
-          height: 12,
-          borderRadius: "50%",
-          backgroundColor:
-            executionStatus === "running"
-              ? "#fbbf24"
-              : executionStatus === "success"
-              ? "#4ade80"
-              : executionStatus === "error"
-              ? "#ef4444"
-              : "#6b7280",
-        }}
+        className={cn(
+          "w-3 h-3 rounded-full",
+          executionStatus === "running" && "bg-yellow-500",
+          executionStatus === "success" && "bg-green-500",
+          executionStatus === "error" && "bg-red-500",
+          executionStatus === "idle" && "bg-slate-500"
+        )}
       />
     </div>
   );

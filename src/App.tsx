@@ -9,33 +9,15 @@ import { Toolbar } from "./components/Toolbar";
 function App() {
   return (
     <ReactFlowProvider>
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          height: "100vh",
-          backgroundColor: "#1a1a2e",
-          color: "#eee",
-        }}
-      >
-        {/* Toolbar */}
+      <div className="flex flex-col h-screen bg-slate-900 text-slate-100">
         <Toolbar />
-
-        {/* Main content area */}
-        <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-          {/* Sidebar with node palette */}
+        <div className="flex flex-1 overflow-hidden">
           <NodePalette />
-
-          {/* Canvas area */}
-          <div style={{ flex: 1, position: "relative" }}>
+          <div className="flex-1 relative">
             <Canvas />
           </div>
-
-          {/* Properties panel */}
           <PropertiesPanel />
         </div>
-
-        {/* Output panel */}
         <OutputPanel />
       </div>
     </ReactFlowProvider>

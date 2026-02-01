@@ -1,4 +1,5 @@
 import Editor from "@monaco-editor/react";
+import { FileCode2 } from "lucide-react";
 import { usePipelineStore, NodeData } from "../stores/pipelineStore";
 
 export function PropertiesPanel() {
@@ -12,30 +13,12 @@ export function PropertiesPanel() {
   }
 
   return (
-    <div
-      style={{
-        width: 400,
-        backgroundColor: "#0f3460",
-        borderLeft: "1px solid #394867",
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      <div
-        style={{
-          padding: "12px 16px",
-          borderBottom: "1px solid #394867",
-          fontSize: 14,
-          fontWeight: 500,
-          color: "#60a5fa",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        📜 Script Editor
+    <div className="w-[400px] bg-slate-800 border-l border-slate-700 flex flex-col">
+      <div className="px-4 py-3 border-b border-slate-700 flex items-center gap-2">
+        <FileCode2 className="h-4 w-4 text-blue-400" />
+        <span className="text-sm font-medium text-blue-400">Script Editor</span>
       </div>
-      <div style={{ flex: 1, minHeight: 0 }}>
+      <div className="flex-1 min-h-0">
         <Editor
           height="100%"
           language="python"

@@ -13,6 +13,7 @@ import { DataSplitNode } from "./DataSplitNode";
 import { TrainerNode } from "./TrainerNode";
 import { EvaluatorNode } from "./EvaluatorNode";
 import { ModelExporterNode } from "./ModelExporterNode";
+import { nodeConfig } from "@/lib/theme";
 
 const nodeTypes: NodeTypes = {
   dataLoader: DataLoaderNode,
@@ -53,30 +54,17 @@ export function Canvas() {
       isValidConnection={isValidConnection}
       deleteKeyCode={["Backspace", "Delete"]}
       fitView
-      style={{ backgroundColor: "#16213e" }}
+      className="bg-slate-900"
     >
-      <Background color="#394867" gap={16} />
-      <Controls />
+      <Background color="#334155" gap={16} />
+      <Controls className="[&>button]:bg-slate-800 [&>button]:border-slate-600 [&>button]:text-slate-300 [&>button:hover]:bg-slate-700" />
       <MiniMap
         nodeColor={(node) => {
-          switch (node.type) {
-            case "dataLoader":
-              return "#4ade80";
-            case "script":
-              return "#60a5fa";
-            case "dataSplit":
-              return "#f472b6";
-            case "trainer":
-              return "#a78bfa";
-            case "evaluator":
-              return "#fb923c";
-            case "modelExporter":
-              return "#5eead4";
-            default:
-              return "#888";
-          }
+          const config = nodeConfig[node.type as keyof typeof nodeConfig];
+          return config?.handleColor || "#64748b";
         }}
-        style={{ backgroundColor: "#1a1a2e" }}
+        maskColor="rgba(15, 23, 42, 0.7)"
+        className="bg-slate-800 border border-slate-700 rounded"
       />
     </ReactFlow>
   );

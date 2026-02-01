@@ -1,4 +1,31 @@
+import { FolderOpen, FileCode2, Scissors, Brain, BarChart3, Package } from "lucide-react";
 import { usePipelineStore } from "../stores/pipelineStore";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+interface NodeButtonProps {
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  colorClass: string;
+}
+
+function NodeButton({ onClick, icon, label, colorClass }: NodeButtonProps) {
+  return (
+    <Button
+      variant="ghost"
+      onClick={onClick}
+      className={cn(
+        "w-full justify-start gap-2 mb-2 h-10",
+        "bg-slate-800/50 hover:bg-slate-700 border border-slate-700",
+        "transition-all duration-150"
+      )}
+    >
+      <span className={cn("p-1 rounded", colorClass)}>{icon}</span>
+      {label}
+    </Button>
+  );
+}
 
 export function NodePalette() {
   const addNode = usePipelineStore((state) => state.addNode);
@@ -28,157 +55,58 @@ export function NodePalette() {
   };
 
   return (
-    <div
-      style={{
-        width: 200,
-        backgroundColor: "#0f3460",
-        padding: 16,
-        borderRight: "1px solid #394867",
-      }}
-    >
-      <h3 style={{ marginBottom: 16, fontSize: 14, color: "#9ca3af" }}>
-        Nodes
-      </h3>
+    <div className="w-[200px] bg-slate-800 p-4 border-r border-slate-700">
+      <h3 className="mb-4 text-sm font-medium text-slate-400">Nodes</h3>
 
-      <button
+      <NodeButton
         onClick={handleAddDataLoader}
-        style={{
-          width: "100%",
-          padding: "12px 16px",
-          marginBottom: 8,
-          backgroundColor: "#4ade80",
-          color: "#1a1a2e",
-          border: "none",
-          borderRadius: 6,
-          cursor: "pointer",
-          fontWeight: 500,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <span style={{ fontSize: 18 }}>📁</span>
-        Data Loader
-      </button>
+        icon={<FolderOpen className="h-4 w-4 text-green-400" />}
+        label="Data Loader"
+        colorClass="bg-green-950"
+      />
 
-      <button
+      <NodeButton
         onClick={handleAddScript}
-        style={{
-          width: "100%",
-          padding: "12px 16px",
-          marginBottom: 8,
-          backgroundColor: "#60a5fa",
-          color: "#1a1a2e",
-          border: "none",
-          borderRadius: 6,
-          cursor: "pointer",
-          fontWeight: 500,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <span style={{ fontSize: 18 }}>📜</span>
-        Script
-      </button>
+        icon={<FileCode2 className="h-4 w-4 text-blue-400" />}
+        label="Script"
+        colorClass="bg-blue-950"
+      />
 
-      <button
+      <NodeButton
         onClick={handleAddDataSplit}
-        style={{
-          width: "100%",
-          padding: "12px 16px",
-          marginBottom: 8,
-          backgroundColor: "#f472b6",
-          color: "#1a1a2e",
-          border: "none",
-          borderRadius: 6,
-          cursor: "pointer",
-          fontWeight: 500,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <span style={{ fontSize: 18 }}>✂️</span>
-        Data Split
-      </button>
+        icon={<Scissors className="h-4 w-4 text-pink-400" />}
+        label="Data Split"
+        colorClass="bg-pink-950"
+      />
 
-      <button
+      <NodeButton
         onClick={handleAddTrainer}
-        style={{
-          width: "100%",
-          padding: "12px 16px",
-          marginBottom: 8,
-          backgroundColor: "#a78bfa",
-          color: "#1a1a2e",
-          border: "none",
-          borderRadius: 6,
-          cursor: "pointer",
-          fontWeight: 500,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <span style={{ fontSize: 18 }}>🧠</span>
-        Trainer
-      </button>
+        icon={<Brain className="h-4 w-4 text-violet-400" />}
+        label="Trainer"
+        colorClass="bg-violet-950"
+      />
 
-      <button
+      <NodeButton
         onClick={handleAddEvaluator}
-        style={{
-          width: "100%",
-          padding: "12px 16px",
-          marginBottom: 8,
-          backgroundColor: "#fb923c",
-          color: "#1a1a2e",
-          border: "none",
-          borderRadius: 6,
-          cursor: "pointer",
-          fontWeight: 500,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <span style={{ fontSize: 18 }}>📊</span>
-        Evaluator
-      </button>
+        icon={<BarChart3 className="h-4 w-4 text-orange-400" />}
+        label="Evaluator"
+        colorClass="bg-orange-950"
+      />
 
-      <button
+      <NodeButton
         onClick={handleAddModelExporter}
-        style={{
-          width: "100%",
-          padding: "12px 16px",
-          backgroundColor: "#5eead4",
-          color: "#1a1a2e",
-          border: "none",
-          borderRadius: 6,
-          cursor: "pointer",
-          fontWeight: 500,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <span style={{ fontSize: 18 }}>📦</span>
-        Model Exporter
-      </button>
+        icon={<Package className="h-4 w-4 text-teal-400" />}
+        label="Model Exporter"
+        colorClass="bg-teal-950"
+      />
 
-      <div
-        style={{
-          marginTop: 24,
-          padding: 12,
-          backgroundColor: "#1a1a2e",
-          borderRadius: 6,
-          fontSize: 12,
-          color: "#9ca3af",
-        }}
-      >
-        <p style={{ marginBottom: 8 }}>
-          <strong>Tip:</strong> Build a pipeline with nodes.
+      <div className="mt-6 p-3 bg-slate-900 rounded-lg text-xs text-slate-400">
+        <p className="mb-2">
+          <strong className="text-slate-300">Tip:</strong> Build a pipeline with nodes.
         </p>
-        <p>DataLoader → DataSplit → Trainer → Evaluator → Model Exporter</p>
+        <p className="text-[10px] leading-relaxed">
+          DataLoader → DataSplit → Trainer → Evaluator → Model Exporter
+        </p>
       </div>
     </div>
   );
