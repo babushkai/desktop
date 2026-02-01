@@ -15,7 +15,11 @@
       "Bash(git add:*)",
       "Bash(npm run build:*)",
       "Bash(npm ls:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npm run test:run:*)",
+      "Bash(cargo test:*)",
+      "Bash(git fetch:*)",
+      "Bash(git reset:*)"
     ]
   }
 }
