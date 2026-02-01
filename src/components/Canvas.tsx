@@ -16,7 +16,7 @@ const nodeTypes: NodeTypes = {
 };
 
 export function Canvas() {
-  const { nodes, edges, onNodesChange, onEdgesChange, onConnect } =
+  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, deleteNodes } =
     usePipelineStore();
 
   const isValidConnection = (connection: Connection | { source: string; target: string }) => {
@@ -32,8 +32,10 @@ export function Canvas() {
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
+      onNodesDelete={(deleted) => deleteNodes(deleted.map((n) => n.id))}
       nodeTypes={nodeTypes}
       isValidConnection={isValidConnection}
+      deleteKeyCode={["Backspace", "Delete"]}
       fitView
       style={{ backgroundColor: "#16213e" }}
     >

@@ -1,0 +1,130 @@
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { Toolbar } from "./Toolbar";
+import { usePipelineStore } from "../stores/pipelineStore";
+
+// Mock tauri APIs
+vi.mock("../lib/tauri", () => ({
+  getPythonPath: vi.fn(() => Promise.resolve("/usr/bin/python3")),
+  findPython: vi.fn(() => Promise.resolve("/usr/bin/python3")),
+  setPythonPath: vi.fn(() => Promise.resolve()),
+  runScript: vi.fn(() => Promise.resolve()),
+  cancelScript: vi.fn(() => Promise.resolve()),
+  listenToScriptOutput: vi.fn(() => Promise.resolve(() => {})),
+  listPipelines: vi.fn(() => Promise.resolve([])),
+  deletePipeline: vi.fn(() => Promise.resolve()),
+  savePipeline: vi.fn(() => Promise.resolve()),
+  loadPipeline: vi.fn(() => Promise.resolve(null)),
+}));
+
+describe("Toolbar", () => {
+  beforeEach(() => {
+    // Reset store state
+    usePipelineStore.setState({
+      nodes: [],
+      edges: [],
+      executionStatus: "idle",
+      outputLogs: [],
+      pythonPath: null,
+      validationErrors: [],
+      currentPipelineId: null,
+      currentPipelineName: null,
+      isDirty: false,
+    });
+  });
+
+  describe("Save Dialog", () => {
+    it("shows save dialog when clicking Save with no pipeline name", async () => {
+      render(<Toolbar />);
+
+      const saveButton = screen.getByRole("button", { name: /^save$/i });
+      fireEvent.click(saveButton);
+
+      // Dialog should appear
+      expect(screen.getByText("Save Pipeline")).toBeInTheDocument();
+      expect(screen.getByPlaceholderText("Enter pipeline name...")).toBeInTheDocument();
+    });
+
+    it("closes save dialog when clicking Cancel", async () => {
+      render(<Toolbar />);
+
+      // Open dialog
+      const saveButton = screen.getByRole("button", { name: /^save$/i });
+      fireEvent.click(saveButton);
+
+      expect(screen.getByText("Save Pipeline")).toBeInTheDocument();
+
+      // Click cancel
+      const cancelButton = screen.getByRole("button", { name: /cancel/i });
+      fireEvent.click(cancelButton);
+
+      // Dialog should close
+      await waitFor(() => {
+        expect(screen.queryByText("Save Pipeline")).not.toBeInTheDocument();
+      });
+    });
+
+    it("saves directly when pipeline already has a name", async () => {
+      // Set pipeline name
+      usePipelineStore.setState({
+        currentPipelineName: "Existing Pipeline",
+        currentPipelineId: "existing-id",
+      });
+
+      render(<Toolbar />);
+
+      const saveButton = screen.getByRole("button", { name: /^save$/i });
+      fireEvent.click(saveButton);
+
+      // Dialog should NOT appear (saves directly)
+      expect(screen.queryByText("Save Pipeline")).not.toBeInTheDocument();
+    });
+
+    it("shows dirty indicator when pipeline is modified", () => {
+      usePipelineStore.setState({
+        currentPipelineName: "My Pipeline",
+        isDirty: true,
+      });
+
+      render(<Toolbar />);
+
+      // Should show asterisk
+      expect(screen.getByText(/My Pipeline \*/)).toBeInTheDocument();
+    });
+
+    it("shows 'Untitled *' when dirty with no name", () => {
+      usePipelineStore.setState({
+        currentPipelineName: null,
+        isDirty: true,
+      });
+
+      render(<Toolbar />);
+
+      expect(screen.getByText(/Untitled \*/)).toBeInTheDocument();
+    });
+  });
+
+  describe("Run button", () => {
+    it("is disabled when no runnable pipeline", () => {
+      render(<Toolbar />);
+
+      const runButton = screen.getByRole("button", { name: /run/i });
+      expect(runButton).toBeDisabled();
+    });
+
+    it("is enabled when pipeline has script and dataLoader with file", () => {
+      usePipelineStore.setState({
+        nodes: [
+          { id: "dl-1", type: "dataLoader", position: { x: 0, y: 0 }, data: { label: "DL", filePath: "/test.csv" } },
+          { id: "sc-1", type: "script", position: { x: 100, y: 0 }, data: { label: "Script", code: "print(1)" } },
+        ],
+        edges: [{ id: "e1", source: "dl-1", target: "sc-1" }],
+      });
+
+      render(<Toolbar />);
+
+      const runButton = screen.getByRole("button", { name: /run/i });
+      expect(runButton).not.toBeDisabled();
+    });
+  });
+});

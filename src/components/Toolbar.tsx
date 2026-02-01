@@ -7,6 +7,9 @@ import {
   runScript,
   cancelScript,
   listenToScriptOutput,
+  listPipelines,
+  deletePipeline,
+  PipelineMetadata,
 } from "../lib/tauri";
 
 export function Toolbar() {
@@ -19,10 +22,20 @@ export function Toolbar() {
     setExecutionStatus,
     appendLog,
     clearLogs,
+    validatePipeline,
+    currentPipelineName,
+    isDirty,
+    savePipeline,
+    loadPipeline,
+    newPipeline,
   } = usePipelineStore();
 
   const [isEditingPath, setIsEditingPath] = useState(false);
   const [pathInput, setPathInput] = useState("");
+  const [showPipelineMenu, setShowPipelineMenu] = useState(false);
+  const [pipelines, setPipelines] = useState<PipelineMetadata[]>([]);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [saveNameInput, setSaveNameInput] = useState("");
 
   // Load Python path on mount
   useEffect(() => {
@@ -72,37 +85,28 @@ export function Toolbar() {
   }, [appendLog, setExecutionStatus]);
 
   const handleRun = async () => {
+    // Validate pipeline first
+    const errors = validatePipeline();
+    if (errors.length > 0) {
+      clearLogs();
+      errors.forEach((e) => appendLog(`ERROR: ${e}`));
+      return;
+    }
+
     // Find the script node and its connected data loader
     const scriptNode = nodes.find((n) => n.type === "script");
-    if (!scriptNode) {
-      appendLog("ERROR: No Script node found");
-      return;
-    }
+    const edge = edges.find((e) => e.target === scriptNode!.id);
+    const dataLoaderNode = nodes.find((n) => n.id === edge!.source);
 
-    const edge = edges.find((e) => e.target === scriptNode.id);
-    if (!edge) {
-      appendLog("ERROR: Script node is not connected to a Data Loader");
-      return;
-    }
-
-    const dataLoaderNode = nodes.find((n) => n.id === edge.source);
-    if (!dataLoaderNode?.data.filePath) {
-      appendLog("ERROR: Data Loader has no file selected");
-      return;
-    }
-
-    const scriptCode = scriptNode.data.code;
-    if (!scriptCode) {
-      appendLog("ERROR: Script node has no code");
-      return;
-    }
+    const scriptCode = scriptNode!.data.code;
+    const inputPath = dataLoaderNode!.data.filePath;
 
     clearLogs();
     setExecutionStatus("running");
-    appendLog(`Running script with input: ${dataLoaderNode.data.filePath}`);
+    appendLog(`Running script with input: ${inputPath}`);
 
     try {
-      await runScript(scriptCode, dataLoaderNode.data.filePath);
+      await runScript(scriptCode!, inputPath!);
     } catch (error) {
       appendLog(`ERROR: ${error}`);
       setExecutionStatus("error");
@@ -125,6 +129,68 @@ export function Toolbar() {
     setIsEditingPath(false);
   };
 
+  const handleSave = async () => {
+    if (currentPipelineName) {
+      // Already has a name, save directly
+      try {
+        await savePipeline(currentPipelineName);
+        appendLog(`Pipeline saved: ${currentPipelineName}`);
+      } catch (error) {
+        appendLog(`ERROR: Failed to save pipeline: ${error}`);
+        console.error("Save error:", error);
+      }
+    } else {
+      // Show save dialog for new pipeline
+      setSaveNameInput("");
+      setShowSaveDialog(true);
+    }
+  };
+
+  const handleSaveConfirm = async () => {
+    const name = saveNameInput.trim() || `Pipeline ${Date.now()}`;
+    setShowSaveDialog(false);
+    try {
+      await savePipeline(name);
+      appendLog(`Pipeline saved: ${name}`);
+    } catch (error) {
+      appendLog(`ERROR: Failed to save pipeline: ${error}`);
+      console.error("Save error:", error);
+    }
+  };
+
+  const handleLoadMenu = async () => {
+    const list = await listPipelines();
+    setPipelines(list);
+    setShowPipelineMenu(true);
+  };
+
+  const handleLoadPipeline = async (id: string) => {
+    if (isDirty) {
+      const confirmed = window.confirm("Discard unsaved changes?");
+      if (!confirmed) return;
+    }
+    await loadPipeline(id);
+    setShowPipelineMenu(false);
+  };
+
+  const handleDeletePipeline = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const confirmed = window.confirm("Delete this pipeline?");
+    if (confirmed) {
+      await deletePipeline(id);
+      const list = await listPipelines();
+      setPipelines(list);
+    }
+  };
+
+  const handleNew = () => {
+    if (isDirty) {
+      const confirmed = window.confirm("Discard unsaved changes?");
+      if (!confirmed) return;
+    }
+    newPipeline();
+  };
+
   const isRunnable = nodes.some((n) => n.type === "script") &&
                      nodes.some((n) => n.type === "dataLoader" && n.data.filePath);
 
@@ -139,7 +205,212 @@ export function Toolbar() {
         borderBottom: "1px solid #394867",
       }}
     >
-      <h1 style={{ fontSize: 18, fontWeight: 600 }}>MLOps Desktop</h1>
+      <h1 style={{ fontSize: 18, fontWeight: 600 }}>
+        MLOps Desktop
+        {currentPipelineName && (
+          <span style={{ fontWeight: 400, color: "#9ca3af", marginLeft: 8 }}>
+            — {currentPipelineName}{isDirty ? " *" : ""}
+          </span>
+        )}
+        {!currentPipelineName && isDirty && (
+          <span style={{ fontWeight: 400, color: "#9ca3af", marginLeft: 8 }}>
+            — Untitled *
+          </span>
+        )}
+      </h1>
+
+      {/* Pipeline buttons */}
+      <div style={{ display: "flex", gap: 8 }}>
+        <button
+          onClick={handleNew}
+          style={{
+            padding: "6px 12px",
+            backgroundColor: "#394867",
+            color: "#eee",
+            border: "none",
+            borderRadius: 4,
+            cursor: "pointer",
+            fontSize: 12,
+          }}
+        >
+          New
+        </button>
+        <button
+          onClick={handleSave}
+          style={{
+            padding: "6px 12px",
+            backgroundColor: "#394867",
+            color: "#eee",
+            border: "none",
+            borderRadius: 4,
+            cursor: "pointer",
+            fontSize: 12,
+          }}
+        >
+          Save
+        </button>
+        <div style={{ position: "relative" }}>
+          <button
+            onClick={handleLoadMenu}
+            style={{
+              padding: "6px 12px",
+              backgroundColor: "#394867",
+              color: "#eee",
+              border: "none",
+              borderRadius: 4,
+              cursor: "pointer",
+              fontSize: 12,
+            }}
+          >
+            Load
+          </button>
+          {showPipelineMenu && (
+            <div
+              style={{
+                position: "absolute",
+                top: "100%",
+                left: 0,
+                marginTop: 4,
+                backgroundColor: "#1a1a2e",
+                border: "1px solid #394867",
+                borderRadius: 4,
+                minWidth: 200,
+                maxHeight: 300,
+                overflow: "auto",
+                zIndex: 100,
+              }}
+            >
+              {pipelines.length === 0 ? (
+                <div style={{ padding: 12, color: "#9ca3af", fontSize: 12 }}>
+                  No saved pipelines
+                </div>
+              ) : (
+                pipelines.map((p) => (
+                  <div
+                    key={p.id}
+                    onClick={() => handleLoadPipeline(p.id)}
+                    style={{
+                      padding: "8px 12px",
+                      cursor: "pointer",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      borderBottom: "1px solid #394867",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#394867")}
+                    onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
+                  >
+                    <span style={{ fontSize: 12 }}>{p.name}</span>
+                    <button
+                      onClick={(e) => handleDeletePipeline(p.id, e)}
+                      style={{
+                        padding: "2px 6px",
+                        backgroundColor: "#ef4444",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: 2,
+                        cursor: "pointer",
+                        fontSize: 10,
+                      }}
+                    >
+                      Del
+                    </button>
+                  </div>
+                ))
+              )}
+              <div
+                onClick={() => setShowPipelineMenu(false)}
+                style={{
+                  padding: "8px 12px",
+                  cursor: "pointer",
+                  color: "#9ca3af",
+                  fontSize: 11,
+                  textAlign: "center",
+                }}
+              >
+                Close
+              </div>
+            </div>
+          )}
+        </div>
+        {/* Save Dialog */}
+        {showSaveDialog && (
+          <div
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: "rgba(0,0,0,0.5)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 200,
+            }}
+            onClick={() => setShowSaveDialog(false)}
+          >
+            <div
+              style={{
+                backgroundColor: "#1a1a2e",
+                padding: 20,
+                borderRadius: 8,
+                border: "1px solid #394867",
+                minWidth: 300,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ marginBottom: 12, fontWeight: 500 }}>Save Pipeline</div>
+              <input
+                type="text"
+                value={saveNameInput}
+                onChange={(e) => setSaveNameInput(e.target.value)}
+                placeholder="Enter pipeline name..."
+                autoFocus
+                onKeyDown={(e) => e.key === "Enter" && handleSaveConfirm()}
+                style={{
+                  width: "100%",
+                  padding: "8px 12px",
+                  backgroundColor: "#0f0f23",
+                  border: "1px solid #394867",
+                  borderRadius: 4,
+                  color: "#eee",
+                  fontSize: 14,
+                  marginBottom: 12,
+                }}
+              />
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button
+                  onClick={() => setShowSaveDialog(false)}
+                  style={{
+                    padding: "6px 12px",
+                    backgroundColor: "#394867",
+                    color: "#eee",
+                    border: "none",
+                    borderRadius: 4,
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveConfirm}
+                  style={{
+                    padding: "6px 12px",
+                    backgroundColor: "#4ade80",
+                    color: "#1a1a2e",
+                    border: "none",
+                    borderRadius: 4,
+                    cursor: "pointer",
+                  }}
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       <div style={{ flex: 1 }} />
 

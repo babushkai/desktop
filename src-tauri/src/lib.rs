@@ -25,6 +25,10 @@ pub fn run() {
             commands::find_python,
             commands::run_script,
             commands::cancel_script,
+            commands::save_pipeline,
+            commands::load_pipeline,
+            commands::list_pipelines,
+            commands::delete_pipeline,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -166,6 +166,28 @@ pub fn cancel_script() -> Result<(), String> {
     }
 }
 
+// Pipeline commands
+
+#[tauri::command]
+pub fn save_pipeline(id: String, name: String, data: String) -> Result<(), String> {
+    db::save_pipeline(&id, &name, &data).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn load_pipeline(id: String) -> Result<Option<String>, String> {
+    db::load_pipeline(&id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_pipelines() -> Result<Vec<db::PipelineMetadata>, String> {
+    db::list_pipelines().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_pipeline(id: String) -> Result<(), String> {
+    db::delete_pipeline(&id).map_err(|e| e.to_string())
+}
+
 fn parse_output_line(line: &str) -> ScriptEvent {
     // Try to parse as JSON first
     if let Ok(json) = serde_json::from_str::<JsonOutput>(line) {
