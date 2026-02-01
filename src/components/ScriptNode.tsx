@@ -1,7 +1,8 @@
 import { Handle, Position, NodeProps } from "@xyflow/react";
 import { usePipelineStore, NodeData } from "../stores/pipelineStore";
 
-export function ScriptNode({ id, data }: NodeProps<NodeData>) {
+export function ScriptNode({ id, data }: NodeProps) {
+  const nodeData = data as NodeData;
   const updateNodeData = usePipelineStore((state) => state.updateNodeData);
   const executionStatus = usePipelineStore((state) => state.executionStatus);
 
@@ -66,7 +67,7 @@ export function ScriptNode({ id, data }: NodeProps<NodeData>) {
       </div>
 
       <textarea
-        value={data.code || ""}
+        value={nodeData.code || ""}
         onChange={handleCodeChange}
         placeholder="# Write your Python code here..."
         style={{

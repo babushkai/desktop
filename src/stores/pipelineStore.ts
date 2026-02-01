@@ -67,13 +67,13 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
 
   onNodesChange: (changes) => {
     set((state) => ({
-      nodes: applyNodeChanges(changes, state.nodes),
+      nodes: applyNodeChanges(changes, state.nodes) as Node<NodeData>[],
     }));
   },
 
   onEdgesChange: (changes) => {
     set((state) => ({
-      edges: applyEdgeChanges(changes, state.edges),
+      edges: applyEdgeChanges(changes, state.edges) as Edge[],
     }));
   },
 
