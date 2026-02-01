@@ -11,6 +11,10 @@ export function NodePalette() {
     addNode("script", { x: 400, y: 100 + Math.random() * 100 });
   };
 
+  const handleAddDataSplit = () => {
+    addNode("dataSplit", { x: 250, y: 100 + Math.random() * 100 });
+  };
+
   const handleAddTrainer = () => {
     addNode("trainer", { x: 400, y: 100 + Math.random() * 100 });
   };
@@ -76,6 +80,27 @@ export function NodePalette() {
       >
         <span style={{ fontSize: 18 }}>📜</span>
         Script
+      </button>
+
+      <button
+        onClick={handleAddDataSplit}
+        style={{
+          width: "100%",
+          padding: "12px 16px",
+          marginBottom: 8,
+          backgroundColor: "#f472b6",
+          color: "#1a1a2e",
+          border: "none",
+          borderRadius: 6,
+          cursor: "pointer",
+          fontWeight: 500,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <span style={{ fontSize: 18 }}>✂️</span>
+        Data Split
       </button>
 
       <button
@@ -153,7 +178,7 @@ export function NodePalette() {
         <p style={{ marginBottom: 8 }}>
           <strong>Tip:</strong> Build a pipeline with nodes.
         </p>
-        <p>DataLoader → Trainer → Evaluator → Model Exporter</p>
+        <p>DataLoader → DataSplit → Trainer → Evaluator → Model Exporter</p>
       </div>
     </div>
   );

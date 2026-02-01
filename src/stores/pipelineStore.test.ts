@@ -160,6 +160,63 @@ describe("pipelineStore", () => {
       const errors = validatePipeline();
       expect(errors).toContain("Connect a Trainer or Evaluator to the Model Exporter");
     });
+
+    it("validates dataSplit must connect to dataLoader", () => {
+      const { addNode, validatePipeline } = usePipelineStore.getState();
+      addNode("dataSplit", { x: 0, y: 0 });
+
+      const errors = validatePipeline();
+      expect(errors).toContain("Connect a Data Loader to the Data Split");
+    });
+
+    it("validates stratify requires target column", () => {
+      const { addNode, onConnect, updateNodeData, validatePipeline } = usePipelineStore.getState();
+      addNode("dataLoader", { x: 0, y: 0 });
+      addNode("dataSplit", { x: 100, y: 0 });
+      addNode("trainer", { x: 200, y: 0 });
+
+      const { nodes } = usePipelineStore.getState();
+      const dataLoaderId = nodes.find((n) => n.type === "dataLoader")!.id;
+      const dataSplitId = nodes.find((n) => n.type === "dataSplit")!.id;
+      const trainerId = nodes.find((n) => n.type === "trainer")!.id;
+
+      // Set up connections
+      onConnect({ source: dataLoaderId, target: dataSplitId, sourceHandle: null, targetHandle: null });
+      onConnect({ source: dataSplitId, target: trainerId, sourceHandle: null, targetHandle: null });
+
+      // Set file path and target column
+      updateNodeData(dataLoaderId, { filePath: "/path/to/data.csv" });
+      updateNodeData(trainerId, { targetColumn: "target" });
+
+      // Enable stratify without setting target column
+      updateNodeData(dataSplitId, { stratify: true, splitTargetColumn: "" });
+
+      const errors = validatePipeline();
+      expect(errors).toContain("Specify a target column for stratified split");
+    });
+
+    it("passes validation with valid dataSplit pipeline", () => {
+      const { addNode, onConnect, updateNodeData, validatePipeline } = usePipelineStore.getState();
+      addNode("dataLoader", { x: 0, y: 0 });
+      addNode("dataSplit", { x: 100, y: 0 });
+      addNode("trainer", { x: 200, y: 0 });
+
+      const { nodes } = usePipelineStore.getState();
+      const dataLoaderId = nodes.find((n) => n.type === "dataLoader")!.id;
+      const dataSplitId = nodes.find((n) => n.type === "dataSplit")!.id;
+      const trainerId = nodes.find((n) => n.type === "trainer")!.id;
+
+      // Set up connections
+      onConnect({ source: dataLoaderId, target: dataSplitId, sourceHandle: null, targetHandle: null });
+      onConnect({ source: dataSplitId, target: trainerId, sourceHandle: null, targetHandle: null });
+
+      // Set required data
+      updateNodeData(dataLoaderId, { filePath: "/path/to/data.csv" });
+      updateNodeData(trainerId, { targetColumn: "target" });
+
+      const errors = validatePipeline();
+      expect(errors).toHaveLength(0);
+    });
   });
 
   describe("onConnect", () => {
@@ -234,6 +291,51 @@ describe("pipelineStore", () => {
       const exporterId = nodes.find((n) => n.type === "modelExporter")!.id;
 
       onConnect({ source: dataLoaderId, target: exporterId, sourceHandle: null, targetHandle: null });
+
+      const { edges } = usePipelineStore.getState();
+      expect(edges).toHaveLength(0);
+    });
+
+    it("allows dataLoader -> dataSplit connections", () => {
+      const { addNode, onConnect } = usePipelineStore.getState();
+      addNode("dataLoader", { x: 0, y: 0 });
+      addNode("dataSplit", { x: 100, y: 0 });
+
+      const { nodes } = usePipelineStore.getState();
+      const dataLoaderId = nodes.find((n) => n.type === "dataLoader")!.id;
+      const dataSplitId = nodes.find((n) => n.type === "dataSplit")!.id;
+
+      onConnect({ source: dataLoaderId, target: dataSplitId, sourceHandle: null, targetHandle: null });
+
+      const { edges } = usePipelineStore.getState();
+      expect(edges).toHaveLength(1);
+    });
+
+    it("allows dataSplit -> trainer connections", () => {
+      const { addNode, onConnect } = usePipelineStore.getState();
+      addNode("dataSplit", { x: 0, y: 0 });
+      addNode("trainer", { x: 100, y: 0 });
+
+      const { nodes } = usePipelineStore.getState();
+      const dataSplitId = nodes.find((n) => n.type === "dataSplit")!.id;
+      const trainerId = nodes.find((n) => n.type === "trainer")!.id;
+
+      onConnect({ source: dataSplitId, target: trainerId, sourceHandle: null, targetHandle: null });
+
+      const { edges } = usePipelineStore.getState();
+      expect(edges).toHaveLength(1);
+    });
+
+    it("rejects trainer -> dataSplit connections", () => {
+      const { addNode, onConnect } = usePipelineStore.getState();
+      addNode("trainer", { x: 0, y: 0 });
+      addNode("dataSplit", { x: 100, y: 0 });
+
+      const { nodes } = usePipelineStore.getState();
+      const trainerId = nodes.find((n) => n.type === "trainer")!.id;
+      const dataSplitId = nodes.find((n) => n.type === "dataSplit")!.id;
+
+      onConnect({ source: trainerId, target: dataSplitId, sourceHandle: null, targetHandle: null });
 
       const { edges } = usePipelineStore.getState();
       expect(edges).toHaveLength(0);
