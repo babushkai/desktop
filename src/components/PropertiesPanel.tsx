@@ -1,9 +1,18 @@
-import Editor from "@monaco-editor/react";
 import { FileCode2 } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
 import { usePipelineStore, NodeData } from "../stores/pipelineStore";
+import { LazyMonacoEditor } from "./LazyMonacoEditor";
 
 export function PropertiesPanel() {
-  const { nodes, selectedNodeId, updateNodeData } = usePipelineStore();
+  // Rule: rerender-derived-state - Single shallow selector
+  const { nodes, selectedNodeId, updateNodeData } = usePipelineStore(
+    useShallow((s) => ({
+      nodes: s.nodes,
+      selectedNodeId: s.selectedNodeId,
+      updateNodeData: s.updateNodeData,
+    }))
+  );
+
   const selectedNode = nodes.find((n) => n.id === selectedNodeId);
   const nodeData = selectedNode?.data as NodeData | undefined;
 
@@ -24,7 +33,7 @@ export function PropertiesPanel() {
       </div>
       <div className="flex-1 min-h-0">
         <div className="h-full rounded-xl overflow-hidden border border-white/[0.06] m-2">
-          <Editor
+          <LazyMonacoEditor
             height="100%"
             language="python"
             theme="vs-dark"
