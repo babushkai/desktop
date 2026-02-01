@@ -4,14 +4,14 @@ import {
   findPython,
   getPythonPath,
   setPythonPath,
-  runScript,
   cancelScript,
-  listenToScriptOutput,
   listPipelines,
   deletePipeline,
   PipelineMetadata,
+  runScriptAndWait,
 } from "../lib/tauri";
 import { generateTrainerCode } from "../lib/trainerCodeGen";
+import { generateEvaluatorCode } from "../lib/evaluatorCodeGen";
 
 export function Toolbar() {
   const {
@@ -53,38 +53,6 @@ export function Toolbar() {
     loadPythonPath();
   }, [setStorePythonPath]);
 
-  // Listen to script output events
-  useEffect(() => {
-    const setupListener = async () => {
-      const unlisten = await listenToScriptOutput((event) => {
-        switch (event.type) {
-          case "log":
-            appendLog(event.message);
-            break;
-          case "progress":
-            appendLog(`Progress: ${event.current}/${event.total}`);
-            break;
-          case "error":
-            appendLog(`ERROR: ${event.message}`);
-            break;
-          case "complete":
-            appendLog("--- Script completed ---");
-            break;
-          case "exit":
-            setExecutionStatus(event.code === 0 ? "success" : "error");
-            appendLog(`Exit code: ${event.code}`);
-            break;
-        }
-      });
-      return unlisten;
-    };
-
-    const unlistenPromise = setupListener();
-    return () => {
-      unlistenPromise.then((unlisten) => unlisten());
-    };
-  }, [appendLog, setExecutionStatus]);
-
   const handleRun = async () => {
     // Validate pipeline first
     const errors = validatePipeline();
@@ -94,51 +62,73 @@ export function Toolbar() {
       return;
     }
 
-    // Check for script or trainer node
-    const scriptNode = nodes.find((n) => n.type === "script");
-    const trainerNode = nodes.find((n) => n.type === "trainer");
-    const targetNode = scriptNode || trainerNode;
+    clearLogs();
+    setExecutionStatus("running");
 
+    // Find pipeline structure
+    const trainerNode = nodes.find((n) => n.type === "trainer");
+    const evaluatorNode = nodes.find((n) => n.type === "evaluator");
+    const scriptNode = nodes.find((n) => n.type === "script");
+
+    // Get DataLoader for input path
+    const targetNode = trainerNode || scriptNode;
     if (!targetNode) {
-      clearLogs();
-      appendLog("ERROR: No Script or Trainer node found");
+      appendLog("ERROR: No executable node found");
+      setExecutionStatus("error");
       return;
     }
 
     const edge = edges.find((e) => e.target === targetNode.id);
-    if (!edge) {
-      clearLogs();
-      appendLog("ERROR: No connection to target node");
-      return;
-    }
-
-    const dataLoaderNode = nodes.find((n) => n.id === edge.source);
+    const dataLoaderNode = nodes.find((n) => n.id === edge?.source);
     const inputPath = dataLoaderNode?.data.filePath;
 
     if (!inputPath) {
-      clearLogs();
-      appendLog("ERROR: No input file selected in Data Loader");
+      appendLog("ERROR: No input file selected");
+      setExecutionStatus("error");
       return;
     }
 
-    clearLogs();
-    setExecutionStatus("running");
-
-    let codeToRun: string;
-    if (targetNode.type === "trainer") {
-      codeToRun = generateTrainerCode(targetNode.data, inputPath);
-      appendLog(`Training model with input: ${inputPath}`);
-      appendLog(`Model: ${targetNode.data.modelType || "linear_regression"}`);
-      appendLog(`Target: ${targetNode.data.targetColumn || "target"}`);
-      appendLog(`Test split: ${((targetNode.data.testSplit || 0.2) * 100).toFixed(0)}%`);
-      appendLog("---");
-    } else {
-      codeToRun = targetNode.data.code!;
-      appendLog(`Running script with input: ${inputPath}`);
-    }
+    const handleOutput = (event: { type: string; message?: string; code?: number }) => {
+      if (event.type === "log" && event.message) {
+        appendLog(event.message);
+      } else if (event.type === "error" && event.message) {
+        appendLog(`ERROR: ${event.message}`);
+      }
+    };
 
     try {
-      await runScript(codeToRun, inputPath);
+      // Step 1: Run Trainer or Script
+      if (trainerNode) {
+        appendLog("--- Running Trainer ---");
+        appendLog(`Input: ${inputPath}`);
+        appendLog(`Model: ${trainerNode.data.modelType || "linear_regression"}`);
+        appendLog(`Target: ${trainerNode.data.targetColumn || "target"}`);
+        appendLog(`Test split: ${((trainerNode.data.testSplit || 0.2) * 100).toFixed(0)}%`);
+        appendLog("");
+
+        const trainerCode = generateTrainerCode(trainerNode.data, inputPath);
+        await runScriptAndWait(trainerCode, inputPath, handleOutput);
+      } else if (scriptNode) {
+        appendLog("--- Running Script ---");
+        appendLog(`Input: ${inputPath}`);
+        appendLog("");
+
+        await runScriptAndWait(scriptNode.data.code!, inputPath, handleOutput);
+      }
+
+      // Step 2: Run Evaluator (if connected to Trainer)
+      if (evaluatorNode && trainerNode) {
+        const evalEdge = edges.find((e) => e.target === evaluatorNode.id);
+        if (evalEdge?.source === trainerNode.id) {
+          appendLog("");
+          appendLog("--- Running Evaluator ---");
+
+          const evalCode = generateEvaluatorCode(trainerNode.data, "model.joblib", inputPath);
+          await runScriptAndWait(evalCode, inputPath, handleOutput);
+        }
+      }
+
+      setExecutionStatus("success");
     } catch (error) {
       appendLog(`ERROR: ${error}`);
       setExecutionStatus("error");
@@ -223,7 +213,9 @@ export function Toolbar() {
     newPipeline();
   };
 
-  const hasExecutableNode = nodes.some((n) => n.type === "script" || n.type === "trainer");
+  const hasExecutableNode = nodes.some(
+    (n) => n.type === "script" || n.type === "trainer" || n.type === "evaluator"
+  );
   const hasDataLoaderWithFile = nodes.some((n) => n.type === "dataLoader" && n.data.filePath);
   const isRunnable = hasExecutableNode && hasDataLoaderWithFile;
 

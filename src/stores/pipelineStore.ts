@@ -28,6 +28,7 @@ export type NodeData = {
 export const VALID_CONNECTIONS: [string, string][] = [
   ["dataLoader", "script"],
   ["dataLoader", "trainer"],
+  ["trainer", "evaluator"],
 ];
 
 export type ExecutionStatus = "idle" | "running" | "success" | "error";
@@ -50,7 +51,7 @@ interface PipelineState {
   setSelectedNodeId: (id: string | null) => void;
 
   // Node operations
-  addNode: (type: "dataLoader" | "script" | "trainer", position: { x: number; y: number }) => void;
+  addNode: (type: "dataLoader" | "script" | "trainer" | "evaluator", position: { x: number; y: number }) => void;
   deleteNodes: (nodeIds: string[]) => void;
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
@@ -103,6 +104,9 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         modelType: "linear_regression",
         targetColumn: "",
         testSplit: 0.2,
+      },
+      evaluator: {
+        label: "Evaluator",
       },
     };
     const newNode: Node<NodeData> = {
@@ -169,14 +173,17 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
     const errors: string[] = [];
     const { nodes, edges } = get();
 
-    // Must have at least one executable node (script or trainer)
-    const executableNodes = nodes.filter((n) => n.type === "script" || n.type === "trainer");
+    // Must have at least one executable node (script, trainer, or evaluator)
+    const executableNodes = nodes.filter(
+      (n) => n.type === "script" || n.type === "trainer" || n.type === "evaluator"
+    );
     if (executableNodes.length === 0) {
-      errors.push("Add a Script or Trainer node");
+      errors.push("Add a Script, Trainer, or Evaluator node");
     }
 
-    // Executable nodes must have input connection
-    for (const node of executableNodes) {
+    // Script and Trainer nodes must have DataLoader connection
+    const primaryNodes = nodes.filter((n) => n.type === "script" || n.type === "trainer");
+    for (const node of primaryNodes) {
       if (!edges.some((e) => e.target === node.id)) {
         errors.push(`Connect a Data Loader to the ${node.data.label || node.type}`);
       }
@@ -190,9 +197,23 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       }
     }
 
-    // DataLoader connected to executable nodes must have file selected
+    // Evaluator must be connected to Trainer
+    const evaluatorNodes = nodes.filter((n) => n.type === "evaluator");
+    for (const evaluator of evaluatorNodes) {
+      const incomingEdge = edges.find((e) => e.target === evaluator.id);
+      if (!incomingEdge) {
+        errors.push("Connect a Trainer to the Evaluator");
+      } else {
+        const sourceNode = nodes.find((n) => n.id === incomingEdge.source);
+        if (sourceNode?.type !== "trainer") {
+          errors.push("Evaluator must be connected to a Trainer node");
+        }
+      }
+    }
+
+    // DataLoader connected to primary nodes must have file selected
     const connectedLoaders = edges
-      .filter((e) => executableNodes.some((n) => n.id === e.target))
+      .filter((e) => primaryNodes.some((n) => n.id === e.target))
       .map((e) => nodes.find((n) => n.id === e.source))
       .filter(Boolean);
 

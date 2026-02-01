@@ -35,6 +35,16 @@ export function TrainerNode({ id, data }: NodeProps) {
           border: "2px solid #4c1d95",
         }}
       />
+      <Handle
+        type="source"
+        position={Position.Right}
+        style={{
+          width: 12,
+          height: 12,
+          backgroundColor: "#a78bfa",
+          border: "2px solid #4c1d95",
+        }}
+      />
 
       <div
         style={{

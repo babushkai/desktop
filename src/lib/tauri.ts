@@ -36,6 +36,31 @@ export async function listenToScriptOutput(
   });
 }
 
+export async function runScriptAndWait(
+  scriptCode: string,
+  inputPath: string,
+  onOutput?: (event: ScriptEvent) => void
+): Promise<number> {
+  return new Promise((resolve, reject) => {
+    let unlistener: UnlistenFn | undefined;
+
+    listenToScriptOutput((event) => {
+      onOutput?.(event);
+      if (event.type === "exit") {
+        unlistener?.();
+        if (event.code === 0) {
+          resolve(event.code);
+        } else {
+          reject(new Error(`Script exited with code ${event.code}`));
+        }
+      }
+    }).then((unlisten) => {
+      unlistener = unlisten;
+      runScript(scriptCode, inputPath).catch(reject);
+    });
+  });
+}
+
 // Pipeline CRUD
 
 export interface PipelineMetadata {

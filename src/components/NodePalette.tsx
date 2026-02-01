@@ -15,6 +15,10 @@ export function NodePalette() {
     addNode("trainer", { x: 400, y: 100 + Math.random() * 100 });
   };
 
+  const handleAddEvaluator = () => {
+    addNode("evaluator", { x: 700, y: 100 + Math.random() * 100 });
+  };
+
   return (
     <div
       style={{
@@ -75,6 +79,7 @@ export function NodePalette() {
         style={{
           width: "100%",
           padding: "12px 16px",
+          marginBottom: 8,
           backgroundColor: "#a78bfa",
           color: "#1a1a2e",
           border: "none",
@@ -90,6 +95,26 @@ export function NodePalette() {
         Trainer
       </button>
 
+      <button
+        onClick={handleAddEvaluator}
+        style={{
+          width: "100%",
+          padding: "12px 16px",
+          backgroundColor: "#fb923c",
+          color: "#1a1a2e",
+          border: "none",
+          borderRadius: 6,
+          cursor: "pointer",
+          fontWeight: 500,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <span style={{ fontSize: 18 }}>📊</span>
+        Evaluator
+      </button>
+
       <div
         style={{
           marginTop: 24,
@@ -101,9 +126,9 @@ export function NodePalette() {
         }}
       >
         <p style={{ marginBottom: 8 }}>
-          <strong>Tip:</strong> Connect Data Loader to Script or Trainer.
+          <strong>Tip:</strong> Build a pipeline with nodes.
         </p>
-        <p>Valid: DataLoader → Script, DataLoader → Trainer</p>
+        <p>DataLoader → Trainer → Evaluator</p>
       </div>
     </div>
   );

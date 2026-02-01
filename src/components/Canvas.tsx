@@ -10,11 +10,13 @@ import { usePipelineStore, VALID_CONNECTIONS } from "../stores/pipelineStore";
 import { DataLoaderNode } from "./DataLoaderNode";
 import { ScriptNode } from "./ScriptNode";
 import { TrainerNode } from "./TrainerNode";
+import { EvaluatorNode } from "./EvaluatorNode";
 
 const nodeTypes: NodeTypes = {
   dataLoader: DataLoaderNode,
   script: ScriptNode,
   trainer: TrainerNode,
+  evaluator: EvaluatorNode,
 };
 
 export function Canvas() {
@@ -60,6 +62,8 @@ export function Canvas() {
               return "#60a5fa";
             case "trainer":
               return "#a78bfa";
+            case "evaluator":
+              return "#fb923c";
             default:
               return "#888";
           }

@@ -1,253 +1,144 @@
-# MLOps Desktop v1.4 - Trainer Node
+# MLOps Desktop v1.5 - Evaluator Node
 
 ## Scope
-Add a Trainer node with form-based configuration that generates training code automatically.
+Add Evaluator node with sequential execution: **DataLoader -> Trainer -> Evaluator**
 
-**Connections:** DataLoader → Trainer only (Script → Trainer deferred)
-
-**Pipeline Flow:**
-```
-DataLoader ─→ Trainer ─→ (future: Evaluator)
-```
+Auto-detects model type (classifier vs regressor) and displays comprehensive metrics.
 
 ---
 
 ## Implementation
 
-### 1. Extend NodeData type
+### 1. Extend NodeData & VALID_CONNECTIONS
 
 **File:** `src/stores/pipelineStore.ts`
 
 ```typescript
-export type NodeData = {
-  label: string;
-  filePath?: string;           // DataLoader
-  code?: string;               // Script
-  // Trainer fields (only what's actually used):
-  modelType?: string;          // "linear_regression" | "random_forest" | "gradient_boosting"
-  targetColumn?: string;       // Column to predict
-  testSplit?: number;          // Test set ratio (0.2 = 20%)
-};
+export const VALID_CONNECTIONS: [string, string][] = [
+  ["dataLoader", "script"],
+  ["dataLoader", "trainer"],
+  ["trainer", "evaluator"],  // NEW
+];
 ```
 
-Note: Removed `epochs` and `learningRate` - not used by sklearn's LinearRegression/RandomForest/GradientBoosting.
+Update `addNode` type union to include `"evaluator"` and add defaults:
+```typescript
+evaluator: { label: "Evaluator" },
+```
 
-### 2. Create TrainerNode component
+### 2. Create EvaluatorNode component
 
-**File:** `src/components/TrainerNode.tsx` (NEW)
+**File:** `src/components/EvaluatorNode.tsx` (NEW)
+
+- Orange theme (`#c2410c` background, `#fb923c` accent)
+- Target handle on left (receives from Trainer)
+- No source handle (terminal node)
+- Displays status indicator
 
 ```typescript
-export function TrainerNode({ id, data }: NodeProps) {
+export function EvaluatorNode({ id, data }: NodeProps) {
   const nodeData = data as NodeData;
-  const updateNodeData = usePipelineStore((s) => s.updateNodeData);
   const executionStatus = usePipelineStore((s) => s.executionStatus);
+
+  const borderColor = executionStatus === "running" ? "#fbbf24"
+    : executionStatus === "success" ? "#4ade80"
+    : executionStatus === "error" ? "#ef4444"
+    : "#fb923c";
 
   return (
     <div style={{
-      backgroundColor: "#4c1d95",  // Purple theme
-      border: "2px solid #a78bfa",
+      backgroundColor: "#c2410c",
+      border: `2px solid ${borderColor}`,
       borderRadius: 8,
       padding: 12,
-      minWidth: 220,
+      minWidth: 180,
     }}>
-      <Handle type="target" position={Position.Left} />
-
-      <div style={{ color: "#a78bfa", fontSize: 12, marginBottom: 8 }}>
-        🧠 Trainer
+      <Handle type="target" position={Position.Left} ... />
+      <div style={{ color: "#fb923c", fontSize: 12, fontWeight: 500 }}>
+        Evaluator
       </div>
-
-      {/* Model Type Dropdown */}
-      <label style={{ fontSize: 10, color: "#9ca3af" }}>Model</label>
-      <select value={nodeData.modelType || "linear_regression"}
-        onChange={(e) => updateNodeData(id, { modelType: e.target.value })}
-        style={{ width: "100%", marginBottom: 8 }}>
-        <option value="linear_regression">Linear Regression</option>
-        <option value="random_forest">Random Forest</option>
-        <option value="gradient_boosting">Gradient Boosting</option>
-      </select>
-
-      {/* Target Column Input */}
-      <label style={{ fontSize: 10, color: "#9ca3af" }}>Target Column</label>
-      <input placeholder="e.g. price"
-        value={nodeData.targetColumn || ""}
-        onChange={(e) => updateNodeData(id, { targetColumn: e.target.value })}
-        style={{ width: "100%", marginBottom: 8 }} />
-
-      {/* Test Split Slider */}
-      <label style={{ fontSize: 10, color: "#9ca3af" }}>
-        Test Split: {((nodeData.testSplit || 0.2) * 100).toFixed(0)}%
-      </label>
-      <input type="range" min="0.1" max="0.5" step="0.05"
-        value={nodeData.testSplit || 0.2}
-        onChange={(e) => updateNodeData(id, { testSplit: parseFloat(e.target.value) })}
-        style={{ width: "100%" }} />
-
-      {/* No output handle - nothing connects to Trainer yet */}
+      <div style={{ fontSize: 10, color: "#9ca3af", marginTop: 8 }}>
+        Auto-detects model type and displays metrics
+      </div>
     </div>
   );
 }
 ```
 
-Note: Output handle removed until Evaluator node exists.
+### 3. Create evaluatorCodeGen.ts
 
-### 3. Update connection validation (single source of truth)
+**File:** `src/lib/evaluatorCodeGen.ts` (NEW)
 
-**File:** `src/stores/pipelineStore.ts` - Define valid connections in one place:
-
-```typescript
-// At top of file
-const VALID_CONNECTIONS: [string, string][] = [
-  ["dataLoader", "script"],
-  ["dataLoader", "trainer"],
-];
-
-// In onConnect:
-onConnect: (connection) => {
-  const { nodes } = get();
-  const sourceNode = nodes.find((n) => n.id === connection.source);
-  const targetNode = nodes.find((n) => n.id === connection.target);
-
-  const isValid = VALID_CONNECTIONS.some(
-    ([src, tgt]) => sourceNode?.type === src && targetNode?.type === tgt
-  );
-
-  if (isValid) {
-    set((state) => ({
-      edges: addEdge(connection, state.edges),
-      isDirty: true,
-    }));
-  }
-},
-```
-
-**File:** `src/components/Canvas.tsx` - Use same validation:
-
-```typescript
-import { VALID_CONNECTIONS } from "../stores/pipelineStore";
-
-const isValidConnection = (connection) => {
-  const sourceNode = nodes.find((n) => n.id === connection.source);
-  const targetNode = nodes.find((n) => n.id === connection.target);
-
-  return VALID_CONNECTIONS.some(
-    ([src, tgt]) => sourceNode?.type === src && targetNode?.type === tgt
-  );
-};
-```
-
-Note: Only DataLoader → Trainer allowed. Script → Trainer removed (undefined output contract).
-
-### 4. Register node type
-
-**File:** `src/components/Canvas.tsx`
-
-```typescript
-import { TrainerNode } from "./TrainerNode";
-
-const nodeTypes: NodeTypes = {
-  dataLoader: DataLoaderNode,
-  script: ScriptNode,
-  trainer: TrainerNode,  // NEW
-};
-```
-
-### 5. Add to NodePalette
-
-**File:** `src/components/NodePalette.tsx`
-
-```typescript
-<button onClick={() => addNode("trainer", { x: 400, y: 100 + Math.random() * 100 })}>
-  🧠 Trainer
-</button>
-```
-
-### 6. Update addNode in store
-
-**File:** `src/stores/pipelineStore.ts`
-
-```typescript
-addNode: (type: "dataLoader" | "script" | "trainer", position) => {
-  const id = `${type}-${++nodeIdCounter}`;
-  const defaults: Partial<NodeData> = {
-    dataLoader: { label: "Data Loader" },
-    script: { label: "Script", code: "# Python code..." },
-    trainer: {
-      label: "Trainer",
-      modelType: "linear_regression",
-      targetColumn: "",
-      testSplit: 0.2,
-    },
-  };
-
-  const newNode: Node<NodeData> = {
-    id,
-    type,
-    position,
-    data: defaults[type] as NodeData,
-  };
-  // ...
-},
-```
-
-### 7. Generate training code (execution)
-
-**File:** `src/lib/trainerCodeGen.ts` (NEW)
-
-Use lookup table for models, sanitize inputs, add error handling:
+Auto-detects sklearn classifier vs regressor:
 
 ```typescript
 import { NodeData } from "../stores/pipelineStore";
 
-const MODEL_CONFIG: Record<string, { module: string; class: string }> = {
-  linear_regression: { module: 'sklearn.linear_model', class: 'LinearRegression' },
-  random_forest: { module: 'sklearn.ensemble', class: 'RandomForestRegressor' },
-  gradient_boosting: { module: 'sklearn.ensemble', class: 'GradientBoostingRegressor' },
-};
-
-// Sanitize file path for embedding in Python string
 const sanitizePath = (p: string): string =>
-  p.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  p.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 
-export const generateTrainerCode = (nodeData: NodeData, inputPath: string): string => {
-  const config = MODEL_CONFIG[nodeData.modelType || 'linear_regression'];
-  const targetCol = nodeData.targetColumn?.replace(/"/g, '\\"') || 'target';
-  const testSplit = nodeData.testSplit || 0.2;
-  const safePath = sanitizePath(inputPath);
+export const generateEvaluatorCode = (
+  trainerData: NodeData,
+  modelPath: string,
+  dataPath: string
+): string => {
+  const targetCol = trainerData.targetColumn?.replace(/"/g, '\\"') || "target";
+  const testSplit = trainerData.testSplit || 0.2;
+  const safeModelPath = sanitizePath(modelPath);
+  const safeDataPath = sanitizePath(dataPath);
 
-  return `
-import sys
+  return `import sys
 import pandas as pd
 import joblib
+import numpy as np
+from sklearn.base import is_classifier, is_regressor
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error, mean_absolute_error
-from ${config.module} import ${config.class}
 
 try:
-    df = pd.read_csv("${safePath}")
+    model = joblib.load("${safeModelPath}")
+    df = pd.read_csv("${safeDataPath}")
 
     target_col = "${targetCol}"
-    if target_col not in df.columns:
-        print(f"ERROR: Column '{target_col}' not found. Available: {list(df.columns)}")
-        sys.exit(1)
-
     X = df.drop(target_col, axis=1)
     y = df[target_col]
 
-    X_train, X_test, y_train, y_test = train_test_split(
+    _, X_test, _, y_test = train_test_split(
         X, y, test_size=${testSplit}, random_state=42
     )
 
-    model = ${config.class}()
-    model.fit(X_train, y_train)
-
     y_pred = model.predict(X_test)
-    print(f"Model: ${nodeData.modelType}")
-    print(f"R² Score: {model.score(X_test, y_test):.4f}")
-    print(f"MSE: {mean_squared_error(y_test, y_pred):.4f}")
-    print(f"MAE: {mean_absolute_error(y_test, y_pred):.4f}")
 
-    joblib.dump(model, "model.joblib")
-    print("Model saved to model.joblib")
+    print("=" * 40)
+    print("EVALUATION RESULTS")
+    print("=" * 40)
+
+    if is_classifier(model):
+        from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+
+        print("Model Type: Classifier")
+        print("-" * 40)
+        print(f"Accuracy:  {accuracy_score(y_test, y_pred):.4f}")
+
+        average = 'binary' if len(np.unique(y)) == 2 else 'weighted'
+        print(f"Precision: {precision_score(y_test, y_pred, average=average, zero_division=0):.4f}")
+        print(f"Recall:    {recall_score(y_test, y_pred, average=average, zero_division=0):.4f}")
+        print(f"F1 Score:  {f1_score(y_test, y_pred, average=average, zero_division=0):.4f}")
+        print("-" * 40)
+        print("Confusion Matrix:")
+        print(confusion_matrix(y_test, y_pred))
+
+    elif is_regressor(model):
+        from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
+
+        print("Model Type: Regressor")
+        print("-" * 40)
+        print(f"R2 Score:  {r2_score(y_test, y_pred):.4f}")
+        print(f"MSE:       {mean_squared_error(y_test, y_pred):.4f}")
+        print(f"RMSE:      {np.sqrt(mean_squared_error(y_test, y_pred)):.4f}")
+        print(f"MAE:       {mean_absolute_error(y_test, y_pred):.4f}")
+
+    print("=" * 40)
+    print("Evaluation complete!")
 
 except Exception as e:
     print(f"ERROR: {e}")
@@ -256,17 +147,163 @@ except Exception as e:
 };
 ```
 
-### 8. Simplify connection rules
+### 4. Add runScriptAndWait for sequential execution
 
-**Only allow DataLoader → Trainer** (remove Script → Trainer for now)
+**File:** `src/lib/tauri.ts`
 
-This avoids undefined Script output contract. Users who need preprocessing can use Script node to write their own training code.
+```typescript
+export async function runScriptAndWait(
+  scriptCode: string,
+  inputPath: string,
+  onOutput?: (event: ScriptEvent) => void
+): Promise<number> {
+  return new Promise((resolve, reject) => {
+    let unlistener: UnlistenFn | undefined;
 
----
+    listenToScriptOutput((event) => {
+      onOutput?.(event);
+      if (event.type === "exit") {
+        unlistener?.();
+        if (event.code === 0) resolve(event.code);
+        else reject(new Error(`Script exited with code ${event.code}`));
+      }
+    }).then((unlisten) => {
+      unlistener = unlisten;
+      runScript(scriptCode, inputPath).catch(reject);
+    });
+  });
+}
+```
 
-## v1.5 Consideration
+### 5. Refactor Toolbar.tsx handleRun for sequential execution
 
-**Model output location:** Currently saves `model.joblib` to Python's cwd. Future improvement: save next to input file or let user configure output directory.
+**File:** `src/components/Toolbar.tsx`
+
+```typescript
+import { generateEvaluatorCode } from "../lib/evaluatorCodeGen";
+import { runScriptAndWait } from "../lib/tauri";
+
+const handleRun = async () => {
+  const errors = validatePipeline();
+  if (errors.length > 0) {
+    clearLogs();
+    errors.forEach((e) => appendLog(`ERROR: ${e}`));
+    return;
+  }
+
+  clearLogs();
+  setExecutionStatus("running");
+
+  // Find pipeline structure
+  const trainerNode = nodes.find((n) => n.type === "trainer");
+  const evaluatorNode = nodes.find((n) => n.type === "evaluator");
+  const scriptNode = nodes.find((n) => n.type === "script");
+
+  // Get DataLoader for input path
+  const targetNode = trainerNode || scriptNode;
+  if (!targetNode) {
+    appendLog("ERROR: No executable node found");
+    setExecutionStatus("error");
+    return;
+  }
+
+  const edge = edges.find((e) => e.target === targetNode.id);
+  const dataLoaderNode = nodes.find((n) => n.id === edge?.source);
+  const inputPath = dataLoaderNode?.data.filePath;
+
+  if (!inputPath) {
+    appendLog("ERROR: No input file selected");
+    setExecutionStatus("error");
+    return;
+  }
+
+  try {
+    // Step 1: Run Trainer or Script
+    if (trainerNode) {
+      appendLog("--- Running Trainer ---");
+      const trainerCode = generateTrainerCode(trainerNode.data, inputPath);
+      await runScriptAndWait(trainerCode, inputPath, (event) => {
+        if (event.type === "log") appendLog(event.message);
+        if (event.type === "error") appendLog(`ERROR: ${event.message}`);
+      });
+    } else if (scriptNode) {
+      appendLog("--- Running Script ---");
+      await runScriptAndWait(scriptNode.data.code!, inputPath, (event) => {
+        if (event.type === "log") appendLog(event.message);
+        if (event.type === "error") appendLog(`ERROR: ${event.message}`);
+      });
+    }
+
+    // Step 2: Run Evaluator (if connected to Trainer)
+    if (evaluatorNode && trainerNode) {
+      const evalEdge = edges.find((e) => e.target === evaluatorNode.id);
+      if (evalEdge?.source === trainerNode.id) {
+        appendLog("");
+        appendLog("--- Running Evaluator ---");
+        const evalCode = generateEvaluatorCode(trainerNode.data, "model.joblib", inputPath);
+        await runScriptAndWait(evalCode, inputPath, (event) => {
+          if (event.type === "log") appendLog(event.message);
+          if (event.type === "error") appendLog(`ERROR: ${event.message}`);
+        });
+      }
+    }
+
+    setExecutionStatus("success");
+  } catch (error) {
+    appendLog(`ERROR: ${error}`);
+    setExecutionStatus("error");
+  }
+};
+```
+
+### 6. Update validatePipeline
+
+**File:** `src/stores/pipelineStore.ts`
+
+Add validation for Evaluator:
+```typescript
+// Evaluator must be connected to Trainer
+const evaluatorNodes = nodes.filter((n) => n.type === "evaluator");
+for (const evaluator of evaluatorNodes) {
+  const incomingEdge = edges.find((e) => e.target === evaluator.id);
+  if (!incomingEdge) {
+    errors.push("Connect a Trainer to the Evaluator");
+  } else {
+    const sourceNode = nodes.find((n) => n.id === incomingEdge.source);
+    if (sourceNode?.type !== "trainer") {
+      errors.push("Evaluator must be connected to a Trainer node");
+    }
+  }
+}
+```
+
+### 7. Register in Canvas.tsx
+
+```typescript
+import { EvaluatorNode } from "./EvaluatorNode";
+
+const nodeTypes: NodeTypes = {
+  dataLoader: DataLoaderNode,
+  script: ScriptNode,
+  trainer: TrainerNode,
+  evaluator: EvaluatorNode,
+};
+
+// MiniMap color
+case "evaluator": return "#fb923c";
+```
+
+### 8. Add to NodePalette.tsx
+
+```typescript
+<button onClick={() => addNode("evaluator", { x: 700, y: 100 + Math.random() * 100 })}
+  style={{ backgroundColor: "#fb923c", ... }}>
+  Evaluator
+</button>
+
+// Update tip:
+<p>Valid: DataLoader -> Trainer -> Evaluator</p>
+```
 
 ---
 
@@ -274,34 +311,54 @@ This avoids undefined Script output contract. Users who need preprocessing can u
 
 | File | Change |
 |------|--------|
-| `src/stores/pipelineStore.ts` | Extend NodeData, add VALID_CONNECTIONS, update addNode, update onConnect |
-| `src/components/TrainerNode.tsx` | NEW - Trainer component with form UI |
-| `src/components/Canvas.tsx` | Register TrainerNode, use shared validation |
-| `src/components/NodePalette.tsx` | Add Trainer button |
-| `src/lib/trainerCodeGen.ts` | NEW - Generate training code from config |
-| `src/components/Toolbar.tsx` | Handle Trainer execution |
+| `src/stores/pipelineStore.ts` | Add evaluator to addNode, VALID_CONNECTIONS, validatePipeline |
+| `src/components/EvaluatorNode.tsx` | NEW - Evaluator node component |
+| `src/lib/evaluatorCodeGen.ts` | NEW - Generate evaluation code |
+| `src/lib/tauri.ts` | Add runScriptAndWait function |
+| `src/components/Toolbar.tsx` | Refactor handleRun for sequential execution |
+| `src/components/Canvas.tsx` | Register EvaluatorNode, add MiniMap color |
+| `src/components/NodePalette.tsx` | Add Evaluator button |
+
+---
+
+## Known Limitations (v1.5)
+
+| Issue | Severity | Note |
+|-------|----------|------|
+| Test set fragility | Medium | Trainer/Evaluator both call train_test_split with same random_state=42. Works if data unchanged. Fix in v1.6: save test_indices.json |
+| Redundant regressor metrics | Low | Evaluator only adds RMSE for regressors. Real value is classification metrics (future) |
+| Hardcoded model.joblib path | Low | Accept for v1.5. Add configurable output dir in v1.6 |
+| No timeout in runScriptAndWait | Low | Add 5-min timeout in v1.6 |
 
 ---
 
 ## Verification
 
 1. `npm run build` - should pass
-2. `npm run tauri dev`
-3. Add Trainer from palette → purple node with form UI
-4. Connect DataLoader → Trainer → works
-5. Connect Script → Trainer → blocked (not allowed)
-6. Configure: model type, target column (e.g. "price"), test split
-7. Click Run → shows R², MSE, MAE in output
-8. Check current directory → `model.joblib` saved
+2. `npm run test:run` - all tests pass
+3. `npm run tauri dev`
+4. Create pipeline: DataLoader -> Trainer -> Evaluator
+5. Select CSV file, configure Trainer (target column)
+6. Click Run:
+   - Trainer runs first, outputs R2/MSE/MAE
+   - Evaluator runs second, shows full metrics
+7. Test with regression dataset -> shows regressor metrics
+8. Test with classification dataset -> shows accuracy/precision/recall/F1/confusion matrix
 
 ---
 
-# v1.3 - Script Editor Panel - COMPLETED
+## Test Cases to Add
 
-- PropertiesPanel shows large Monaco when Script selected
-- Hidden when no node or non-Script selected
+```typescript
+it("allows trainer -> evaluator connections", () => { ... });
+it("rejects dataLoader -> evaluator connections", () => { ... });
+it("validates evaluator must connect to trainer", () => { ... });
+```
 
-# v1.2 - Monaco Editor - COMPLETED
+---
 
-- `@monaco-editor/react@4.7.0` added
-- ScriptNode uses Monaco with Python syntax highlighting
+# Previous Versions
+
+## v1.4 - Trainer Node - COMPLETED
+## v1.3 - Script Editor Panel - COMPLETED
+## v1.2 - Monaco Editor - COMPLETED
