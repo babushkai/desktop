@@ -11,12 +11,14 @@ import { DataLoaderNode } from "./DataLoaderNode";
 import { ScriptNode } from "./ScriptNode";
 import { TrainerNode } from "./TrainerNode";
 import { EvaluatorNode } from "./EvaluatorNode";
+import { ModelExporterNode } from "./ModelExporterNode";
 
 const nodeTypes: NodeTypes = {
   dataLoader: DataLoaderNode,
   script: ScriptNode,
   trainer: TrainerNode,
   evaluator: EvaluatorNode,
+  modelExporter: ModelExporterNode,
 };
 
 export function Canvas() {
@@ -64,6 +66,8 @@ export function Canvas() {
               return "#a78bfa";
             case "evaluator":
               return "#fb923c";
+            case "modelExporter":
+              return "#5eead4";
             default:
               return "#888";
           }

@@ -19,6 +19,10 @@ export function NodePalette() {
     addNode("evaluator", { x: 700, y: 100 + Math.random() * 100 });
   };
 
+  const handleAddModelExporter = () => {
+    addNode("modelExporter", { x: 900, y: 100 + Math.random() * 100 });
+  };
+
   return (
     <div
       style={{
@@ -100,6 +104,7 @@ export function NodePalette() {
         style={{
           width: "100%",
           padding: "12px 16px",
+          marginBottom: 8,
           backgroundColor: "#fb923c",
           color: "#1a1a2e",
           border: "none",
@@ -115,6 +120,26 @@ export function NodePalette() {
         Evaluator
       </button>
 
+      <button
+        onClick={handleAddModelExporter}
+        style={{
+          width: "100%",
+          padding: "12px 16px",
+          backgroundColor: "#5eead4",
+          color: "#1a1a2e",
+          border: "none",
+          borderRadius: 6,
+          cursor: "pointer",
+          fontWeight: 500,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <span style={{ fontSize: 18 }}>📦</span>
+        Model Exporter
+      </button>
+
       <div
         style={{
           marginTop: 24,
@@ -128,7 +153,7 @@ export function NodePalette() {
         <p style={{ marginBottom: 8 }}>
           <strong>Tip:</strong> Build a pipeline with nodes.
         </p>
-        <p>DataLoader → Trainer → Evaluator</p>
+        <p>DataLoader → Trainer → Evaluator → Model Exporter</p>
       </div>
     </div>
   );

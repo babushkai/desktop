@@ -69,6 +69,17 @@ export function EvaluatorNode(_props: NodeProps) {
         Auto-detects model type and displays metrics
       </div>
 
+      <Handle
+        type="source"
+        position={Position.Right}
+        style={{
+          width: 12,
+          height: 12,
+          backgroundColor: "#fb923c",
+          border: "2px solid #c2410c",
+        }}
+      />
+
       <style>
         {`
           @keyframes pulse {

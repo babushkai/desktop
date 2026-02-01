@@ -12,6 +12,7 @@ import {
 } from "../lib/tauri";
 import { generateTrainerCode } from "../lib/trainerCodeGen";
 import { generateEvaluatorCode } from "../lib/evaluatorCodeGen";
+import { generateExporterCode } from "../lib/exporterCodeGen";
 
 export function Toolbar() {
   const {
@@ -125,6 +126,23 @@ export function Toolbar() {
 
           const evalCode = generateEvaluatorCode(trainerNode.data, "model.joblib", inputPath);
           await runScriptAndWait(evalCode, inputPath, handleOutput);
+        }
+      }
+
+      // Step 3: Run ModelExporter (if present)
+      const modelExporterNode = nodes.find((n) => n.type === "modelExporter");
+      if (modelExporterNode) {
+        const exportEdge = edges.find((e) => e.target === modelExporterNode.id);
+        if (exportEdge) {
+          // Valid sources: evaluator or trainer
+          const sourceNode = nodes.find((n) => n.id === exportEdge.source);
+          if (sourceNode?.type === "evaluator" || sourceNode?.type === "trainer") {
+            appendLog("");
+            appendLog("--- Running Model Exporter ---");
+
+            const exportCode = generateExporterCode(modelExporterNode.data, "model.joblib");
+            await runScriptAndWait(exportCode, inputPath, handleOutput);
+          }
         }
       }
 
