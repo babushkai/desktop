@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Play, Square, ChevronDown, Trash2, FileIcon, FolderOpen, Save, Plus } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
 import { usePipelineStore } from "../stores/pipelineStore";
 import {
   findPython,
@@ -33,6 +34,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export function Toolbar() {
+  // Rule: rerender-derived-state - Single shallow selector
   const {
     nodes,
     edges,
@@ -48,7 +50,24 @@ export function Toolbar() {
     savePipeline,
     loadPipeline,
     newPipeline,
-  } = usePipelineStore();
+  } = usePipelineStore(
+    useShallow((s) => ({
+      nodes: s.nodes,
+      edges: s.edges,
+      executionStatus: s.executionStatus,
+      pythonPath: s.pythonPath,
+      setPythonPath: s.setPythonPath,
+      setExecutionStatus: s.setExecutionStatus,
+      appendLog: s.appendLog,
+      clearLogs: s.clearLogs,
+      validatePipeline: s.validatePipeline,
+      currentPipelineName: s.currentPipelineName,
+      isDirty: s.isDirty,
+      savePipeline: s.savePipeline,
+      loadPipeline: s.loadPipeline,
+      newPipeline: s.newPipeline,
+    }))
+  );
 
   const [isEditingPath, setIsEditingPath] = useState(false);
   const [pathInput, setPathInput] = useState("");
@@ -323,7 +342,7 @@ export function Toolbar() {
           variant="secondary"
           size="sm"
           onClick={handleNew}
-          className="transition-premium hover:scale-[1.02] active:scale-[0.98]"
+          className="transition-button hover:-translate-y-px active:translate-y-0"
         >
           <Plus className="h-4 w-4 mr-1" />
           New
@@ -332,7 +351,7 @@ export function Toolbar() {
           variant="secondary"
           size="sm"
           onClick={handleSave}
-          className="transition-premium hover:scale-[1.02] active:scale-[0.98]"
+          className="transition-button hover:-translate-y-px active:translate-y-0"
         >
           <Save className="h-4 w-4 mr-1" />
           Save
@@ -342,7 +361,7 @@ export function Toolbar() {
             <Button
               variant="secondary"
               size="sm"
-              className="transition-premium hover:scale-[1.02] active:scale-[0.98]"
+              className="transition-button hover:-translate-y-px active:translate-y-0"
             >
               <FolderOpen className="h-4 w-4 mr-1" />
               Load
@@ -429,7 +448,7 @@ export function Toolbar() {
               variant="secondary"
               size="sm"
               onClick={() => setIsEditingPath(true)}
-              className="transition-premium hover:scale-[1.02] active:scale-[0.98]"
+              className="transition-button hover:-translate-y-px active:translate-y-0"
             >
               Change
             </Button>
@@ -444,7 +463,7 @@ export function Toolbar() {
         <Button
           variant="destructive"
           onClick={handleCancel}
-          className="transition-premium hover:scale-[1.02] active:scale-[0.98]"
+          className="transition-button hover:-translate-y-px active:translate-y-0"
         >
           <Square className="h-4 w-4 mr-2" />
           Cancel
@@ -454,7 +473,7 @@ export function Toolbar() {
           onClick={handleRun}
           disabled={!isRunnable}
           className={cn(
-            "transition-premium hover:scale-[1.02] active:scale-[0.98]",
+            "transition-button hover:-translate-y-px active:translate-y-0",
             isRunnable
               ? "bg-emerald-600 hover:bg-emerald-500 hover:shadow-lg hover:shadow-emerald-500/25 text-white"
               : "bg-slate-700 text-slate-500"
@@ -468,7 +487,7 @@ export function Toolbar() {
       {/* Status indicator */}
       <div
         className={cn(
-          "w-2.5 h-2.5 rounded-full transition-premium",
+          "w-2.5 h-2.5 rounded-full transition-button",
           executionStatus === "running" && "bg-amber-500 shadow-lg shadow-amber-500/50",
           executionStatus === "success" && "bg-emerald-500 shadow-lg shadow-emerald-500/50",
           executionStatus === "error" && "bg-red-500 shadow-lg shadow-red-500/50",

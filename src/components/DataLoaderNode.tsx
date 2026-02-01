@@ -8,6 +8,7 @@ import { nodeConfig } from "@/lib/theme";
 
 export function DataLoaderNode({ id, data }: NodeProps) {
   const nodeData = data as NodeData;
+  // Single subscription - only needs updateNodeData
   const updateNodeData = usePipelineStore((state) => state.updateNodeData);
 
   const handleSelectFile = async () => {
@@ -39,9 +40,9 @@ export function DataLoaderNode({ id, data }: NodeProps) {
         // Theme colors
         theme.bgClass,
         theme.borderClass,
-        // Interactions
-        "transition-all duration-200 ease-out",
-        "hover:shadow-premium-md hover:scale-[1.01]",
+        // Interactions - translate instead of scale
+        "transition-node",
+        "hover:shadow-premium-md hover:-translate-y-0.5",
         "hover:border-emerald-500/50"
       )}
     >
@@ -58,7 +59,7 @@ export function DataLoaderNode({ id, data }: NodeProps) {
         variant="outline"
         size="sm"
         onClick={handleSelectFile}
-        className="w-full justify-start text-xs glass-subtle glass-hover border-white/[0.08] nodrag transition-premium"
+        className="w-full justify-start text-xs glass-subtle glass-hover border-white/[0.08] nodrag transition-button"
       >
         {fileName || "Select file..."}
       </Button>
@@ -72,7 +73,7 @@ export function DataLoaderNode({ id, data }: NodeProps) {
       <Handle
         type="source"
         position={Position.Right}
-        className="!w-3 !h-3 !border-2 !border-slate-900/80 transition-all hover:!scale-125"
+        className="!w-3 !h-3 !border-2 !border-slate-900/80"
         style={{ backgroundColor: theme.handleColor }}
       />
     </div>

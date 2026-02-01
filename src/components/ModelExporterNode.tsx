@@ -1,5 +1,6 @@
 import { Handle, Position, NodeProps } from "@xyflow/react";
 import { Package, Loader2 } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
 import { usePipelineStore, NodeData } from "../stores/pipelineStore";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,8 +16,14 @@ import { nodeConfig, statusColors } from "@/lib/theme";
 
 export function ModelExporterNode({ id, data }: NodeProps) {
   const nodeData = data as NodeData;
-  const updateNodeData = usePipelineStore((s) => s.updateNodeData);
-  const executionStatus = usePipelineStore((s) => s.executionStatus);
+
+  // Rule: rerender-derived-state - Single shallow selector
+  const { updateNodeData, executionStatus } = usePipelineStore(
+    useShallow((s) => ({
+      updateNodeData: s.updateNodeData,
+      executionStatus: s.executionStatus,
+    }))
+  );
 
   const theme = nodeConfig.modelExporter;
 
@@ -31,16 +38,16 @@ export function ModelExporterNode({ id, data }: NodeProps) {
         theme.bgClass,
         // Status
         statusColors[executionStatus],
-        // Interactions
-        "transition-all duration-200 ease-out",
-        "hover:shadow-premium-md hover:scale-[1.01]",
+        // Interactions - translate instead of scale
+        "transition-node",
+        "hover:shadow-premium-md hover:-translate-y-0.5",
         "hover:border-cyan-500/50"
       )}
     >
       <Handle
         type="target"
         position={Position.Left}
-        className="!w-3 !h-3 !border-2 !border-slate-900/80 transition-all hover:!scale-125"
+        className="!w-3 !h-3 !border-2 !border-slate-900/80"
         style={{ backgroundColor: theme.handleColor }}
       />
 

@@ -1,11 +1,19 @@
 import { useEffect, useRef } from "react";
 import { Loader2, Trash2 } from "lucide-react";
+import { useShallow } from "zustand/react/shallow";
 import { usePipelineStore } from "../stores/pipelineStore";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export function OutputPanel() {
-  const { outputLogs, executionStatus, clearLogs } = usePipelineStore();
+  // Rule: rerender-derived-state - Single shallow selector
+  const { outputLogs, executionStatus, clearLogs } = usePipelineStore(
+    useShallow((s) => ({
+      outputLogs: s.outputLogs,
+      executionStatus: s.executionStatus,
+      clearLogs: s.clearLogs,
+    }))
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll to bottom when new logs arrive
@@ -32,7 +40,7 @@ export function OutputPanel() {
           variant="ghost"
           size="sm"
           onClick={clearLogs}
-          className="h-7 px-2 text-xs text-slate-400 hover:text-slate-200 glass-subtle glass-hover rounded-lg transition-premium"
+          className="h-7 px-2 text-xs text-slate-400 hover:text-slate-200 glass-subtle glass-hover rounded-lg transition-button"
         >
           <Trash2 className="h-3 w-3 mr-1" />
           Clear
