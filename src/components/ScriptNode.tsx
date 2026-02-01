@@ -1,6 +1,9 @@
 import { Handle, Position, NodeProps } from "@xyflow/react";
 import Editor from "@monaco-editor/react";
+import { FileCode2, Loader2 } from "lucide-react";
 import { usePipelineStore, NodeData } from "../stores/pipelineStore";
+import { cn } from "@/lib/utils";
+import { nodeConfig, statusColors } from "@/lib/theme";
 
 export function ScriptNode({ id, data }: NodeProps) {
   const nodeData = data as NodeData;
@@ -11,24 +14,16 @@ export function ScriptNode({ id, data }: NodeProps) {
     updateNodeData(id, { code: value || "" });
   };
 
-  const borderColor =
-    executionStatus === "running"
-      ? "#fbbf24"
-      : executionStatus === "success"
-      ? "#4ade80"
-      : executionStatus === "error"
-      ? "#ef4444"
-      : "#60a5fa";
+  const theme = nodeConfig.script;
 
   return (
     <div
-      style={{
-        backgroundColor: "#1e3a5f",
-        border: `2px solid ${borderColor}`,
-        borderRadius: 8,
-        padding: 12,
-        minWidth: 300,
-      }}
+      className={cn(
+        "rounded-lg border-2 p-3 min-w-[300px] transition-all duration-200",
+        theme.bgClass,
+        statusColors[executionStatus],
+        "hover:shadow-lg hover:shadow-black/20"
+      )}
     >
       <Handle
         type="target"
@@ -36,38 +31,22 @@ export function ScriptNode({ id, data }: NodeProps) {
         style={{
           width: 12,
           height: 12,
-          backgroundColor: "#60a5fa",
-          border: "2px solid #1e3a5f",
+          backgroundColor: theme.handleColor,
+          border: "2px solid #0f172a",
         }}
       />
 
-      <div
-        style={{
-          fontSize: 12,
-          color: "#60a5fa",
-          marginBottom: 8,
-          fontWeight: 500,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        📜 Script
+      <div className="flex items-center gap-2 mb-3">
+        <FileCode2 className={cn("h-4 w-4", theme.accentClass)} />
+        <span className={cn("text-sm font-medium", theme.accentClass)}>
+          Script
+        </span>
         {executionStatus === "running" && (
-          <span
-            style={{
-              display: "inline-block",
-              width: 8,
-              height: 8,
-              borderRadius: "50%",
-              backgroundColor: "#fbbf24",
-              animation: "pulse 1s infinite",
-            }}
-          />
+          <Loader2 className="h-3 w-3 text-yellow-400 animate-spin" />
         )}
       </div>
 
-      <div className="nodrag" style={{ border: "1px solid #394867", borderRadius: 4 }}>
+      <div className="nodrag rounded border border-slate-600 overflow-hidden">
         <Editor
           height="150px"
           language="python"
@@ -85,24 +64,9 @@ export function ScriptNode({ id, data }: NodeProps) {
         />
       </div>
 
-      <div
-        style={{
-          marginTop: 8,
-          fontSize: 10,
-          color: "#9ca3af",
-        }}
-      >
+      <div className="mt-2 text-[10px] text-slate-400">
         Input: sys.argv[1] = data file path
       </div>
-
-      <style>
-        {`
-          @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-          }
-        `}
-      </style>
     </div>
   );
 }

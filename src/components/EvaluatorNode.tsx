@@ -1,27 +1,22 @@
 import { Handle, Position, NodeProps } from "@xyflow/react";
+import { BarChart3, Loader2 } from "lucide-react";
 import { usePipelineStore } from "../stores/pipelineStore";
+import { cn } from "@/lib/utils";
+import { nodeConfig, statusColors } from "@/lib/theme";
 
 export function EvaluatorNode(_props: NodeProps) {
   const executionStatus = usePipelineStore((s) => s.executionStatus);
 
-  const borderColor =
-    executionStatus === "running"
-      ? "#fbbf24"
-      : executionStatus === "success"
-      ? "#4ade80"
-      : executionStatus === "error"
-      ? "#ef4444"
-      : "#fb923c";
+  const theme = nodeConfig.evaluator;
 
   return (
     <div
-      style={{
-        backgroundColor: "#c2410c",
-        border: `2px solid ${borderColor}`,
-        borderRadius: 8,
-        padding: 12,
-        minWidth: 180,
-      }}
+      className={cn(
+        "rounded-lg border-2 p-3 min-w-[200px] transition-all duration-200",
+        theme.bgClass,
+        statusColors[executionStatus],
+        "hover:shadow-lg hover:shadow-black/20"
+      )}
     >
       <Handle
         type="target"
@@ -29,43 +24,22 @@ export function EvaluatorNode(_props: NodeProps) {
         style={{
           width: 12,
           height: 12,
-          backgroundColor: "#fb923c",
-          border: "2px solid #c2410c",
+          backgroundColor: theme.handleColor,
+          border: "2px solid #0f172a",
         }}
       />
 
-      <div
-        style={{
-          fontSize: 12,
-          color: "#fb923c",
-          marginBottom: 8,
-          fontWeight: 500,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        Evaluator
+      <div className="flex items-center gap-2 mb-2">
+        <BarChart3 className={cn("h-4 w-4", theme.accentClass)} />
+        <span className={cn("text-sm font-medium", theme.accentClass)}>
+          Evaluator
+        </span>
         {executionStatus === "running" && (
-          <span
-            style={{
-              display: "inline-block",
-              width: 8,
-              height: 8,
-              borderRadius: "50%",
-              backgroundColor: "#fbbf24",
-              animation: "pulse 1s infinite",
-            }}
-          />
+          <Loader2 className="h-3 w-3 text-yellow-400 animate-spin" />
         )}
       </div>
 
-      <div
-        style={{
-          fontSize: 10,
-          color: "#fed7aa",
-        }}
-      >
+      <div className="text-[10px] text-orange-200/70">
         Auto-detects model type and displays metrics
       </div>
 
@@ -75,19 +49,10 @@ export function EvaluatorNode(_props: NodeProps) {
         style={{
           width: 12,
           height: 12,
-          backgroundColor: "#fb923c",
-          border: "2px solid #c2410c",
+          backgroundColor: theme.handleColor,
+          border: "2px solid #0f172a",
         }}
       />
-
-      <style>
-        {`
-          @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-          }
-        `}
-      </style>
     </div>
   );
 }

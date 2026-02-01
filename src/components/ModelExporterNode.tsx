@@ -1,29 +1,33 @@
 import { Handle, Position, NodeProps } from "@xyflow/react";
+import { Package, Loader2 } from "lucide-react";
 import { usePipelineStore, NodeData } from "../stores/pipelineStore";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+import { nodeConfig, statusColors } from "@/lib/theme";
 
 export function ModelExporterNode({ id, data }: NodeProps) {
   const nodeData = data as NodeData;
   const updateNodeData = usePipelineStore((s) => s.updateNodeData);
   const executionStatus = usePipelineStore((s) => s.executionStatus);
 
-  const borderColor =
-    executionStatus === "running"
-      ? "#fbbf24"
-      : executionStatus === "success"
-      ? "#4ade80"
-      : executionStatus === "error"
-      ? "#ef4444"
-      : "#5eead4";
+  const theme = nodeConfig.modelExporter;
 
   return (
     <div
-      style={{
-        backgroundColor: "#0d9488",
-        border: `2px solid ${borderColor}`,
-        borderRadius: 8,
-        padding: 12,
-        minWidth: 200,
-      }}
+      className={cn(
+        "rounded-lg border-2 p-3 min-w-[200px] transition-all duration-200",
+        theme.bgClass,
+        statusColors[executionStatus],
+        "hover:shadow-lg hover:shadow-black/20"
+      )}
     >
       <Handle
         type="target"
@@ -31,108 +35,52 @@ export function ModelExporterNode({ id, data }: NodeProps) {
         style={{
           width: 12,
           height: 12,
-          backgroundColor: "#5eead4",
-          border: "2px solid #0d9488",
+          backgroundColor: theme.handleColor,
+          border: "2px solid #0f172a",
         }}
       />
 
-      <div
-        style={{
-          fontSize: 12,
-          color: "#5eead4",
-          marginBottom: 12,
-          fontWeight: 500,
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        Model Exporter
+      <div className="flex items-center gap-2 mb-3">
+        <Package className={cn("h-4 w-4", theme.accentClass)} />
+        <span className={cn("text-sm font-medium", theme.accentClass)}>
+          Model Exporter
+        </span>
         {executionStatus === "running" && (
-          <span
-            style={{
-              display: "inline-block",
-              width: 8,
-              height: 8,
-              borderRadius: "50%",
-              backgroundColor: "#fbbf24",
-              animation: "pulse 1s infinite",
-            }}
-          />
+          <Loader2 className="h-3 w-3 text-yellow-400 animate-spin" />
         )}
       </div>
 
       {/* Export Format Dropdown */}
-      <div style={{ marginBottom: 8 }}>
-        <label
-          style={{
-            fontSize: 10,
-            color: "#9ca3af",
-            display: "block",
-            marginBottom: 4,
-          }}
-        >
-          Format
-        </label>
-        <select
+      <div className="mb-2 nodrag">
+        <Label className="text-[10px] text-slate-400 mb-1 block">Format</Label>
+        <Select
           value={nodeData.exportFormat || "joblib"}
-          onChange={(e) => updateNodeData(id, { exportFormat: e.target.value })}
-          className="nodrag"
-          style={{
-            width: "100%",
-            padding: "6px 8px",
-            backgroundColor: "#1a1a2e",
-            border: "1px solid #6b7280",
-            borderRadius: 4,
-            color: "#eee",
-            fontSize: 12,
-          }}
+          onValueChange={(value) => updateNodeData(id, { exportFormat: value })}
         >
-          <option value="joblib">joblib (.joblib)</option>
-          <option value="pickle">pickle (.pkl)</option>
-          <option value="onnx">ONNX (.onnx)</option>
-        </select>
+          <SelectTrigger className="h-8 text-xs bg-slate-900/50 border-slate-600">
+            <SelectValue placeholder="Select format" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="joblib">joblib (.joblib)</SelectItem>
+            <SelectItem value="pickle">pickle (.pkl)</SelectItem>
+            <SelectItem value="onnx">ONNX (.onnx)</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Output Filename */}
-      <div>
-        <label
-          style={{
-            fontSize: 10,
-            color: "#9ca3af",
-            display: "block",
-            marginBottom: 4,
-          }}
-        >
+      <div className="nodrag">
+        <Label className="text-[10px] text-slate-400 mb-1 block">
           Output Name
-        </label>
-        <input
+        </Label>
+        <Input
           type="text"
           placeholder="model_export"
           value={nodeData.outputFileName || ""}
           onChange={(e) => updateNodeData(id, { outputFileName: e.target.value })}
-          className="nodrag"
-          style={{
-            width: "100%",
-            padding: "6px 8px",
-            backgroundColor: "#1a1a2e",
-            border: "1px solid #6b7280",
-            borderRadius: 4,
-            color: "#eee",
-            fontSize: 12,
-            boxSizing: "border-box",
-          }}
+          className="h-8 text-xs bg-slate-900/50 border-slate-600"
         />
       </div>
-
-      <style>
-        {`
-          @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-          }
-        `}
-      </style>
     </div>
   );
 }

@@ -1,6 +1,10 @@
 import { Handle, Position, NodeProps } from "@xyflow/react";
 import { open } from "@tauri-apps/plugin-dialog";
+import { FolderOpen } from "lucide-react";
 import { usePipelineStore, NodeData } from "../stores/pipelineStore";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { nodeConfig } from "@/lib/theme";
 
 export function DataLoaderNode({ id, data }: NodeProps) {
   const nodeData = data as NodeData;
@@ -23,54 +27,35 @@ export function DataLoaderNode({ id, data }: NodeProps) {
   };
 
   const fileName = nodeData.filePath?.split("/").pop();
+  const theme = nodeConfig.dataLoader;
 
   return (
     <div
-      style={{
-        backgroundColor: "#065f46",
-        border: "2px solid #4ade80",
-        borderRadius: 8,
-        padding: 12,
-        minWidth: 180,
-      }}
+      className={cn(
+        "rounded-lg border-2 p-3 min-w-[200px] transition-all duration-200",
+        theme.bgClass,
+        theme.borderClass,
+        "hover:shadow-lg hover:shadow-black/20"
+      )}
     >
-      <div
-        style={{
-          fontSize: 12,
-          color: "#4ade80",
-          marginBottom: 8,
-          fontWeight: 500,
-        }}
-      >
-        📁 Data Loader
+      <div className="flex items-center gap-2 mb-3">
+        <FolderOpen className={cn("h-4 w-4", theme.accentClass)} />
+        <span className={cn("text-sm font-medium", theme.accentClass)}>
+          Data Loader
+        </span>
       </div>
 
-      <button
+      <Button
+        variant="outline"
+        size="sm"
         onClick={handleSelectFile}
-        style={{
-          width: "100%",
-          padding: "8px 12px",
-          backgroundColor: "#1a1a2e",
-          color: "#eee",
-          border: "1px solid #4ade80",
-          borderRadius: 4,
-          cursor: "pointer",
-          fontSize: 12,
-          textAlign: "left",
-        }}
+        className="w-full justify-start text-xs bg-slate-900/50 border-slate-600 hover:bg-slate-800 hover:border-slate-500 nodrag"
       >
         {fileName || "Select file..."}
-      </button>
+      </Button>
 
       {nodeData.filePath && (
-        <div
-          style={{
-            marginTop: 8,
-            fontSize: 10,
-            color: "#9ca3af",
-            wordBreak: "break-all",
-          }}
-        >
+        <div className="mt-2 text-[10px] text-slate-400 break-all">
           {nodeData.filePath}
         </div>
       )}
@@ -81,8 +66,8 @@ export function DataLoaderNode({ id, data }: NodeProps) {
         style={{
           width: 12,
           height: 12,
-          backgroundColor: "#4ade80",
-          border: "2px solid #065f46",
+          backgroundColor: theme.handleColor,
+          border: "2px solid #0f172a",
         }}
       />
     </div>
