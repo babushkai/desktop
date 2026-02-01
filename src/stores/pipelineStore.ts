@@ -22,6 +22,9 @@ export type NodeData = {
   modelType?: string;
   targetColumn?: string;
   testSplit?: number;
+  // ModelExporter fields
+  exportFormat?: string; // "joblib" | "pickle" | "onnx"
+  outputFileName?: string;
 };
 
 // Single source of truth for valid connections
@@ -29,6 +32,8 @@ export const VALID_CONNECTIONS: [string, string][] = [
   ["dataLoader", "script"],
   ["dataLoader", "trainer"],
   ["trainer", "evaluator"],
+  ["evaluator", "modelExporter"],
+  ["trainer", "modelExporter"],
 ];
 
 export type ExecutionStatus = "idle" | "running" | "success" | "error";
@@ -51,7 +56,7 @@ interface PipelineState {
   setSelectedNodeId: (id: string | null) => void;
 
   // Node operations
-  addNode: (type: "dataLoader" | "script" | "trainer" | "evaluator", position: { x: number; y: number }) => void;
+  addNode: (type: "dataLoader" | "script" | "trainer" | "evaluator" | "modelExporter", position: { x: number; y: number }) => void;
   deleteNodes: (nodeIds: string[]) => void;
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
@@ -107,6 +112,11 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       },
       evaluator: {
         label: "Evaluator",
+      },
+      modelExporter: {
+        label: "Model Exporter",
+        exportFormat: "joblib",
+        outputFileName: "model_export",
       },
     };
     const newNode: Node<NodeData> = {
@@ -207,6 +217,20 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         const sourceNode = nodes.find((n) => n.id === incomingEdge.source);
         if (sourceNode?.type !== "trainer") {
           errors.push("Evaluator must be connected to a Trainer node");
+        }
+      }
+    }
+
+    // ModelExporter must be connected to Trainer or Evaluator
+    const exporterNodes = nodes.filter((n) => n.type === "modelExporter");
+    for (const exporter of exporterNodes) {
+      const incomingEdge = edges.find((e) => e.target === exporter.id);
+      if (!incomingEdge) {
+        errors.push("Connect a Trainer or Evaluator to the Model Exporter");
+      } else {
+        const sourceNode = nodes.find((n) => n.id === incomingEdge.source);
+        if (sourceNode?.type !== "trainer" && sourceNode?.type !== "evaluator") {
+          errors.push("Model Exporter must be connected to a Trainer or Evaluator node");
         }
       }
     }

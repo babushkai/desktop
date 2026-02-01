@@ -152,6 +152,14 @@ describe("pipelineStore", () => {
       const errors = validatePipeline();
       expect(errors).toHaveLength(0);
     });
+
+    it("validates modelExporter must connect to trainer or evaluator", () => {
+      const { addNode, validatePipeline } = usePipelineStore.getState();
+      addNode("modelExporter", { x: 0, y: 0 });
+
+      const errors = validatePipeline();
+      expect(errors).toContain("Connect a Trainer or Evaluator to the Model Exporter");
+    });
   });
 
   describe("onConnect", () => {
@@ -181,6 +189,51 @@ describe("pipelineStore", () => {
 
       // Try reverse connection
       onConnect({ source: scriptId, target: dataLoaderId, sourceHandle: null, targetHandle: null });
+
+      const { edges } = usePipelineStore.getState();
+      expect(edges).toHaveLength(0);
+    });
+
+    it("allows evaluator -> modelExporter connections", () => {
+      const { addNode, onConnect } = usePipelineStore.getState();
+      addNode("evaluator", { x: 0, y: 0 });
+      addNode("modelExporter", { x: 100, y: 0 });
+
+      const { nodes } = usePipelineStore.getState();
+      const evaluatorId = nodes.find((n) => n.type === "evaluator")!.id;
+      const exporterId = nodes.find((n) => n.type === "modelExporter")!.id;
+
+      onConnect({ source: evaluatorId, target: exporterId, sourceHandle: null, targetHandle: null });
+
+      const { edges } = usePipelineStore.getState();
+      expect(edges).toHaveLength(1);
+    });
+
+    it("allows trainer -> modelExporter connections", () => {
+      const { addNode, onConnect } = usePipelineStore.getState();
+      addNode("trainer", { x: 0, y: 0 });
+      addNode("modelExporter", { x: 100, y: 0 });
+
+      const { nodes } = usePipelineStore.getState();
+      const trainerId = nodes.find((n) => n.type === "trainer")!.id;
+      const exporterId = nodes.find((n) => n.type === "modelExporter")!.id;
+
+      onConnect({ source: trainerId, target: exporterId, sourceHandle: null, targetHandle: null });
+
+      const { edges } = usePipelineStore.getState();
+      expect(edges).toHaveLength(1);
+    });
+
+    it("rejects dataLoader -> modelExporter connections", () => {
+      const { addNode, onConnect } = usePipelineStore.getState();
+      addNode("dataLoader", { x: 0, y: 0 });
+      addNode("modelExporter", { x: 100, y: 0 });
+
+      const { nodes } = usePipelineStore.getState();
+      const dataLoaderId = nodes.find((n) => n.type === "dataLoader")!.id;
+      const exporterId = nodes.find((n) => n.type === "modelExporter")!.id;
+
+      onConnect({ source: dataLoaderId, target: exporterId, sourceHandle: null, targetHandle: null });
 
       const { edges } = usePipelineStore.getState();
       expect(edges).toHaveLength(0);
