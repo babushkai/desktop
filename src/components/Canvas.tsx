@@ -9,6 +9,7 @@ import {
 import { usePipelineStore, VALID_CONNECTIONS } from "../stores/pipelineStore";
 import { DataLoaderNode } from "./DataLoaderNode";
 import { ScriptNode } from "./ScriptNode";
+import { DataSplitNode } from "./DataSplitNode";
 import { TrainerNode } from "./TrainerNode";
 import { EvaluatorNode } from "./EvaluatorNode";
 import { ModelExporterNode } from "./ModelExporterNode";
@@ -16,6 +17,7 @@ import { ModelExporterNode } from "./ModelExporterNode";
 const nodeTypes: NodeTypes = {
   dataLoader: DataLoaderNode,
   script: ScriptNode,
+  dataSplit: DataSplitNode,
   trainer: TrainerNode,
   evaluator: EvaluatorNode,
   modelExporter: ModelExporterNode,
@@ -62,6 +64,8 @@ export function Canvas() {
               return "#4ade80";
             case "script":
               return "#60a5fa";
+            case "dataSplit":
+              return "#f472b6";
             case "trainer":
               return "#a78bfa";
             case "evaluator":

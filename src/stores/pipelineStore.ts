@@ -18,10 +18,15 @@ export type NodeData = {
   label: string;
   filePath?: string;
   code?: string;
+  // DataSplit fields
+  splitRatio?: number; // test split ratio (0.1-0.5, default 0.2)
+  randomState?: number; // random seed (default 42)
+  stratify?: boolean; // whether to stratify split
+  splitTargetColumn?: string; // column for stratification
   // Trainer fields
   modelType?: string;
   targetColumn?: string;
-  testSplit?: number;
+  testSplit?: number; // KEPT for backward compat
   // ModelExporter fields
   exportFormat?: string; // "joblib" | "pickle" | "onnx"
   outputFileName?: string;
@@ -30,7 +35,9 @@ export type NodeData = {
 // Single source of truth for valid connections
 export const VALID_CONNECTIONS: [string, string][] = [
   ["dataLoader", "script"],
-  ["dataLoader", "trainer"],
+  ["dataLoader", "dataSplit"],
+  ["dataLoader", "trainer"], // Keep for backward compat
+  ["dataSplit", "trainer"],
   ["trainer", "evaluator"],
   ["evaluator", "modelExporter"],
   ["trainer", "modelExporter"],
@@ -56,7 +63,7 @@ interface PipelineState {
   setSelectedNodeId: (id: string | null) => void;
 
   // Node operations
-  addNode: (type: "dataLoader" | "script" | "trainer" | "evaluator" | "modelExporter", position: { x: number; y: number }) => void;
+  addNode: (type: "dataLoader" | "script" | "trainer" | "evaluator" | "modelExporter" | "dataSplit", position: { x: number; y: number }) => void;
   deleteNodes: (nodeIds: string[]) => void;
   onNodesChange: (changes: NodeChange[]) => void;
   onEdgesChange: (changes: EdgeChange[]) => void;
@@ -103,6 +110,13 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       script: {
         label: "Script",
         code: "# Write your Python code here\nimport sys\n\ndata_path = sys.argv[1]\nprint(f'Input file: {data_path}')\n",
+      },
+      dataSplit: {
+        label: "Data Split",
+        splitRatio: 0.2,
+        randomState: 42,
+        stratify: false,
+        splitTargetColumn: "",
       },
       trainer: {
         label: "Trainer",
@@ -191,17 +205,44 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       errors.push("Add a Script, Trainer, or Evaluator node");
     }
 
-    // Script and Trainer nodes must have DataLoader connection
-    const primaryNodes = nodes.filter((n) => n.type === "script" || n.type === "trainer");
-    for (const node of primaryNodes) {
+    // DataSplit must have DataLoader connection
+    const dataSplitNodes = nodes.filter((n) => n.type === "dataSplit");
+    for (const ds of dataSplitNodes) {
+      const incomingEdge = edges.find((e) => e.target === ds.id);
+      if (!incomingEdge) {
+        errors.push("Connect a Data Loader to the Data Split");
+      } else {
+        const sourceNode = nodes.find((n) => n.id === incomingEdge.source);
+        if (sourceNode?.type !== "dataLoader") {
+          errors.push("Data Split must be connected from a Data Loader");
+        }
+      }
+      if (ds.data.stratify && !ds.data.splitTargetColumn) {
+        errors.push("Specify a target column for stratified split");
+      }
+    }
+
+    // Script nodes must have DataLoader connection
+    const scriptNodes = nodes.filter((n) => n.type === "script");
+    for (const node of scriptNodes) {
       if (!edges.some((e) => e.target === node.id)) {
         errors.push(`Connect a Data Loader to the ${node.data.label || node.type}`);
       }
     }
 
-    // Trainer nodes must have target column specified
+    // Trainer nodes must have DataLoader OR DataSplit connection
     const trainerNodes = nodes.filter((n) => n.type === "trainer");
     for (const trainer of trainerNodes) {
+      const incomingEdge = edges.find((e) => e.target === trainer.id);
+      if (!incomingEdge) {
+        errors.push("Connect a Data Loader or Data Split to the Trainer");
+      } else {
+        const sourceNode = nodes.find((n) => n.id === incomingEdge.source);
+        if (sourceNode?.type !== "dataLoader" && sourceNode?.type !== "dataSplit") {
+          errors.push("Trainer must be connected from a Data Loader or Data Split");
+        }
+      }
+      // Trainer nodes must have target column specified
       if (!trainer.data.targetColumn) {
         errors.push("Specify a target column in the Trainer");
       }
@@ -235,11 +276,14 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       }
     }
 
-    // DataLoader connected to primary nodes must have file selected
+    // DataLoader connected to primary nodes (script, trainer, dataSplit) must have file selected
+    const primaryNodes = nodes.filter(
+      (n) => n.type === "script" || n.type === "trainer" || n.type === "dataSplit"
+    );
     const connectedLoaders = edges
       .filter((e) => primaryNodes.some((n) => n.id === e.target))
       .map((e) => nodes.find((n) => n.id === e.source))
-      .filter(Boolean);
+      .filter((n) => n?.type === "dataLoader");
 
     for (const loader of connectedLoaders) {
       if (!loader?.data.filePath) {

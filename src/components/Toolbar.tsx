@@ -10,9 +10,10 @@ import {
   PipelineMetadata,
   runScriptAndWait,
 } from "../lib/tauri";
-import { generateTrainerCode } from "../lib/trainerCodeGen";
-import { generateEvaluatorCode } from "../lib/evaluatorCodeGen";
+import { generateTrainerCode, generateTrainerCodeWithSplit } from "../lib/trainerCodeGen";
+import { generateEvaluatorCode, generateEvaluatorCodeWithSplit } from "../lib/evaluatorCodeGen";
 import { generateExporterCode } from "../lib/exporterCodeGen";
+import { generateDataSplitCode } from "../lib/dataSplitCodeGen";
 
 export function Toolbar() {
   const {
@@ -70,18 +71,36 @@ export function Toolbar() {
     const trainerNode = nodes.find((n) => n.type === "trainer");
     const evaluatorNode = nodes.find((n) => n.type === "evaluator");
     const scriptNode = nodes.find((n) => n.type === "script");
+    const dataSplitNode = nodes.find((n) => n.type === "dataSplit");
+
+    // Detect if using DataSplit flow
+    const useDataSplit =
+      dataSplitNode &&
+      trainerNode &&
+      edges.some((e) => e.source === dataSplitNode.id && e.target === trainerNode.id);
 
     // Get DataLoader for input path
-    const targetNode = trainerNode || scriptNode;
-    if (!targetNode) {
-      appendLog("ERROR: No executable node found");
-      setExecutionStatus("error");
-      return;
-    }
+    // In DataSplit flow: DataLoader -> DataSplit -> Trainer
+    // Otherwise: DataLoader -> Trainer/Script
+    let inputPath: string | undefined;
 
-    const edge = edges.find((e) => e.target === targetNode.id);
-    const dataLoaderNode = nodes.find((n) => n.id === edge?.source);
-    const inputPath = dataLoaderNode?.data.filePath;
+    if (useDataSplit && dataSplitNode) {
+      // Find DataLoader connected to DataSplit
+      const dsEdge = edges.find((e) => e.target === dataSplitNode.id);
+      const dataLoaderNode = nodes.find((n) => n.id === dsEdge?.source);
+      inputPath = dataLoaderNode?.data.filePath;
+    } else {
+      const targetNode = trainerNode || scriptNode;
+      if (!targetNode) {
+        appendLog("ERROR: No executable node found");
+        setExecutionStatus("error");
+        return;
+      }
+
+      const edge = edges.find((e) => e.target === targetNode.id);
+      const dataLoaderNode = nodes.find((n) => n.id === edge?.source);
+      inputPath = dataLoaderNode?.data.filePath;
+    }
 
     if (!inputPath) {
       appendLog("ERROR: No input file selected");
@@ -98,16 +117,41 @@ export function Toolbar() {
     };
 
     try {
+      // Step 0: Run DataSplit (if present and connected to Trainer)
+      if (useDataSplit && dataSplitNode) {
+        appendLog("--- Running Data Split ---");
+        appendLog(`Input: ${inputPath}`);
+        appendLog(`Split ratio: ${((dataSplitNode.data.splitRatio || 0.2) * 100).toFixed(0)}%`);
+        appendLog(`Random state: ${dataSplitNode.data.randomState ?? 42}`);
+        if (dataSplitNode.data.stratify) {
+          appendLog(`Stratify by: ${dataSplitNode.data.splitTargetColumn || "(not set)"}`);
+        }
+        appendLog("");
+
+        const splitCode = generateDataSplitCode(dataSplitNode.data, inputPath);
+        await runScriptAndWait(splitCode, inputPath, handleOutput);
+      }
+
       // Step 1: Run Trainer or Script
       if (trainerNode) {
+        appendLog("");
         appendLog("--- Running Trainer ---");
         appendLog(`Input: ${inputPath}`);
         appendLog(`Model: ${trainerNode.data.modelType || "linear_regression"}`);
         appendLog(`Target: ${trainerNode.data.targetColumn || "target"}`);
-        appendLog(`Test split: ${((trainerNode.data.testSplit || 0.2) * 100).toFixed(0)}%`);
+        if (!useDataSplit) {
+          appendLog(`Test split: ${((trainerNode.data.testSplit || 0.2) * 100).toFixed(0)}%`);
+        }
         appendLog("");
 
-        const trainerCode = generateTrainerCode(trainerNode.data, inputPath);
+        let trainerCode;
+        if (useDataSplit) {
+          // Use pre-computed indices from DataSplit
+          trainerCode = generateTrainerCodeWithSplit(trainerNode.data, inputPath);
+        } else {
+          // Use internal split (backward compat)
+          trainerCode = generateTrainerCode(trainerNode.data, inputPath);
+        }
         await runScriptAndWait(trainerCode, inputPath, handleOutput);
       } else if (scriptNode) {
         appendLog("--- Running Script ---");
@@ -124,7 +168,12 @@ export function Toolbar() {
           appendLog("");
           appendLog("--- Running Evaluator ---");
 
-          const evalCode = generateEvaluatorCode(trainerNode.data, "model.joblib", inputPath);
+          let evalCode;
+          if (useDataSplit) {
+            evalCode = generateEvaluatorCodeWithSplit(trainerNode.data, inputPath);
+          } else {
+            evalCode = generateEvaluatorCode(trainerNode.data, "model.joblib", inputPath);
+          }
           await runScriptAndWait(evalCode, inputPath, handleOutput);
         }
       }
