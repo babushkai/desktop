@@ -11,6 +11,7 @@ import {
   deletePipeline,
   PipelineMetadata,
 } from "../lib/tauri";
+import { generateTrainerCode } from "../lib/trainerCodeGen";
 
 export function Toolbar() {
   const {
@@ -93,20 +94,51 @@ export function Toolbar() {
       return;
     }
 
-    // Find the script node and its connected data loader
+    // Check for script or trainer node
     const scriptNode = nodes.find((n) => n.type === "script");
-    const edge = edges.find((e) => e.target === scriptNode!.id);
-    const dataLoaderNode = nodes.find((n) => n.id === edge!.source);
+    const trainerNode = nodes.find((n) => n.type === "trainer");
+    const targetNode = scriptNode || trainerNode;
 
-    const scriptCode = scriptNode!.data.code;
-    const inputPath = dataLoaderNode!.data.filePath;
+    if (!targetNode) {
+      clearLogs();
+      appendLog("ERROR: No Script or Trainer node found");
+      return;
+    }
+
+    const edge = edges.find((e) => e.target === targetNode.id);
+    if (!edge) {
+      clearLogs();
+      appendLog("ERROR: No connection to target node");
+      return;
+    }
+
+    const dataLoaderNode = nodes.find((n) => n.id === edge.source);
+    const inputPath = dataLoaderNode?.data.filePath;
+
+    if (!inputPath) {
+      clearLogs();
+      appendLog("ERROR: No input file selected in Data Loader");
+      return;
+    }
 
     clearLogs();
     setExecutionStatus("running");
-    appendLog(`Running script with input: ${inputPath}`);
+
+    let codeToRun: string;
+    if (targetNode.type === "trainer") {
+      codeToRun = generateTrainerCode(targetNode.data, inputPath);
+      appendLog(`Training model with input: ${inputPath}`);
+      appendLog(`Model: ${targetNode.data.modelType || "linear_regression"}`);
+      appendLog(`Target: ${targetNode.data.targetColumn || "target"}`);
+      appendLog(`Test split: ${((targetNode.data.testSplit || 0.2) * 100).toFixed(0)}%`);
+      appendLog("---");
+    } else {
+      codeToRun = targetNode.data.code!;
+      appendLog(`Running script with input: ${inputPath}`);
+    }
 
     try {
-      await runScript(scriptCode!, inputPath!);
+      await runScript(codeToRun, inputPath);
     } catch (error) {
       appendLog(`ERROR: ${error}`);
       setExecutionStatus("error");
@@ -191,8 +223,9 @@ export function Toolbar() {
     newPipeline();
   };
 
-  const isRunnable = nodes.some((n) => n.type === "script") &&
-                     nodes.some((n) => n.type === "dataLoader" && n.data.filePath);
+  const hasExecutableNode = nodes.some((n) => n.type === "script" || n.type === "trainer");
+  const hasDataLoaderWithFile = nodes.some((n) => n.type === "dataLoader" && n.data.filePath);
+  const isRunnable = hasExecutableNode && hasDataLoaderWithFile;
 
   return (
     <div

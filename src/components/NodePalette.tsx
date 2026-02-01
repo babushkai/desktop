@@ -11,6 +11,10 @@ export function NodePalette() {
     addNode("script", { x: 400, y: 100 + Math.random() * 100 });
   };
 
+  const handleAddTrainer = () => {
+    addNode("trainer", { x: 400, y: 100 + Math.random() * 100 });
+  };
+
   return (
     <div
       style={{
@@ -50,6 +54,7 @@ export function NodePalette() {
         style={{
           width: "100%",
           padding: "12px 16px",
+          marginBottom: 8,
           backgroundColor: "#60a5fa",
           color: "#1a1a2e",
           border: "none",
@@ -65,6 +70,26 @@ export function NodePalette() {
         Script
       </button>
 
+      <button
+        onClick={handleAddTrainer}
+        style={{
+          width: "100%",
+          padding: "12px 16px",
+          backgroundColor: "#a78bfa",
+          color: "#1a1a2e",
+          border: "none",
+          borderRadius: 6,
+          cursor: "pointer",
+          fontWeight: 500,
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <span style={{ fontSize: 18 }}>🧠</span>
+        Trainer
+      </button>
+
       <div
         style={{
           marginTop: 24,
@@ -76,10 +101,9 @@ export function NodePalette() {
         }}
       >
         <p style={{ marginBottom: 8 }}>
-          <strong>Tip:</strong> Connect Data Loader to Script to create a
-          pipeline.
+          <strong>Tip:</strong> Connect Data Loader to Script or Trainer.
         </p>
-        <p>Only Data Loader → Script connections are allowed.</p>
+        <p>Valid: DataLoader → Script, DataLoader → Trainer</p>
       </div>
     </div>
   );

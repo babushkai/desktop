@@ -104,11 +104,11 @@ describe("pipelineStore", () => {
   });
 
   describe("validatePipeline", () => {
-    it("returns error when no script node exists", () => {
+    it("returns error when no executable node exists", () => {
       const { validatePipeline } = usePipelineStore.getState();
       const errors = validatePipeline();
 
-      expect(errors).toContain("Add a Script node");
+      expect(errors).toContain("Add a Script or Trainer node");
     });
 
     it("returns error when script has no connection", () => {
