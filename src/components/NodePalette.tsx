@@ -16,13 +16,15 @@ function NodeButton({ onClick, icon, label, colorClass }: NodeButtonProps) {
       variant="ghost"
       onClick={onClick}
       className={cn(
-        "w-full justify-start gap-2 mb-2 h-10",
-        "bg-slate-800/50 hover:bg-slate-700 border border-slate-700",
-        "transition-all duration-150"
+        "w-full justify-start gap-2.5 mb-2 h-11",
+        "glass-subtle glass-hover rounded-xl",
+        "transition-premium hover:scale-[1.02] hover:shadow-premium-sm"
       )}
     >
-      <span className={cn("p-1 rounded", colorClass)}>{icon}</span>
-      {label}
+      <span className={cn("p-1.5 rounded-lg", colorClass)}>
+        {icon}
+      </span>
+      <span className="text-sm font-medium tracking-tight">{label}</span>
     </Button>
   );
 }
@@ -55,56 +57,58 @@ export function NodePalette() {
   };
 
   return (
-    <div className="w-[200px] bg-slate-800 p-4 border-r border-slate-700">
-      <h3 className="mb-4 text-sm font-medium text-slate-400">Nodes</h3>
+    <div className="w-[220px] glass-subtle border-r border-white/[0.08] p-4">
+      <h3 className="mb-4 text-[11px] uppercase tracking-widest text-slate-500 font-medium">
+        Nodes
+      </h3>
 
       <NodeButton
         onClick={handleAddDataLoader}
-        icon={<FolderOpen className="h-4 w-4 text-green-400" />}
+        icon={<FolderOpen className="h-4 w-4 text-emerald-400" />}
         label="Data Loader"
-        colorClass="bg-green-950"
+        colorClass="bg-emerald-950/50"
       />
 
       <NodeButton
         onClick={handleAddScript}
-        icon={<FileCode2 className="h-4 w-4 text-blue-400" />}
+        icon={<FileCode2 className="h-4 w-4 text-sky-400" />}
         label="Script"
-        colorClass="bg-blue-950"
+        colorClass="bg-sky-950/50"
       />
 
       <NodeButton
         onClick={handleAddDataSplit}
-        icon={<Scissors className="h-4 w-4 text-pink-400" />}
+        icon={<Scissors className="h-4 w-4 text-fuchsia-400" />}
         label="Data Split"
-        colorClass="bg-pink-950"
+        colorClass="bg-fuchsia-950/50"
       />
 
       <NodeButton
         onClick={handleAddTrainer}
-        icon={<Brain className="h-4 w-4 text-violet-400" />}
+        icon={<Brain className="h-4 w-4 text-purple-400" />}
         label="Trainer"
-        colorClass="bg-violet-950"
+        colorClass="bg-purple-950/50"
       />
 
       <NodeButton
         onClick={handleAddEvaluator}
-        icon={<BarChart3 className="h-4 w-4 text-orange-400" />}
+        icon={<BarChart3 className="h-4 w-4 text-amber-400" />}
         label="Evaluator"
-        colorClass="bg-orange-950"
+        colorClass="bg-amber-950/50"
       />
 
       <NodeButton
         onClick={handleAddModelExporter}
-        icon={<Package className="h-4 w-4 text-teal-400" />}
+        icon={<Package className="h-4 w-4 text-cyan-400" />}
         label="Model Exporter"
-        colorClass="bg-teal-950"
+        colorClass="bg-cyan-950/50"
       />
 
-      <div className="mt-6 p-3 bg-slate-900 rounded-lg text-xs text-slate-400">
+      <div className="mt-6 p-3 glass-subtle rounded-xl text-xs text-slate-400">
         <p className="mb-2">
-          <strong className="text-slate-300">Tip:</strong> Build a pipeline with nodes.
+          <strong className="text-slate-300 font-medium">Tip:</strong> Build a pipeline with nodes.
         </p>
-        <p className="text-[10px] leading-relaxed">
+        <p className="text-[10px] leading-relaxed text-slate-500">
           DataLoader → DataSplit → Trainer → Evaluator → Model Exporter
         </p>
       </div>

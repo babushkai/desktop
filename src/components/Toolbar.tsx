@@ -301,9 +301,9 @@ export function Toolbar() {
   const isRunnable = hasExecutableNode && hasDataLoaderWithFile;
 
   return (
-    <div className="flex items-center gap-4 px-4 py-3 bg-slate-800 border-b border-slate-700">
+    <div className="flex items-center gap-4 px-4 py-3 glass-subtle border-b border-white/[0.08]">
       {/* Title and pipeline name */}
-      <h1 className="text-lg font-semibold">
+      <h1 className="text-lg font-semibold tracking-tight">
         MLOps Desktop
         {currentPipelineName && (
           <span className="font-normal text-slate-400 ml-2">
@@ -319,17 +319,31 @@ export function Toolbar() {
 
       {/* Pipeline buttons */}
       <div className="flex gap-2">
-        <Button variant="secondary" size="sm" onClick={handleNew}>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={handleNew}
+          className="transition-premium hover:scale-[1.02] active:scale-[0.98]"
+        >
           <Plus className="h-4 w-4 mr-1" />
           New
         </Button>
-        <Button variant="secondary" size="sm" onClick={handleSave}>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={handleSave}
+          className="transition-premium hover:scale-[1.02] active:scale-[0.98]"
+        >
           <Save className="h-4 w-4 mr-1" />
           Save
         </Button>
         <DropdownMenu onOpenChange={(open) => open && handleLoadMenu()}>
           <DropdownMenuTrigger asChild>
-            <Button variant="secondary" size="sm">
+            <Button
+              variant="secondary"
+              size="sm"
+              className="transition-premium hover:scale-[1.02] active:scale-[0.98]"
+            >
               <FolderOpen className="h-4 w-4 mr-1" />
               Load
               <ChevronDown className="h-3 w-3 ml-1" />
@@ -411,18 +425,27 @@ export function Toolbar() {
             <span className="text-xs font-mono text-slate-200">
               {pythonPath || "Not found"}
             </span>
-            <Button variant="secondary" size="sm" onClick={() => setIsEditingPath(true)}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setIsEditingPath(true)}
+              className="transition-premium hover:scale-[1.02] active:scale-[0.98]"
+            >
               Change
             </Button>
           </>
         )}
       </div>
 
-      <div className="w-px h-6 bg-slate-600" />
+      <div className="w-px h-6 bg-white/[0.08]" />
 
       {/* Run/Cancel buttons */}
       {executionStatus === "running" ? (
-        <Button variant="destructive" onClick={handleCancel}>
+        <Button
+          variant="destructive"
+          onClick={handleCancel}
+          className="transition-premium hover:scale-[1.02] active:scale-[0.98]"
+        >
           <Square className="h-4 w-4 mr-2" />
           Cancel
         </Button>
@@ -431,8 +454,9 @@ export function Toolbar() {
           onClick={handleRun}
           disabled={!isRunnable}
           className={cn(
+            "transition-premium hover:scale-[1.02] active:scale-[0.98]",
             isRunnable
-              ? "bg-green-600 hover:bg-green-500 text-white"
+              ? "bg-emerald-600 hover:bg-emerald-500 hover:shadow-lg hover:shadow-emerald-500/25 text-white"
               : "bg-slate-700 text-slate-500"
           )}
         >
@@ -444,10 +468,10 @@ export function Toolbar() {
       {/* Status indicator */}
       <div
         className={cn(
-          "w-3 h-3 rounded-full",
-          executionStatus === "running" && "bg-yellow-500",
-          executionStatus === "success" && "bg-green-500",
-          executionStatus === "error" && "bg-red-500",
+          "w-2.5 h-2.5 rounded-full transition-premium",
+          executionStatus === "running" && "bg-amber-500 shadow-lg shadow-amber-500/50",
+          executionStatus === "success" && "bg-emerald-500 shadow-lg shadow-emerald-500/50",
+          executionStatus === "error" && "bg-red-500 shadow-lg shadow-red-500/50",
           executionStatus === "idle" && "bg-slate-500"
         )}
       />

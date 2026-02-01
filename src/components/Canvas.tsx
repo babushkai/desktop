@@ -54,17 +54,17 @@ export function Canvas() {
       isValidConnection={isValidConnection}
       deleteKeyCode={["Backspace", "Delete"]}
       fitView
-      className="bg-slate-900"
+      className="bg-gradient-to-br from-slate-900 via-slate-900 to-slate-950"
     >
-      <Background color="#334155" gap={16} />
-      <Controls className="[&>button]:bg-slate-800 [&>button]:border-slate-600 [&>button]:text-slate-300 [&>button:hover]:bg-slate-700" />
+      <Background color="rgba(148, 163, 184, 0.06)" gap={16} />
+      <Controls className="[&>button]:glass-subtle [&>button]:border-white/[0.08] [&>button]:text-slate-300 [&>button]:transition-premium [&>button:hover]:bg-white/[0.1] [&>button:hover]:scale-105" />
       <MiniMap
         nodeColor={(node) => {
           const config = nodeConfig[node.type as keyof typeof nodeConfig];
           return config?.handleColor || "#64748b";
         }}
         maskColor="rgba(15, 23, 42, 0.7)"
-        className="bg-slate-800 border border-slate-700 rounded"
+        className="glass-subtle rounded-xl border-white/[0.08]"
       />
     </ReactFlow>
   );
