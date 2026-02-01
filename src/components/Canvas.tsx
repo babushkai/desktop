@@ -17,6 +17,9 @@ import { EvaluatorNode } from "./EvaluatorNode";
 import { ModelExporterNode } from "./ModelExporterNode";
 import { CanvasControls, CanvasMode } from "./CanvasControls";
 import { ZoomControls } from "./ZoomControls";
+import { SelectionContextMenu } from "./SelectionContextMenu";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { AlignType } from "@/lib/alignment";
 
 const nodeTypes: NodeTypes = {
   dataLoader: DataLoaderNode,
@@ -45,8 +48,30 @@ export function Canvas() {
   const deleteNodes = usePipelineStore((s) => s.deleteNodes);
   const selectedNodeId = usePipelineStore((s) => s.selectedNodeId);
   const setSelectedNodeId = usePipelineStore((s) => s.setSelectedNodeId);
+  const selectAllNodes = usePipelineStore((s) => s.selectAllNodes);
+  const deselectAllNodes = usePipelineStore((s) => s.deselectAllNodes);
+  const duplicateSelectedNodes = usePipelineStore((s) => s.duplicateSelectedNodes);
+  const alignSelectedNodes = usePipelineStore((s) => s.alignSelectedNodes);
+  const distributeSelectedNodes = usePipelineStore((s) => s.distributeSelectedNodes);
+  const getSelectedNodes = usePipelineStore((s) => s.getSelectedNodes);
 
   const [canvasMode, setCanvasMode] = useState<CanvasMode>("pointer");
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+
+  // Close context menu helper
+  const closeContextMenu = useCallback(() => {
+    setContextMenu(null);
+  }, []);
+
+  // Keyboard shortcuts
+  useKeyboardShortcuts({
+    onSelectAll: selectAllNodes,
+    onDuplicate: duplicateSelectedNodes,
+    onDeselect: deselectAllNodes,
+    onAlignLeft: () => alignSelectedNodes("left"),
+    onAlignRight: () => alignSelectedNodes("right"),
+    onAlignCenter: () => alignSelectedNodes("center"),
+  });
 
   const isValidConnection = useCallback(
     (connection: Connection | { source: string; target: string }) => {
@@ -80,7 +105,45 @@ export function Canvas() {
     return nodeColorMap[node.type || ""] || "#64748b";
   }, []);
 
+  // Handle right-click on selection
+  const handleSelectionContextMenu = useCallback(
+    (event: React.MouseEvent) => {
+      event.preventDefault();
+      const selectedNodes = getSelectedNodes();
+      if (selectedNodes.length >= 2) {
+        setContextMenu({ x: event.clientX, y: event.clientY });
+      }
+    },
+    [getSelectedNodes]
+  );
+
+  // Context menu action handlers
+  const handleAlign = useCallback(
+    (alignType: AlignType) => {
+      alignSelectedNodes(alignType);
+      closeContextMenu();
+    },
+    [alignSelectedNodes, closeContextMenu]
+  );
+
+  const handleDistribute = useCallback(
+    (direction: "horizontal" | "vertical") => {
+      distributeSelectedNodes(direction);
+      closeContextMenu();
+    },
+    [distributeSelectedNodes, closeContextMenu]
+  );
+
+  const handleDeleteSelected = useCallback(() => {
+    const selectedNodes = getSelectedNodes();
+    deleteNodes(selectedNodes.map((n) => n.id));
+    closeContextMenu();
+  }, [getSelectedNodes, deleteNodes, closeContextMenu]);
+
   const proOptions = useMemo(() => ({ hideAttribution: true }), []);
+
+  // Get selected nodes for context menu
+  const selectedNodes = getSelectedNodes();
 
   return (
     <ReactFlow
@@ -91,6 +154,7 @@ export function Canvas() {
       onConnect={onConnect}
       onNodesDelete={handleNodesDelete}
       onSelectionChange={handleSelectionChange}
+      onSelectionContextMenu={handleSelectionContextMenu}
       nodeTypes={nodeTypes}
       isValidConnection={isValidConnection}
       deleteKeyCode={["Backspace", "Delete"]}
@@ -109,6 +173,16 @@ export function Canvas() {
       <CanvasControls onModeChange={setCanvasMode} />
       <ZoomControls />
       <MiniMap nodeColor={getNodeColor} maskColor="rgba(10, 10, 15, 0.8)" />
+      {contextMenu && selectedNodes.length >= 2 && (
+        <SelectionContextMenu
+          position={contextMenu}
+          selectedNodes={selectedNodes}
+          onAlign={handleAlign}
+          onDistribute={handleDistribute}
+          onDelete={handleDeleteSelected}
+          onClose={closeContextMenu}
+        />
+      )}
     </ReactFlow>
   );
 }

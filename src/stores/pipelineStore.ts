@@ -13,6 +13,7 @@ import {
   savePipeline as savePipelineApi,
   loadPipeline as loadPipelineApi,
 } from "../lib/tauri";
+import { AlignType, alignNodes, distributeNodes } from "@/lib/alignment";
 
 export type NodeData = {
   label: string;
@@ -85,6 +86,14 @@ interface PipelineState {
   savePipeline: (name: string) => Promise<string>;
   loadPipeline: (id: string) => Promise<void>;
   newPipeline: () => void;
+
+  // Alignment and selection
+  alignSelectedNodes: (alignType: AlignType) => void;
+  distributeSelectedNodes: (direction: "horizontal" | "vertical") => void;
+  selectAllNodes: () => void;
+  deselectAllNodes: () => void;
+  duplicateSelectedNodes: () => void;
+  getSelectedNodes: () => Node[];
 }
 
 let nodeIdCounter = 0;
@@ -345,5 +354,75 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       currentPipelineName: null,
       isDirty: false,
     });
+  },
+
+  // Alignment and selection
+  alignSelectedNodes: (alignType) => {
+    const { nodes } = get();
+    const selectedNodes = nodes.filter((n) => n.selected);
+    if (selectedNodes.length < 2) return;
+
+    const alignedNodes = alignNodes(selectedNodes, alignType) as Node<NodeData>[];
+    const alignedMap = new Map(alignedNodes.map((n) => [n.id, n]));
+
+    set({
+      nodes: nodes.map((node) => alignedMap.get(node.id) ?? node) as Node<NodeData>[],
+      isDirty: true,
+    });
+  },
+
+  distributeSelectedNodes: (direction) => {
+    const { nodes } = get();
+    const selectedNodes = nodes.filter((n) => n.selected);
+    if (selectedNodes.length < 3) return;
+
+    const distributedNodes = distributeNodes(selectedNodes, direction) as Node<NodeData>[];
+    const distributedMap = new Map(distributedNodes.map((n) => [n.id, n]));
+
+    set({
+      nodes: nodes.map((node) => distributedMap.get(node.id) ?? node) as Node<NodeData>[],
+      isDirty: true,
+    });
+  },
+
+  selectAllNodes: () => {
+    set((state) => ({
+      nodes: state.nodes.map((node) => ({ ...node, selected: true })),
+    }));
+  },
+
+  deselectAllNodes: () => {
+    set((state) => ({
+      nodes: state.nodes.map((node) => ({ ...node, selected: false })),
+    }));
+  },
+
+  duplicateSelectedNodes: () => {
+    const { nodes } = get();
+    const selectedNodes = nodes.filter((n) => n.selected);
+    if (selectedNodes.length === 0) return;
+
+    const duplicatedNodes = selectedNodes.map((node) => {
+      const newId = `${node.type}-${++nodeIdCounter}`;
+      return {
+        ...node,
+        id: newId,
+        position: {
+          x: node.position.x + 20,
+          y: node.position.y + 20,
+        },
+        selected: false,
+      };
+    });
+
+    set((state) => ({
+      nodes: [...state.nodes, ...duplicatedNodes],
+      isDirty: true,
+    }));
+  },
+
+  getSelectedNodes: () => {
+    const { nodes } = get();
+    return nodes.filter((n) => n.selected);
   },
 }));
