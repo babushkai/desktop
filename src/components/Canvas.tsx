@@ -16,7 +16,7 @@ const nodeTypes: NodeTypes = {
 };
 
 export function Canvas() {
-  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, deleteNodes } =
+  const { nodes, edges, onNodesChange, onEdgesChange, onConnect, deleteNodes, selectedNodeId, setSelectedNodeId } =
     usePipelineStore();
 
   const isValidConnection = (connection: Connection | { source: string; target: string }) => {
@@ -33,6 +33,12 @@ export function Canvas() {
       onEdgesChange={onEdgesChange}
       onConnect={onConnect}
       onNodesDelete={(deleted) => deleteNodes(deleted.map((n) => n.id))}
+      onSelectionChange={({ nodes: selectedNodes }) => {
+        const newSelectedId = selectedNodes.length === 1 ? selectedNodes[0].id : null;
+        if (newSelectedId !== selectedNodeId) {
+          setSelectedNodeId(newSelectedId);
+        }
+      }}
       nodeTypes={nodeTypes}
       isValidConnection={isValidConnection}
       deleteKeyCode={["Backspace", "Delete"]}

@@ -3,6 +3,7 @@ import "@xyflow/react/dist/style.css";
 import { Canvas } from "./components/Canvas";
 import { NodePalette } from "./components/NodePalette";
 import { OutputPanel } from "./components/OutputPanel";
+import { PropertiesPanel } from "./components/PropertiesPanel";
 import { Toolbar } from "./components/Toolbar";
 
 function App() {
@@ -29,6 +30,9 @@ function App() {
           <div style={{ flex: 1, position: "relative" }}>
             <Canvas />
           </div>
+
+          {/* Properties panel */}
+          <PropertiesPanel />
         </div>
 
         {/* Output panel */}

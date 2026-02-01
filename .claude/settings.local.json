@@ -21,7 +21,10 @@
       "Bash(git fetch:*)",
       "Bash(git reset:*)",
       "Bash(find:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)",
+      "Bash(timeout 5 npm run dev:*)"
     ]
   }
 }
