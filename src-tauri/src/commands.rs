@@ -339,3 +339,73 @@ pub fn list_example_datasets() -> Vec<ExampleDataset> {
         },
     ]
 }
+
+// Model Registry commands
+
+#[tauri::command]
+pub fn create_model(name: String, description: Option<String>) -> Result<String, String> {
+    let model_id = uuid::Uuid::new_v4().to_string();
+    db::create_model(&model_id, &name, description.as_deref()).map_err(|e| e.to_string())?;
+    Ok(model_id)
+}
+
+#[tauri::command]
+pub fn list_models() -> Result<Vec<db::ModelMetadata>, String> {
+    db::list_models().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_model(model_id: String) -> Result<Option<db::ModelMetadata>, String> {
+    db::get_model(&model_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_model(model_id: String) -> Result<(), String> {
+    db::delete_model(&model_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn register_model_version(
+    model_id: String,
+    run_id: Option<String>,
+    source_path: String,
+    format: String,
+    metrics_snapshot: Option<String>,
+) -> Result<RegisterVersionResult, String> {
+    let version_id = uuid::Uuid::new_v4().to_string();
+    let version = db::register_model_version(
+        &version_id,
+        &model_id,
+        run_id.as_deref(),
+        &source_path,
+        &format,
+        metrics_snapshot.as_deref(),
+    ).map_err(|e| e.to_string())?;
+    Ok(RegisterVersionResult { version_id, version })
+}
+
+#[derive(Clone, Serialize)]
+pub struct RegisterVersionResult {
+    pub version_id: String,
+    pub version: i64,
+}
+
+#[tauri::command]
+pub fn list_model_versions(model_id: String) -> Result<Vec<db::ModelVersion>, String> {
+    db::list_model_versions(&model_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn promote_model(version_id: String, stage: String) -> Result<(), String> {
+    db::promote_model(&version_id, &stage).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_model_version(version_id: String) -> Result<(), String> {
+    db::delete_model_version(&version_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_model_file_path(version_id: String) -> Result<Option<String>, String> {
+    db::get_model_file_path(&version_id).map_err(|e| e.to_string())
+}

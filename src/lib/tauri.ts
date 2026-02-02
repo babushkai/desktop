@@ -182,3 +182,83 @@ export async function getRunMetrics(runId: string): Promise<Metric[]> {
 export async function deleteRun(id: string): Promise<void> {
   return invoke("delete_run", { id });
 }
+
+// Model Registry
+
+export interface ModelMetadata {
+  id: string;
+  name: string;
+  description?: string;
+  created_at: string;
+  updated_at: string;
+  version_count: number;
+  latest_version?: number;
+  production_version?: number;
+}
+
+export interface ModelVersion {
+  id: string;
+  model_id: string;
+  version: number;
+  run_id?: string;
+  file_path: string;
+  file_size?: number;
+  format: string;
+  stage: string; // "none" | "staging" | "production"
+  metrics_snapshot?: string;
+  created_at: string;
+  promoted_at?: string;
+}
+
+export interface RegisterVersionResult {
+  version_id: string;
+  version: number;
+}
+
+export async function createModel(name: string, description?: string): Promise<string> {
+  return invoke<string>("create_model", { name, description });
+}
+
+export async function listModels(): Promise<ModelMetadata[]> {
+  return invoke<ModelMetadata[]>("list_models");
+}
+
+export async function getModel(modelId: string): Promise<ModelMetadata | null> {
+  return invoke<ModelMetadata | null>("get_model", { modelId });
+}
+
+export async function deleteModel(modelId: string): Promise<void> {
+  return invoke("delete_model", { modelId });
+}
+
+export async function registerModelVersion(
+  modelId: string,
+  sourcePath: string,
+  format: string,
+  runId?: string,
+  metricsSnapshot?: string
+): Promise<RegisterVersionResult> {
+  return invoke<RegisterVersionResult>("register_model_version", {
+    modelId,
+    runId,
+    sourcePath,
+    format,
+    metricsSnapshot,
+  });
+}
+
+export async function listModelVersions(modelId: string): Promise<ModelVersion[]> {
+  return invoke<ModelVersion[]>("list_model_versions", { modelId });
+}
+
+export async function promoteModel(versionId: string, stage: string): Promise<void> {
+  return invoke("promote_model", { versionId, stage });
+}
+
+export async function deleteModelVersion(versionId: string): Promise<void> {
+  return invoke("delete_model_version", { versionId });
+}
+
+export async function getModelFilePath(versionId: string): Promise<string | null> {
+  return invoke<string | null>("get_model_file_path", { versionId });
+}
