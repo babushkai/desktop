@@ -1,10 +1,26 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 
+export interface MetricsData {
+  modelType: "classifier" | "regressor";
+  // Classification metrics
+  accuracy?: number;
+  precision?: number;
+  recall?: number;
+  f1?: number;
+  confusionMatrix?: number[][];
+  // Regression metrics
+  r2?: number;
+  mse?: number;
+  rmse?: number;
+  mae?: number;
+}
+
 export type ScriptEvent =
   | { type: "log"; message: string }
   | { type: "progress"; current: number; total: number }
   | { type: "error"; message: string }
+  | { type: "metrics"; modelType: string; data: MetricsData }
   | { type: "complete" }
   | { type: "exit"; code: number };
 

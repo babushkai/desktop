@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from "react";
+import { Tab } from "@headlessui/react";
 import { usePipelineStore, ExecutionStatus } from "../stores/pipelineStore";
 import {
   RiTerminalLine,
@@ -8,8 +9,10 @@ import {
   RiCloseLine,
   RiTimeLine,
   RiArrowDownSLine,
+  RiBarChartBoxLine,
 } from "@remixicon/react";
 import { cn } from "@/lib/utils";
+import { MetricsPanel } from "./MetricsPanel";
 
 interface StatusConfig {
   label: string;
@@ -74,6 +77,7 @@ interface OutputPanelProps {
 export function OutputPanel({ onCollapse }: OutputPanelProps) {
   const outputLogs = usePipelineStore((s) => s.outputLogs);
   const executionStatus = usePipelineStore((s) => s.executionStatus);
+  const metrics = usePipelineStore((s) => s.metrics);
   const clearLogs = usePipelineStore((s) => s.clearLogs);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -129,83 +133,129 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
 
   return (
     <div className="h-52 flex flex-col bg-background border-t border-white/5">
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 bg-background-surface border-b border-white/5">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            {onCollapse && (
-              <button
-                onClick={onCollapse}
-                className="p-1 -ml-1 rounded hover:bg-white/10 text-text-muted hover:text-text-primary transition-colors"
-                title="Collapse panel (Ctrl+J)"
-              >
-                <RiArrowDownSLine className="w-4 h-4" />
-              </button>
-            )}
-            <RiTerminalLine className="w-4 h-4 text-text-muted" />
-            <span className="text-sm font-medium text-text-primary">Output</span>
-          </div>
-
-          {/* Status Badge */}
-          <div
-            className={cn(
-              "flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium",
-              statusConfig.colorClass,
-              statusConfig.bgClass
-            )}
-          >
-            {statusConfig.icon}
-            <span>{statusConfig.label}</span>
-          </div>
-
-          {/* Execution Metadata */}
-          {(startTime || elapsedMs > 0) && (
-            <div className="flex items-center gap-3 text-xs text-text-secondary">
-              {elapsedMs > 0 && (
-                <span className="flex items-center gap-1">
-                  <RiTimeLine className="w-3 h-3" />
-                  {formatDuration(elapsedMs)}
-                </span>
+      <Tab.Group>
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-2 bg-background-surface border-b border-white/5">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              {onCollapse && (
+                <button
+                  onClick={onCollapse}
+                  className="p-1 -ml-1 rounded hover:bg-white/10 text-text-muted hover:text-text-primary transition-colors"
+                  title="Collapse panel (Ctrl+J)"
+                >
+                  <RiArrowDownSLine className="w-4 h-4" />
+                </button>
               )}
-              {startTime && (
-                <span>
-                  {endTime ? "Finished" : "Started"} at {formatTimestamp(endTime || startTime)}
-                </span>
-              )}
+
+              {/* Tabs */}
+              <Tab.List className="flex items-center gap-1 bg-background rounded-lg p-0.5">
+                <Tab
+                  className={({ selected }) =>
+                    cn(
+                      "flex items-center gap-1.5 px-3 py-1 rounded-md text-sm font-medium transition-colors",
+                      "focus:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                      selected
+                        ? "bg-background-elevated text-text-primary"
+                        : "text-text-muted hover:text-text-secondary"
+                    )
+                  }
+                >
+                  <RiTerminalLine className="w-3.5 h-3.5" />
+                  Logs
+                </Tab>
+                <Tab
+                  className={({ selected }) =>
+                    cn(
+                      "flex items-center gap-1.5 px-3 py-1 rounded-md text-sm font-medium transition-colors",
+                      "focus:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                      selected
+                        ? "bg-background-elevated text-text-primary"
+                        : "text-text-muted hover:text-text-secondary",
+                      metrics && "text-accent"
+                    )
+                  }
+                >
+                  <RiBarChartBoxLine className="w-3.5 h-3.5" />
+                  Metrics
+                  {metrics && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+                  )}
+                </Tab>
+              </Tab.List>
             </div>
-          )}
-        </div>
-        <button onClick={handleClear} className="btn-ghost text-xs h-7 px-2">
-          <RiDeleteBinLine className="w-3.5 h-3.5 mr-1" />
-          Clear
-        </button>
-      </div>
 
-      {/* Log content */}
-      <div
-        ref={scrollRef}
-        className="flex-1 overflow-auto p-4 font-mono text-sm leading-relaxed whitespace-pre-wrap"
-      >
-        {outputLogs.length === 0 ? (
-          <span className="text-text-muted">
-            Output will appear here when you run a script...
-          </span>
-        ) : (
-          outputLogs.map((log, i) => (
+            {/* Status Badge */}
             <div
-              key={i}
               className={cn(
-                "whitespace-pre-wrap break-words",
-                log.startsWith("ERROR") && "text-state-error",
-                log.startsWith("---") && "text-text-muted",
-                !log.startsWith("ERROR") && !log.startsWith("---") && "text-text-primary"
+                "flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium",
+                statusConfig.colorClass,
+                statusConfig.bgClass
               )}
             >
-              {log}
+              {statusConfig.icon}
+              <span>{statusConfig.label}</span>
             </div>
-          ))
-        )}
-      </div>
+
+            {/* Execution Metadata */}
+            {(startTime || elapsedMs > 0) && (
+              <div className="flex items-center gap-3 text-xs text-text-secondary">
+                {elapsedMs > 0 && (
+                  <span className="flex items-center gap-1">
+                    <RiTimeLine className="w-3 h-3" />
+                    {formatDuration(elapsedMs)}
+                  </span>
+                )}
+                {startTime && (
+                  <span>
+                    {endTime ? "Finished" : "Started"} at {formatTimestamp(endTime || startTime)}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+          <button onClick={handleClear} className="btn-ghost text-xs h-7 px-2">
+            <RiDeleteBinLine className="w-3.5 h-3.5 mr-1" />
+            Clear
+          </button>
+        </div>
+
+        {/* Tab Panels */}
+        <Tab.Panels className="flex-1 overflow-hidden">
+          {/* Logs Panel */}
+          <Tab.Panel className="h-full">
+            <div
+              ref={scrollRef}
+              className="h-full overflow-auto p-4 font-mono text-sm leading-relaxed whitespace-pre-wrap"
+            >
+              {outputLogs.length === 0 ? (
+                <span className="text-text-muted">
+                  Output will appear here when you run a script...
+                </span>
+              ) : (
+                outputLogs.map((log, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "whitespace-pre-wrap break-words",
+                      log.startsWith("ERROR") && "text-state-error",
+                      log.startsWith("---") && "text-text-muted",
+                      !log.startsWith("ERROR") && !log.startsWith("---") && "text-text-primary"
+                    )}
+                  >
+                    {log}
+                  </div>
+                ))
+              )}
+            </div>
+          </Tab.Panel>
+
+          {/* Metrics Panel */}
+          <Tab.Panel className="h-full">
+            <MetricsPanel />
+          </Tab.Panel>
+        </Tab.Panels>
+      </Tab.Group>
     </div>
   );
 }

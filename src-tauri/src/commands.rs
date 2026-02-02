@@ -22,6 +22,12 @@ pub enum ScriptEvent {
     Progress { current: u32, total: u32 },
     #[serde(rename = "error")]
     Error { message: String },
+    #[serde(rename = "metrics")]
+    Metrics {
+        #[serde(rename = "modelType")]
+        model_type: String,
+        data: serde_json::Value,
+    },
     #[serde(rename = "complete")]
     Complete,
     #[serde(rename = "exit")]
@@ -35,6 +41,9 @@ struct JsonOutput {
     message: Option<String>,
     current: Option<u32>,
     total: Option<u32>,
+    #[serde(rename = "modelType")]
+    model_type: Option<String>,
+    data: Option<serde_json::Value>,
 }
 
 #[tauri::command]
@@ -204,6 +213,11 @@ fn parse_output_line(line: &str) -> ScriptEvent {
             }
             "complete" => {
                 return ScriptEvent::Complete;
+            }
+            "metrics" => {
+                if let (Some(model_type), Some(data)) = (json.model_type, json.data) {
+                    return ScriptEvent::Metrics { model_type, data };
+                }
             }
             _ => {}
         }
