@@ -138,7 +138,7 @@ export function Toolbar({
       } else if (event.type === "error") {
         appendLog(`ERROR: ${event.message}`);
       } else if (event.type === "metrics") {
-        setMetrics(event.data);
+        setMetrics({ ...event.data, modelType: event.modelType as "classifier" | "regressor" });
       }
     };
 

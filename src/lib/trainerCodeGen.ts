@@ -2,9 +2,14 @@ import { NodeData } from "../stores/pipelineStore";
 import { SPLIT_INDICES_FILE, MODEL_FILE } from "./constants";
 
 const MODEL_CONFIG: Record<string, { module: string; class: string }> = {
+  // Regressors
   linear_regression: { module: "sklearn.linear_model", class: "LinearRegression" },
   random_forest: { module: "sklearn.ensemble", class: "RandomForestRegressor" },
   gradient_boosting: { module: "sklearn.ensemble", class: "GradientBoostingRegressor" },
+  // Classifiers
+  logistic_regression: { module: "sklearn.linear_model", class: "LogisticRegression" },
+  random_forest_classifier: { module: "sklearn.ensemble", class: "RandomForestClassifier" },
+  gradient_boosting_classifier: { module: "sklearn.ensemble", class: "GradientBoostingClassifier" },
 };
 
 // Sanitize file path for embedding in Python string

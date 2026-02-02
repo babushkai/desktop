@@ -23,7 +23,7 @@ export function createClassificationWorkflow(dataPath: string): ExampleWorkflow 
         position: { x: 350, y: 200 },
         data: {
           label: "Trainer",
-          modelType: "random_forest",
+          modelType: "random_forest_classifier",
           targetColumn: "species",
           testSplit: 0.2,
         },
