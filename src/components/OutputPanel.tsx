@@ -160,7 +160,7 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
 
           {/* Execution Metadata */}
           {(startTime || elapsedMs > 0) && (
-            <div className="flex items-center gap-3 text-xs text-text-muted">
+            <div className="flex items-center gap-3 text-xs text-text-secondary">
               {elapsedMs > 0 && (
                 <span className="flex items-center gap-1">
                   <RiTimeLine className="w-3 h-3" />

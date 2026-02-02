@@ -143,6 +143,11 @@ git push -u origin feat/feature-name
 gh pr create --title "feat: add trainer node" --body "Description here"
 ```
 
+**Commit Message Rules:**
+- Keep commit messages as ONE LINE only
+- No multi-line descriptions, no co-authors, no extra metadata
+- Put details in the PR description instead
+
 **Conventional Commit Tags:**
 - `feat:` - New feature
 - `fix:` - Bug fix

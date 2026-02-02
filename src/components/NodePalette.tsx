@@ -56,7 +56,7 @@ function NodeCard({
         </div>
         <div className="flex-1 min-w-0">
           <div className={cn("text-sm font-medium", accentColor)}>{label}</div>
-          <div className="text-[11px] text-text-muted mt-0.5 leading-snug">
+          <div className="text-xs text-text-secondary mt-0.5 leading-snug">
             {description}
           </div>
         </div>
@@ -73,7 +73,7 @@ interface NodeGroupProps {
 function NodeGroup({ title, children }: NodeGroupProps) {
   return (
     <div className="mb-4">
-      <h4 className="text-[10px] font-medium text-text-muted uppercase tracking-wider mb-2 px-1">
+      <h4 className="text-xs font-medium text-text-secondary uppercase tracking-wider mb-2 px-1">
         {title}
       </h4>
       <div className="space-y-2">{children}</div>

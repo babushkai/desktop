@@ -224,7 +224,7 @@ interface NodeLabelProps {
 
 export function NodeLabel({ children, className }: NodeLabelProps) {
   return (
-    <label className={cn("block text-[10px] text-text-muted mb-1", className)}>
+    <label className={cn("block text-xs text-text-secondary mb-1", className)}>
       {children}
     </label>
   );
@@ -304,7 +304,7 @@ interface NodeCheckboxProps extends React.InputHTMLAttributes<HTMLInputElement> 
 
 export function NodeCheckbox({ label, className, ...props }: NodeCheckboxProps) {
   return (
-    <label className="flex items-center gap-2 text-[10px] text-text-muted cursor-pointer">
+    <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer">
       <input
         type="checkbox"
         className={cn(
@@ -327,7 +327,7 @@ interface NodeTextProps {
 }
 
 export function NodeText({ children, className }: NodeTextProps) {
-  return <div className={cn("text-[10px] text-text-muted", className)}>{children}</div>;
+  return <div className={cn("text-xs text-text-secondary", className)}>{children}</div>;
 }
 
 interface NodeButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {

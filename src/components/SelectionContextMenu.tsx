@@ -54,7 +54,7 @@ function MenuDivider() {
 function MenuSection({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="py-1">
-      <div className="px-3 py-1.5 text-[10px] font-medium text-text-muted uppercase tracking-wider">
+      <div className="px-3 py-1.5 text-xs font-medium text-text-secondary uppercase tracking-wider">
         {title}
       </div>
       {children}
