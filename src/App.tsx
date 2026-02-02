@@ -98,14 +98,7 @@ function App() {
         </div>
 
         {/* Output Panel - collapsible */}
-        <div
-          className={cn(
-            "transition-all duration-200 ease-out overflow-hidden",
-            showOutputPanel ? "h-52" : "h-0"
-          )}
-        >
-          {showOutputPanel && <OutputPanel onCollapse={toggleOutputPanel} />}
-        </div>
+        {showOutputPanel && <OutputPanel onCollapse={toggleOutputPanel} />}
 
         {/* Collapsed tab for OutputPanel */}
         {!showOutputPanel && (
