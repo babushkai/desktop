@@ -230,6 +230,60 @@ fn parse_output_line(line: &str) -> ScriptEvent {
     }
 }
 
+// Run history commands
+
+#[derive(Deserialize)]
+pub struct MetricInput {
+    pub name: String,
+    pub value: Option<f64>,
+    pub value_json: Option<String>,
+}
+
+#[tauri::command]
+pub fn create_run(pipeline_name: String, hyperparameters: String) -> Result<String, String> {
+    let run_id = uuid::Uuid::new_v4().to_string();
+    db::create_run(&run_id, &pipeline_name, &hyperparameters).map_err(|e| e.to_string())?;
+    Ok(run_id)
+}
+
+#[tauri::command]
+pub fn complete_run(id: String, duration_ms: i64) -> Result<(), String> {
+    db::update_run(&id, "completed", Some(duration_ms), None).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn fail_run(id: String, error: String) -> Result<(), String> {
+    db::update_run(&id, "failed", None, Some(&error)).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn save_run_metrics(run_id: String, metrics: Vec<MetricInput>) -> Result<(), String> {
+    let db_metrics: Vec<db::Metric> = metrics
+        .into_iter()
+        .map(|m| db::Metric {
+            name: m.name,
+            value: m.value,
+            value_json: m.value_json,
+        })
+        .collect();
+    db::save_run_metrics(&run_id, &db_metrics).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_runs(pipeline_name: Option<String>) -> Result<Vec<db::RunMetadata>, String> {
+    db::list_runs(pipeline_name.as_deref()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_run_metrics(run_id: String) -> Result<Vec<db::Metric>, String> {
+    db::get_run_metrics(&run_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_run(id: String) -> Result<(), String> {
+    db::delete_run(&id).map_err(|e| e.to_string())
+}
+
 // Example data commands
 
 #[derive(Clone, Serialize)]

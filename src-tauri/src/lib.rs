@@ -31,6 +31,13 @@ pub fn run() {
             commands::delete_pipeline,
             commands::get_example_data_path,
             commands::list_example_datasets,
+            commands::create_run,
+            commands::complete_run,
+            commands::fail_run,
+            commands::save_run_metrics,
+            commands::list_runs,
+            commands::get_run_metrics,
+            commands::delete_run,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

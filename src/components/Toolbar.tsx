@@ -27,6 +27,11 @@ import {
   PipelineMetadata,
   runScriptAndWait,
   ScriptEvent,
+  createRun,
+  completeRun,
+  failRun,
+  saveRunMetrics,
+  MetricInput,
 } from "../lib/tauri";
 import { generateTrainerCode, generateTrainerCodeWithSplit } from "../lib/trainerCodeGen";
 import { generateEvaluatorCode, generateEvaluatorCodeWithSplit, generateAutoEvaluatorCode } from "../lib/evaluatorCodeGen";
@@ -66,6 +71,8 @@ export function Toolbar({
     loadPipeline,
     loadExampleWorkflow,
     newPipeline,
+    setCurrentRunId,
+    loadRunHistory,
   } = usePipelineStore();
 
   const [isEditingPath, setIsEditingPath] = useState(false);
@@ -134,6 +141,35 @@ export function Toolbar({
       return;
     }
 
+    // Extract hyperparameters from nodes
+    const hyperparams: Record<string, unknown> = {};
+    if (trainerNode) {
+      hyperparams.modelType = trainerNode.data.modelType;
+      hyperparams.targetColumn = trainerNode.data.targetColumn;
+      hyperparams.testSplit = trainerNode.data.testSplit;
+      hyperparams.trainerMode = trainerNode.data.trainerMode;
+    }
+    if (dataSplitNode) {
+      hyperparams.splitRatio = dataSplitNode.data.splitRatio;
+      hyperparams.randomState = dataSplitNode.data.randomState;
+      hyperparams.stratify = dataSplitNode.data.stratify;
+    }
+
+    // Create run record
+    const pipelineName = currentPipelineName || "Untitled";
+    let runId: string | null = null;
+    const startTime = Date.now();
+
+    try {
+      runId = await createRun(pipelineName, hyperparams);
+      setCurrentRunId(runId);
+    } catch (error) {
+      console.error("Failed to create run:", error);
+    }
+
+    // Collect metrics to save at the end
+    let collectedMetrics: MetricInput[] = [];
+
     const handleOutput = (event: ScriptEvent) => {
       if (event.type === "log") {
         appendLog(event.message);
@@ -141,6 +177,18 @@ export function Toolbar({
         appendLog(`ERROR: ${event.message}`);
       } else if (event.type === "metrics") {
         setMetrics({ ...event.data, modelType: event.modelType as "classifier" | "regressor" });
+
+        // Collect metrics for run history
+        const data = event.data;
+        if (data.accuracy !== undefined) collectedMetrics.push({ name: "accuracy", value: data.accuracy });
+        if (data.precision !== undefined) collectedMetrics.push({ name: "precision", value: data.precision });
+        if (data.recall !== undefined) collectedMetrics.push({ name: "recall", value: data.recall });
+        if (data.f1 !== undefined) collectedMetrics.push({ name: "f1", value: data.f1 });
+        if (data.r2 !== undefined) collectedMetrics.push({ name: "r2", value: data.r2 });
+        if (data.mse !== undefined) collectedMetrics.push({ name: "mse", value: data.mse });
+        if (data.rmse !== undefined) collectedMetrics.push({ name: "rmse", value: data.rmse });
+        if (data.mae !== undefined) collectedMetrics.push({ name: "mae", value: data.mae });
+        if (data.confusionMatrix) collectedMetrics.push({ name: "confusion_matrix", valueJson: JSON.stringify(data.confusionMatrix) });
       }
     };
 
@@ -240,12 +288,28 @@ export function Toolbar({
         }
       }
 
+      // Save metrics and complete run
+      if (runId) {
+        if (collectedMetrics.length > 0) {
+          await saveRunMetrics(runId, collectedMetrics);
+        }
+        await completeRun(runId, Date.now() - startTime);
+      }
+
       setExecutionStatus("success");
     } catch (error) {
       appendLog(`ERROR: ${error}`);
       setExecutionStatus("error");
+
+      // Mark run as failed
+      if (runId) {
+        await failRun(runId, String(error));
+      }
     }
-  }, [nodes, edges, validatePipeline, clearLogs, appendLog, setExecutionStatus]);
+
+    // Refresh run history
+    await loadRunHistory(pipelineName);
+  }, [nodes, edges, validatePipeline, clearLogs, appendLog, setExecutionStatus, currentPipelineName, setCurrentRunId, loadRunHistory]);
 
   const handleCancel = useCallback(async () => {
     try {

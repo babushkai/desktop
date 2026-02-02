@@ -13,7 +13,9 @@ import {
   savePipeline as savePipelineApi,
   loadPipeline as loadPipelineApi,
   getExampleDataPath,
+  listRuns,
   MetricsData,
+  RunMetadata,
 } from "../lib/tauri";
 import {
   createClassificationWorkflow,
@@ -72,6 +74,11 @@ interface PipelineState {
   currentPipelineName: string | null;
   isDirty: boolean;
 
+  // Run history
+  currentRunId: string | null;
+  runHistory: RunMetadata[];
+  selectedRunId: string | null;
+
   // Selection
   selectedNodeId: string | null;
   setSelectedNodeId: (id: string | null) => void;
@@ -102,6 +109,11 @@ interface PipelineState {
   loadExampleWorkflow: (type: "classification" | "regression") => Promise<void>;
   newPipeline: () => void;
 
+  // Run history
+  setCurrentRunId: (id: string | null) => void;
+  setSelectedRunId: (id: string | null) => void;
+  loadRunHistory: (pipelineName?: string) => Promise<void>;
+
   // Alignment and selection
   alignSelectedNodes: (alignType: AlignType) => void;
   distributeSelectedNodes: (direction: "horizontal" | "vertical") => void;
@@ -125,6 +137,9 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   currentPipelineName: null,
   isDirty: false,
   selectedNodeId: null,
+  currentRunId: null,
+  runHistory: [],
+  selectedRunId: null,
 
   setSelectedNodeId: (id) => set({ selectedNodeId: id }),
 
@@ -412,6 +427,20 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       currentPipelineName: null,
       isDirty: false,
     });
+  },
+
+  // Run history
+  setCurrentRunId: (id) => set({ currentRunId: id }),
+
+  setSelectedRunId: (id) => set({ selectedRunId: id }),
+
+  loadRunHistory: async (pipelineName) => {
+    try {
+      const runs = await listRuns(pipelineName);
+      set({ runHistory: runs });
+    } catch (error) {
+      console.error("Failed to load run history:", error);
+    }
   },
 
   // Alignment and selection
