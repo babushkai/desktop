@@ -206,6 +206,7 @@ export interface ModelVersion {
   format: string;
   stage: string; // "none" | "staging" | "production"
   metrics_snapshot?: string;
+  feature_names?: string; // JSON array of feature names
   created_at: string;
   promoted_at?: string;
 }
@@ -236,7 +237,8 @@ export async function registerModelVersion(
   sourcePath: string,
   format: string,
   runId?: string,
-  metricsSnapshot?: string
+  metricsSnapshot?: string,
+  featureNames?: string[]
 ): Promise<RegisterVersionResult> {
   return invoke<RegisterVersionResult>("register_model_version", {
     modelId,
@@ -244,6 +246,7 @@ export async function registerModelVersion(
     sourcePath,
     format,
     metricsSnapshot,
+    featureNames: featureNames ? JSON.stringify(featureNames) : undefined,
   });
 }
 
@@ -261,4 +264,52 @@ export async function deleteModelVersion(versionId: string): Promise<void> {
 
 export async function getModelFilePath(versionId: string): Promise<string | null> {
   return invoke<string | null>("get_model_file_path", { versionId });
+}
+
+export async function getModelVersion(versionId: string): Promise<ModelVersion | null> {
+  return invoke<ModelVersion | null>("get_model_version", { versionId });
+}
+
+// Inference Server
+
+export interface ModelInfo {
+  type: string;
+  is_classifier: boolean;
+  classes?: (string | number)[];
+  feature_names?: string[];
+}
+
+export interface ServerStatus {
+  running: boolean;
+  model_path?: string;
+  feature_names?: string[];
+  model_info?: ModelInfo;
+}
+
+export interface PredictionResult {
+  request_id: string;
+  status: "ok" | "error";
+  prediction?: (number | string)[];
+  probabilities?: number[][];
+  classes?: (string | number)[];
+  message?: string;
+}
+
+export async function startInferenceServer(versionId: string): Promise<ServerStatus> {
+  return invoke<ServerStatus>("start_inference_server", { versionId });
+}
+
+export async function stopInferenceServer(): Promise<void> {
+  return invoke("stop_inference_server");
+}
+
+export async function getInferenceServerStatus(versionId?: string): Promise<ServerStatus> {
+  return invoke<ServerStatus>("get_inference_server_status", { versionId });
+}
+
+export async function runInference(
+  requestId: string,
+  input: Record<string, unknown>
+): Promise<PredictionResult> {
+  return invoke<PredictionResult>("run_inference", { requestId, input });
 }

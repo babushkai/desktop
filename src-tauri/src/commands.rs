@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
-use std::io::{BufRead, BufReader};
-use std::process::{Child, Command, Stdio};
-use std::sync::Mutex;
+use std::collections::HashMap;
+use std::io::{BufRead, BufReader, Write};
+use std::process::{Child, ChildStdin, Command, Stdio};
+use std::sync::{mpsc, Arc, Mutex};
+use std::time::Duration;
 use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Emitter, Manager};
 
@@ -12,6 +14,71 @@ static RUNNING_PROCESS: std::sync::OnceLock<Mutex<Option<Child>>> = std::sync::O
 
 fn get_process_mutex() -> &'static Mutex<Option<Child>> {
     RUNNING_PROCESS.get_or_init(|| Mutex::new(None))
+}
+
+// Inference Server state with channel for responses
+struct InferenceProcess {
+    child: Child,
+    stdin: ChildStdin,
+    model_path: String,
+    model_info: Option<ModelInfo>,
+    #[allow(dead_code)]
+    response_rx: mpsc::Receiver<InferenceResponse>,
+    pending_requests: Arc<Mutex<HashMap<String, mpsc::Sender<InferenceResponse>>>>,
+}
+
+static INFERENCE_SERVER: std::sync::OnceLock<Mutex<Option<InferenceProcess>>> =
+    std::sync::OnceLock::new();
+
+fn get_inference_mutex() -> &'static Mutex<Option<InferenceProcess>> {
+    INFERENCE_SERVER.get_or_init(|| Mutex::new(None))
+}
+
+// Timeout constants
+const LOAD_TIMEOUT_SECS: u64 = 30;
+const PREDICT_TIMEOUT_SECS: u64 = 10;
+
+// Embedded Python inference server script
+const INFERENCE_SERVER_PY: &str = include_str!("inference_server.py");
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct ModelInfo {
+    #[serde(rename = "type")]
+    pub model_type: String,
+    pub is_classifier: bool,
+    pub classes: Option<Vec<serde_json::Value>>,
+    pub feature_names: Option<Vec<String>>,
+}
+
+#[derive(Clone, Serialize)]
+pub struct ServerStatus {
+    pub running: bool,
+    pub model_path: Option<String>,
+    pub feature_names: Option<Vec<String>>,
+    pub model_info: Option<ModelInfo>,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct PredictionResult {
+    pub request_id: String,
+    pub status: String,
+    pub prediction: Option<Vec<serde_json::Value>>,
+    pub probabilities: Option<Vec<Vec<f64>>>,
+    pub classes: Option<Vec<serde_json::Value>>,
+    pub message: Option<String>,
+}
+
+#[derive(Clone, Deserialize, Debug)]
+struct InferenceResponse {
+    request_id: String,
+    status: String,
+    #[serde(rename = "type")]
+    response_type: Option<String>,
+    model_info: Option<ModelInfo>,
+    prediction: Option<Vec<serde_json::Value>>,
+    probabilities: Option<Vec<Vec<f64>>>,
+    classes: Option<Vec<serde_json::Value>>,
+    message: Option<String>,
 }
 
 #[derive(Clone, Serialize)]
@@ -371,6 +438,7 @@ pub fn register_model_version(
     source_path: String,
     format: String,
     metrics_snapshot: Option<String>,
+    feature_names: Option<String>,
 ) -> Result<RegisterVersionResult, String> {
     let version_id = uuid::Uuid::new_v4().to_string();
     let version = db::register_model_version(
@@ -380,6 +448,7 @@ pub fn register_model_version(
         &source_path,
         &format,
         metrics_snapshot.as_deref(),
+        feature_names.as_deref(),
     ).map_err(|e| e.to_string())?;
     Ok(RegisterVersionResult { version_id, version })
 }
@@ -408,4 +477,291 @@ pub fn delete_model_version(version_id: String) -> Result<(), String> {
 #[tauri::command]
 pub fn get_model_file_path(version_id: String) -> Result<Option<String>, String> {
     db::get_model_file_path(&version_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_model_version(version_id: String) -> Result<Option<db::ModelVersion>, String> {
+    db::get_model_version(&version_id).map_err(|e| e.to_string())
+}
+
+// Inference Server commands
+
+fn get_pid_file_path(app_data_dir: &std::path::Path) -> std::path::PathBuf {
+    app_data_dir.join("inference_server.pid")
+}
+
+fn write_pid_file(app_data_dir: &std::path::Path, pid: u32) -> Result<(), String> {
+    std::fs::write(get_pid_file_path(app_data_dir), pid.to_string())
+        .map_err(|e| e.to_string())
+}
+
+fn remove_pid_file(app_data_dir: &std::path::Path) {
+    let _ = std::fs::remove_file(get_pid_file_path(app_data_dir));
+}
+
+pub fn cleanup_orphan_inference_server(app_data_dir: &std::path::Path) {
+    let pid_path = get_pid_file_path(app_data_dir);
+    if let Ok(pid_str) = std::fs::read_to_string(&pid_path) {
+        if let Ok(pid) = pid_str.trim().parse::<i32>() {
+            // Try to kill the orphaned process
+            #[cfg(unix)]
+            unsafe {
+                libc::kill(pid, libc::SIGKILL);
+            }
+            #[cfg(windows)]
+            {
+                let _ = std::process::Command::new("taskkill")
+                    .args(["/PID", &pid.to_string(), "/F"])
+                    .output();
+            }
+        }
+        let _ = std::fs::remove_file(&pid_path);
+    }
+}
+
+fn parse_response_line(line: &str) -> Option<InferenceResponse> {
+    line.strip_prefix("__RESPONSE__:")
+        .and_then(|json_str| serde_json::from_str(json_str).ok())
+}
+
+#[tauri::command]
+pub async fn start_inference_server(
+    app: AppHandle,
+    version_id: String,
+) -> Result<ServerStatus, String> {
+    // Check if already running
+    {
+        let guard = get_inference_mutex().lock().map_err(|e| e.to_string())?;
+        if guard.is_some() {
+            return Err("Inference server already running. Stop it first.".to_string());
+        }
+    }
+
+    // Get model file path from database
+    let version = db::get_model_version(&version_id)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Model version not found".to_string())?;
+
+    let model_path = version.file_path.clone();
+
+    // Get Python path
+    let python_path = python::find_python()
+        .ok_or_else(|| "No Python installation found".to_string())?;
+
+    // Write inference server script to app data dir
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
+    let scripts_dir = app_data_dir.join("scripts");
+    std::fs::create_dir_all(&scripts_dir).map_err(|e| e.to_string())?;
+    let script_path = scripts_dir.join("inference_server.py");
+    std::fs::write(&script_path, INFERENCE_SERVER_PY).map_err(|e| e.to_string())?;
+
+    // Spawn Python process
+    let mut child = Command::new(&python_path)
+        .arg("-u")
+        .arg(&script_path)
+        .arg(&model_path)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn inference server: {}", e))?;
+
+    // Save PID for orphan cleanup
+    write_pid_file(&app_data_dir, child.id())?;
+
+    let stdin = child.stdin.take().ok_or("Failed to capture stdin")?;
+    let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
+
+    // Create channel for responses
+    let (tx, rx) = mpsc::channel::<InferenceResponse>();
+    let pending_requests: Arc<Mutex<HashMap<String, mpsc::Sender<InferenceResponse>>>> =
+        Arc::new(Mutex::new(HashMap::new()));
+
+    // Spawn reader thread
+    let pending_clone = pending_requests.clone();
+    let tx_startup = tx.clone();
+    std::thread::spawn(move || {
+        let reader = BufReader::new(stdout);
+        for line in reader.lines() {
+            if let Ok(line) = line {
+                if let Some(response) = parse_response_line(&line) {
+                    let request_id = response.request_id.clone();
+                    // Check if there's a waiting sender for this request
+                    let mut pending = pending_clone.lock().unwrap();
+                    if let Some(sender) = pending.remove(&request_id) {
+                        let _ = sender.send(response);
+                    } else {
+                        // Startup message or unmatched - send to main channel
+                        let _ = tx_startup.send(response);
+                    }
+                }
+            }
+        }
+    });
+
+    // Wait for ready response with timeout
+    let model_info: Option<ModelInfo>;
+    let start_time = std::time::Instant::now();
+
+    loop {
+        if start_time.elapsed() > Duration::from_secs(LOAD_TIMEOUT_SECS) {
+            let _ = child.kill();
+            remove_pid_file(&app_data_dir);
+            return Err("Timeout waiting for model to load".to_string());
+        }
+
+        match rx.recv_timeout(Duration::from_millis(100)) {
+            Ok(response) => {
+                if response.status == "ok" && response.response_type == Some("ready".to_string()) {
+                    model_info = response.model_info;
+                    break;
+                } else if response.status == "error" {
+                    let _ = child.kill();
+                    remove_pid_file(&app_data_dir);
+                    return Err(response.message.unwrap_or("Unknown error".to_string()));
+                }
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => continue,
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                let _ = child.kill();
+                remove_pid_file(&app_data_dir);
+                return Err("Inference server process exited unexpectedly".to_string());
+            }
+        }
+    }
+
+    // Store process handle
+    {
+        let mut guard = get_inference_mutex().lock().map_err(|e| e.to_string())?;
+        *guard = Some(InferenceProcess {
+            child,
+            stdin,
+            model_path: model_path.clone(),
+            model_info: model_info.clone(),
+            response_rx: rx,
+            pending_requests,
+        });
+    }
+
+    // Parse feature_names from version if available
+    let feature_names = version.feature_names
+        .and_then(|s| serde_json::from_str::<Vec<String>>(&s).ok());
+
+    Ok(ServerStatus {
+        running: true,
+        model_path: Some(model_path),
+        feature_names,
+        model_info,
+    })
+}
+
+#[tauri::command]
+pub async fn stop_inference_server(app: AppHandle) -> Result<(), String> {
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
+
+    let mut guard = get_inference_mutex().lock().map_err(|e| e.to_string())?;
+    if let Some(mut proc) = guard.take() {
+        // Close stdin to signal EOF to Python process
+        drop(proc.stdin);
+        // Wait for process to exit gracefully
+        let _ = proc.child.wait();
+        remove_pid_file(&app_data_dir);
+        Ok(())
+    } else {
+        Err("No inference server running".to_string())
+    }
+}
+
+#[tauri::command]
+pub fn get_inference_server_status(version_id: Option<String>) -> Result<ServerStatus, String> {
+    let guard = get_inference_mutex().lock().map_err(|e| e.to_string())?;
+
+    match &*guard {
+        Some(proc) => {
+            // If version_id is provided, also get feature_names from DB
+            let feature_names = version_id
+                .and_then(|vid| db::get_model_version(&vid).ok())
+                .flatten()
+                .and_then(|v| v.feature_names)
+                .and_then(|s| serde_json::from_str::<Vec<String>>(&s).ok());
+
+            Ok(ServerStatus {
+                running: true,
+                model_path: Some(proc.model_path.clone()),
+                feature_names,
+                model_info: proc.model_info.clone(),
+            })
+        }
+        None => Ok(ServerStatus {
+            running: false,
+            model_path: None,
+            feature_names: None,
+            model_info: None,
+        }),
+    }
+}
+
+#[tauri::command]
+pub fn run_inference(
+    request_id: String,
+    input: serde_json::Value,
+) -> Result<PredictionResult, String> {
+    // Create a one-shot channel for this request's response
+    let (response_tx, response_rx) = mpsc::channel::<InferenceResponse>();
+
+    {
+        let mut guard = get_inference_mutex().lock().map_err(|e| e.to_string())?;
+        let proc = guard.as_mut().ok_or("Inference server not running")?;
+
+        // Register this request's sender
+        {
+            let mut pending = proc.pending_requests.lock().map_err(|e| e.to_string())?;
+            pending.insert(request_id.clone(), response_tx);
+        }
+
+        // Build command
+        let cmd = serde_json::json!({
+            "cmd": "predict",
+            "request_id": request_id,
+            "input": input
+        });
+
+        // Write command to stdin
+        writeln!(proc.stdin, "{}", cmd.to_string())
+            .map_err(|e| format!("Failed to send command: {}", e))?;
+        proc.stdin.flush()
+            .map_err(|e| format!("Failed to flush stdin: {}", e))?;
+    }
+
+    // Wait for response with timeout
+    match response_rx.recv_timeout(Duration::from_secs(PREDICT_TIMEOUT_SECS)) {
+        Ok(response) => Ok(PredictionResult {
+            request_id: response.request_id,
+            status: response.status,
+            prediction: response.prediction,
+            probabilities: response.probabilities,
+            classes: response.classes,
+            message: response.message,
+        }),
+        Err(mpsc::RecvTimeoutError::Timeout) => {
+            // Clean up pending request
+            if let Ok(mut guard) = get_inference_mutex().lock() {
+                if let Some(proc) = guard.as_mut() {
+                    if let Ok(mut pending) = proc.pending_requests.lock() {
+                        pending.remove(&request_id);
+                    }
+                }
+            }
+            Err("Inference request timed out".to_string())
+        }
+        Err(mpsc::RecvTimeoutError::Disconnected) => {
+            Err("Inference server disconnected".to_string())
+        }
+    }
 }

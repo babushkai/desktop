@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Mutex;
 
-const DB_VERSION: i32 = 3; // v1 = settings+pipelines, v2 = +runs+metrics, v3 = +models+model_versions
+const DB_VERSION: i32 = 4; // v1 = settings+pipelines, v2 = +runs+metrics, v3 = +models+model_versions, v4 = +feature_names
 
 #[derive(Serialize, Deserialize)]
 pub struct PipelineMetadata {
@@ -55,6 +55,7 @@ pub struct ModelVersion {
     pub format: String,
     pub stage: String,
     pub metrics_snapshot: Option<String>,
+    pub feature_names: Option<String>, // JSON array of feature names
     pub created_at: String,
     pub promoted_at: Option<String>,
 }
@@ -175,6 +176,14 @@ pub fn init_db(app_data_dir: &Path) -> Result<()> {
 
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_model_versions_stage ON model_versions(stage)",
+            [],
+        )?;
+    }
+
+    // v4 migration (add feature_names to model_versions)
+    if version < 4 {
+        conn.execute(
+            "ALTER TABLE model_versions ADD COLUMN feature_names TEXT",
             [],
         )?;
     }
@@ -511,6 +520,7 @@ pub fn register_model_version(
     source_path: &str,
     format: &str,
     metrics_snapshot: Option<&str>,
+    feature_names: Option<&str>,
 ) -> Result<i64> {
     let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
         rusqlite::Error::InvalidQuery
@@ -552,9 +562,9 @@ pub fn register_model_version(
 
     // Insert version record
     conn.execute(
-        "INSERT INTO model_versions (id, model_id, version, run_id, file_path, file_size, format, stage, metrics_snapshot, created_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'none', ?8, datetime('now'))",
-        rusqlite::params![version_id, model_id, next_version, run_id, dest_path_str, file_size, format, metrics_snapshot],
+        "INSERT INTO model_versions (id, model_id, version, run_id, file_path, file_size, format, stage, metrics_snapshot, feature_names, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'none', ?8, ?9, datetime('now'))",
+        rusqlite::params![version_id, model_id, next_version, run_id, dest_path_str, file_size, format, metrics_snapshot, feature_names],
     )?;
 
     // Update model's updated_at
@@ -571,7 +581,7 @@ pub fn list_model_versions(model_id: &str) -> Result<Vec<ModelVersion>> {
         rusqlite::Error::InvalidQuery
     })?;
     let mut stmt = conn.prepare(
-        "SELECT id, model_id, version, run_id, file_path, file_size, format, stage, metrics_snapshot, created_at, promoted_at
+        "SELECT id, model_id, version, run_id, file_path, file_size, format, stage, metrics_snapshot, feature_names, created_at, promoted_at
          FROM model_versions WHERE model_id = ?1 ORDER BY version DESC"
     )?;
     let rows = stmt.query_map([model_id], map_model_version_row)?;
@@ -589,8 +599,9 @@ fn map_model_version_row(row: &rusqlite::Row) -> Result<ModelVersion> {
         format: row.get(6)?,
         stage: row.get(7)?,
         metrics_snapshot: row.get(8)?,
-        created_at: row.get(9)?,
-        promoted_at: row.get(10)?,
+        feature_names: row.get(9)?,
+        created_at: row.get(10)?,
+        promoted_at: row.get(11)?,
     })
 }
 
@@ -672,6 +683,23 @@ pub fn get_model_file_path(version_id: &str) -> Result<Option<String>> {
     );
     match result {
         Ok(path) => Ok(Some(path)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+pub fn get_model_version(version_id: &str) -> Result<Option<ModelVersion>> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    let result = conn.query_row(
+        "SELECT id, model_id, version, run_id, file_path, file_size, format, stage, metrics_snapshot, feature_names, created_at, promoted_at
+         FROM model_versions WHERE id = ?1",
+        [version_id],
+        map_model_version_row,
+    );
+    match result {
+        Ok(version) => Ok(Some(version)),
         Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
         Err(e) => Err(e),
     }

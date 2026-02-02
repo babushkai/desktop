@@ -15,6 +15,7 @@ import {
   RiTerminalBoxLine,
   RiFlaskLine,
   RiHome4Line,
+  RiRocketLine,
 } from "@remixicon/react";
 import { usePipelineStore } from "../stores/pipelineStore";
 import {
@@ -44,15 +45,19 @@ import { cn } from "@/lib/utils";
 interface ToolbarProps {
   showNodePalette?: boolean;
   showOutputPanel?: boolean;
+  showPlayground?: boolean;
   onToggleNodePalette?: () => void;
   onToggleOutputPanel?: () => void;
+  onTogglePlayground?: () => void;
 }
 
 export function Toolbar({
   showNodePalette,
   showOutputPanel,
+  showPlayground,
   onToggleNodePalette,
   onToggleOutputPanel,
+  onTogglePlayground,
 }: ToolbarProps) {
   const {
     nodes,
@@ -575,7 +580,7 @@ export function Toolbar({
       </div>
 
       {/* View toggles - only show if callbacks provided */}
-      {(onToggleNodePalette || onToggleOutputPanel) && (
+      {(onToggleNodePalette || onToggleOutputPanel || onTogglePlayground) && (
         <>
           <div className="flex items-center gap-1">
             {onToggleNodePalette && (
@@ -600,6 +605,18 @@ export function Toolbar({
                 title="Toggle Output Panel (Ctrl+J)"
               >
                 <RiTerminalBoxLine className="w-4 h-4" />
+              </button>
+            )}
+            {onTogglePlayground && (
+              <button
+                onClick={onTogglePlayground}
+                className={cn(
+                  "btn-ghost h-8 w-8 p-0",
+                  showPlayground && "bg-accent/20 text-accent"
+                )}
+                title="Toggle Playground (Ctrl+Shift+P)"
+              >
+                <RiRocketLine className="w-4 h-4" />
               </button>
             )}
           </div>
