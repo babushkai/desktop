@@ -3,6 +3,23 @@
 @tailwind utilities;
 
 :root {
+  /* Base navy - single source of truth */
+  --navy-h: 222;
+  --navy-s: 47%;
+  --navy-l: 11%;
+
+  /* Surface elevation system (lightness offsets) */
+  --surface-0: hsl(var(--navy-h), var(--navy-s), 5%);      /* Canvas - deepest */
+  --surface-1: hsl(var(--navy-h), var(--navy-s), 8%);      /* Recessed panels */
+  --surface-2: hsl(var(--navy-h), var(--navy-s), 11%);     /* Default panels */
+  --surface-3: hsl(var(--navy-h), var(--navy-s), 14%);     /* Raised panels */
+  --surface-4: hsl(var(--navy-h), var(--navy-s), 18%);     /* Hover/elevated */
+
+  /* Edge highlights for depth */
+  --edge-light: rgba(255, 255, 255, 0.06);
+  --edge-dark: rgba(0, 0, 0, 0.3);
+
+  /* Log panel colors (GitHub dark theme) */
   --log-bg: #0d1117;
   --log-text: #c9d1d9;
   --log-muted: #8b949e;
@@ -55,6 +72,65 @@
 }
 
 @layer components {
+  /* ========================================
+     Panel Depth System
+     Uses layered shadows + gradients for elegant depth
+     ======================================== */
+
+  /* Toolbar - raised with bottom edge shadow */
+  .panel-toolbar {
+    background: linear-gradient(
+      180deg,
+      var(--surface-3) 0%,
+      var(--surface-2) 100%
+    );
+    box-shadow:
+      inset 0 1px 0 var(--edge-light),
+      0 1px 3px var(--edge-dark),
+      0 4px 12px -4px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Sidebar - subtle inset with right/left edge glow */
+  .panel-sidebar {
+    background: linear-gradient(
+      90deg,
+      var(--surface-2) 0%,
+      var(--surface-1) 100%
+    );
+    box-shadow:
+      inset 0 1px 0 var(--edge-light),
+      inset -1px 0 0 var(--edge-light);
+  }
+
+  /* Sidebar right variant (for properties panel) */
+  .panel-sidebar-right {
+    background: linear-gradient(
+      270deg,
+      var(--surface-2) 0%,
+      var(--surface-1) 100%
+    );
+    box-shadow:
+      inset 0 1px 0 var(--edge-light),
+      inset 1px 0 0 var(--edge-light);
+  }
+
+  /* Footer - recessed with top edge shadow */
+  .panel-footer {
+    background: var(--surface-1);
+    box-shadow:
+      inset 0 1px 0 var(--edge-light),
+      inset 0 2px 8px -2px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Canvas pit - deepest with vignette effect */
+  .panel-canvas {
+    background: radial-gradient(
+      ellipse at center,
+      var(--surface-0) 0%,
+      hsl(var(--navy-h), var(--navy-s), 3%) 100%
+    );
+  }
+
   /* Glass morphism panel */
   .glass-panel {
     @apply bg-background-surface/80 backdrop-blur-xl border border-white/5 rounded-lg;
@@ -109,7 +185,11 @@
 
 /* ReactFlow overrides for dark theme */
 .react-flow__background {
-  background-color: theme("colors.background.DEFAULT") !important;
+  background: radial-gradient(
+    ellipse at center,
+    var(--surface-0) 0%,
+    hsl(var(--navy-h), var(--navy-s), 3%) 100%
+  ) !important;
 }
 
 .react-flow__minimap {

@@ -13,7 +13,8 @@ Go buy one if you don't have yet. Of course we don't judge you if you are window
 
 Our console is designed to be simple yet fun to work with. The vivid color yet simple design allows you to navigate the mandane mlops work more fun and enjoyable! 
 
-
+![alt te](./assets/image.png)
 ![alt te](./assets/image2.png)
+![alt te](./assets/image3.png)
 
 That's it! enjoy our platform for your mlops journey 🧑‍💻 👩‍💻

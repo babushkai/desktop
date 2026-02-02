@@ -80,7 +80,7 @@ function App() {
               onClick={toggleNodePalette}
               className={cn(
                 "flex items-center justify-center w-6",
-                "bg-background-surface border-r border-white/5",
+                "panel-sidebar border-r border-white/5",
                 "hover:bg-background-elevated transition-colors",
                 "text-text-muted hover:text-text-primary"
               )}
@@ -106,7 +106,7 @@ function App() {
             onClick={toggleOutputPanel}
             className={cn(
               "flex items-center justify-center gap-2 h-7 px-3",
-              "bg-background-surface border-t border-white/5",
+              "panel-footer border-t border-white/5",
               "hover:bg-background-elevated transition-colors",
               "text-text-muted hover:text-text-primary text-xs"
             )}

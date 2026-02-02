@@ -320,7 +320,7 @@ export function Toolbar({
   const isRunnable = hasExecutableNode && hasDataLoaderWithFile;
 
   return (
-    <div className="flex items-center gap-4 px-4 py-3 bg-background-surface border-b border-white/5">
+    <div className="flex items-center gap-4 px-4 py-3 panel-toolbar border-b border-white/5">
       {/* Title */}
       <h1 className="text-lg font-semibold text-text-primary">
         MLOps Desktop

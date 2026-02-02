@@ -38,7 +38,7 @@ export function PropertiesPanel() {
   }
 
   return (
-    <div className="w-96 flex flex-col bg-background-surface border-l border-white/5 animate-slide-in-right">
+    <div className="w-96 flex flex-col panel-sidebar-right border-l border-white/5 animate-slide-in-right">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-white/5">
         <RiCodeLine className="w-4 h-4 text-node-script" />
         <span className="text-sm font-medium text-node-script">Script Editor</span>

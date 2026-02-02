@@ -5,11 +5,11 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Background colors
+        // Background colors - base tokens (depth via CSS panel classes)
         background: {
-          DEFAULT: "#0a0a0f",
-          surface: "#0f172a",
-          elevated: "#1e293b",
+          DEFAULT: "var(--surface-0)",
+          surface: "var(--surface-2)",
+          elevated: "var(--surface-4)",
         },
         // Log panel colors (GitHub dark theme)
         log: {
