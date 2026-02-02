@@ -7,6 +7,7 @@ import {
   RiCheckLine,
   RiCloseLine,
   RiTimeLine,
+  RiArrowDownSLine,
 } from "@remixicon/react";
 import { cn } from "@/lib/utils";
 
@@ -66,7 +67,11 @@ function formatTimestamp(date: Date): string {
   });
 }
 
-export function OutputPanel() {
+interface OutputPanelProps {
+  onCollapse?: () => void;
+}
+
+export function OutputPanel({ onCollapse }: OutputPanelProps) {
   const outputLogs = usePipelineStore((s) => s.outputLogs);
   const executionStatus = usePipelineStore((s) => s.executionStatus);
   const clearLogs = usePipelineStore((s) => s.clearLogs);
@@ -128,6 +133,15 @@ export function OutputPanel() {
       <div className="flex items-center justify-between px-4 py-2 bg-background-surface border-b border-white/5">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
+            {onCollapse && (
+              <button
+                onClick={onCollapse}
+                className="p-1 -ml-1 rounded hover:bg-white/10 text-text-muted hover:text-text-primary transition-colors"
+                title="Collapse panel (Ctrl+J)"
+              >
+                <RiArrowDownSLine className="w-4 h-4" />
+              </button>
+            )}
             <RiTerminalLine className="w-4 h-4 text-text-muted" />
             <span className="text-sm font-medium text-text-primary">Output</span>
           </div>

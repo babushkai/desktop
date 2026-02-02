@@ -32,10 +32,10 @@ import { generateDataSplitCode } from "../lib/dataSplitCodeGen";
 import { cn } from "@/lib/utils";
 
 interface ToolbarProps {
-  showNodePalette: boolean;
-  showOutputPanel: boolean;
-  onToggleNodePalette: () => void;
-  onToggleOutputPanel: () => void;
+  showNodePalette?: boolean;
+  showOutputPanel?: boolean;
+  onToggleNodePalette?: () => void;
+  onToggleOutputPanel?: () => void;
 }
 
 export function Toolbar({
@@ -408,31 +408,38 @@ export function Toolbar({
         )}
       </div>
 
-      {/* View toggles */}
-      <div className="flex items-center gap-1">
-        <button
-          onClick={onToggleNodePalette}
-          className={cn(
-            "btn-ghost h-8 w-8 p-0",
-            showNodePalette && "bg-accent/20 text-accent"
-          )}
-          title="Toggle Components Panel (Ctrl+B)"
-        >
-          <RiSideBarLine className="w-4 h-4" />
-        </button>
-        <button
-          onClick={onToggleOutputPanel}
-          className={cn(
-            "btn-ghost h-8 w-8 p-0",
-            showOutputPanel && "bg-accent/20 text-accent"
-          )}
-          title="Toggle Output Panel (Ctrl+J)"
-        >
-          <RiTerminalBoxLine className="w-4 h-4" />
-        </button>
-      </div>
-
-      <div className="w-px h-6 bg-white/10" />
+      {/* View toggles - only show if callbacks provided */}
+      {(onToggleNodePalette || onToggleOutputPanel) && (
+        <>
+          <div className="flex items-center gap-1">
+            {onToggleNodePalette && (
+              <button
+                onClick={onToggleNodePalette}
+                className={cn(
+                  "btn-ghost h-8 w-8 p-0",
+                  showNodePalette && "bg-accent/20 text-accent"
+                )}
+                title="Toggle Components Panel (Ctrl+B)"
+              >
+                <RiSideBarLine className="w-4 h-4" />
+              </button>
+            )}
+            {onToggleOutputPanel && (
+              <button
+                onClick={onToggleOutputPanel}
+                className={cn(
+                  "btn-ghost h-8 w-8 p-0",
+                  showOutputPanel && "bg-accent/20 text-accent"
+                )}
+                title="Toggle Output Panel (Ctrl+J)"
+              >
+                <RiTerminalBoxLine className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          <div className="w-px h-6 bg-white/10" />
+        </>
+      )}
 
       {/* Run/Cancel buttons */}
       {executionStatus === "running" ? (

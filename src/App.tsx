@@ -7,6 +7,10 @@ import { OutputPanel } from "./components/OutputPanel";
 import { PropertiesPanel } from "./components/PropertiesPanel";
 import { Toolbar } from "./components/Toolbar";
 import { cn } from "./lib/utils";
+import {
+  RiLayoutLeftLine,
+  RiTerminalBoxLine,
+} from "@remixicon/react";
 
 function App() {
   const [showNodePalette, setShowNodePalette] = useState(true);
@@ -60,14 +64,31 @@ function App() {
         />
 
         <div className="flex flex-1 overflow-hidden">
+          {/* Node Palette - collapsible */}
           <div
             className={cn(
               "transition-all duration-200 ease-out overflow-hidden",
               showNodePalette ? "w-56" : "w-0"
             )}
           >
-            {showNodePalette && <NodePalette />}
+            {showNodePalette && <NodePalette onCollapse={toggleNodePalette} />}
           </div>
+
+          {/* Collapsed tab for NodePalette */}
+          {!showNodePalette && (
+            <button
+              onClick={toggleNodePalette}
+              className={cn(
+                "flex items-center justify-center w-6",
+                "bg-background-surface border-r border-white/5",
+                "hover:bg-background-elevated transition-colors",
+                "text-text-muted hover:text-text-primary"
+              )}
+              title="Show Components Panel (Ctrl+B)"
+            >
+              <RiLayoutLeftLine className="w-4 h-4" />
+            </button>
+          )}
 
           <div className="flex-1 relative">
             <Canvas />
@@ -76,14 +97,32 @@ function App() {
           <PropertiesPanel />
         </div>
 
+        {/* Output Panel - collapsible */}
         <div
           className={cn(
             "transition-all duration-200 ease-out overflow-hidden",
             showOutputPanel ? "h-52" : "h-0"
           )}
         >
-          {showOutputPanel && <OutputPanel />}
+          {showOutputPanel && <OutputPanel onCollapse={toggleOutputPanel} />}
         </div>
+
+        {/* Collapsed tab for OutputPanel */}
+        {!showOutputPanel && (
+          <button
+            onClick={toggleOutputPanel}
+            className={cn(
+              "flex items-center justify-center gap-2 h-7 px-3",
+              "bg-background-surface border-t border-white/5",
+              "hover:bg-background-elevated transition-colors",
+              "text-text-muted hover:text-text-primary text-xs"
+            )}
+            title="Show Output Panel (Ctrl+J)"
+          >
+            <RiTerminalBoxLine className="w-4 h-4" />
+            <span>Output</span>
+          </button>
+        )}
       </div>
     </ReactFlowProvider>
   );

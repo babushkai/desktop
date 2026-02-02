@@ -9,6 +9,7 @@ import {
   RiBox3Line,
   RiDragMove2Line,
   RiDeleteBinLine,
+  RiArrowLeftSLine,
 } from "@remixicon/react";
 import { cn } from "@/lib/utils";
 
@@ -80,7 +81,11 @@ function NodeGroup({ title, children }: NodeGroupProps) {
   );
 }
 
-export function NodePalette() {
+interface NodePaletteProps {
+  onCollapse?: () => void;
+}
+
+export function NodePalette({ onCollapse }: NodePaletteProps) {
   const addNode = usePipelineStore((state) => state.addNode);
 
   const handleAddDataLoader = useCallback(() => {
@@ -110,7 +115,18 @@ export function NodePalette() {
   return (
     <div className="w-56 flex flex-col h-full bg-background-surface border-r border-white/5">
       <div className="p-4 border-b border-white/5">
-        <h3 className="text-sm font-semibold text-text-primary">Components</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-text-primary">Components</h3>
+          {onCollapse && (
+            <button
+              onClick={onCollapse}
+              className="p-1 rounded hover:bg-white/10 text-text-muted hover:text-text-primary transition-colors"
+              title="Collapse panel (Ctrl+B)"
+            >
+              <RiArrowLeftSLine className="w-4 h-4" />
+            </button>
+          )}
+        </div>
         <p className="text-[11px] text-text-muted mt-1">
           Click to add to canvas
         </p>
