@@ -22,6 +22,8 @@ import {
 } from "../lib/exampleWorkflows";
 import { AlignType, alignNodes, distributeNodes } from "@/lib/alignment";
 
+export type TrainerMode = "train" | "load";
+
 export type NodeData = {
   label: string;
   filePath?: string;
@@ -32,9 +34,11 @@ export type NodeData = {
   stratify?: boolean; // whether to stratify split
   splitTargetColumn?: string; // column for stratification
   // Trainer fields
+  trainerMode?: TrainerMode; // "train" (default) or "load"
   modelType?: string;
   targetColumn?: string;
   testSplit?: number; // KEPT for backward compat
+  modelFilePath?: string; // path to pre-trained model (for "load" mode)
   // ModelExporter fields
   exportFormat?: string; // "joblib" | "pickle" | "onnx"
   outputFileName?: string;
@@ -47,6 +51,7 @@ export const VALID_CONNECTIONS: [string, string][] = [
   ["dataLoader", "trainer"], // Keep for backward compat
   ["dataSplit", "trainer"],
   ["trainer", "evaluator"],
+  ["script", "evaluator"], // Script can feed Evaluator if it saves MODEL_FILE
   ["evaluator", "modelExporter"],
   ["trainer", "modelExporter"],
 ];
@@ -140,9 +145,11 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       },
       trainer: {
         label: "Trainer",
+        trainerMode: "train",
         modelType: "linear_regression",
         targetColumn: "",
         testSplit: 0.2,
+        modelFilePath: "",
       },
       evaluator: {
         label: "Evaluator",
@@ -250,34 +257,44 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       }
     }
 
-    // Trainer nodes must have DataLoader OR DataSplit connection
+    // Trainer nodes validation
     const trainerNodes = nodes.filter((n) => n.type === "trainer");
     for (const trainer of trainerNodes) {
-      const incomingEdge = edges.find((e) => e.target === trainer.id);
-      if (!incomingEdge) {
-        errors.push("Connect a Data Loader or Data Split to the Trainer");
-      } else {
-        const sourceNode = nodes.find((n) => n.id === incomingEdge.source);
-        if (sourceNode?.type !== "dataLoader" && sourceNode?.type !== "dataSplit") {
-          errors.push("Trainer must be connected from a Data Loader or Data Split");
+      const isLoadMode = trainer.data.trainerMode === "load";
+
+      // In train mode, must have DataLoader or DataSplit connection
+      if (!isLoadMode) {
+        const incomingEdge = edges.find((e) => e.target === trainer.id);
+        if (!incomingEdge) {
+          errors.push("Connect a Data Loader or Data Split to the Trainer");
+        } else {
+          const sourceNode = nodes.find((n) => n.id === incomingEdge.source);
+          if (sourceNode?.type !== "dataLoader" && sourceNode?.type !== "dataSplit") {
+            errors.push("Trainer must be connected from a Data Loader or Data Split");
+          }
         }
-      }
-      // Trainer nodes must have target column specified
-      if (!trainer.data.targetColumn) {
-        errors.push("Specify a target column in the Trainer");
+        // Train mode requires target column
+        if (!trainer.data.targetColumn) {
+          errors.push("Specify a target column in the Trainer");
+        }
+      } else {
+        // Load mode requires model file path
+        if (!trainer.data.modelFilePath) {
+          errors.push("Select a model file in the Trainer");
+        }
       }
     }
 
-    // Evaluator must be connected to Trainer
+    // Evaluator must be connected to Trainer or Script
     const evaluatorNodes = nodes.filter((n) => n.type === "evaluator");
     for (const evaluator of evaluatorNodes) {
       const incomingEdge = edges.find((e) => e.target === evaluator.id);
       if (!incomingEdge) {
-        errors.push("Connect a Trainer to the Evaluator");
+        errors.push("Connect a Trainer or Script to the Evaluator");
       } else {
         const sourceNode = nodes.find((n) => n.id === incomingEdge.source);
-        if (sourceNode?.type !== "trainer") {
-          errors.push("Evaluator must be connected to a Trainer node");
+        if (sourceNode?.type !== "trainer" && sourceNode?.type !== "script") {
+          errors.push("Evaluator must be connected to a Trainer or Script node");
         }
       }
     }
