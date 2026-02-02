@@ -309,7 +309,101 @@ export async function getInferenceServerStatus(versionId?: string): Promise<Serv
 
 export async function runInference(
   requestId: string,
-  input: Record<string, unknown>
+  input: Record<string, unknown> | Record<string, unknown>[]
 ): Promise<PredictionResult> {
   return invoke<PredictionResult>("run_inference", { requestId, input });
+}
+
+// Batch inference with chunking support
+export interface BatchChunkResult {
+  predictions: (number | string)[];
+  probabilities?: number[][];
+  classes?: (string | number)[];
+  error?: string;
+}
+
+export async function runBatchInference(
+  inputs: Record<string, unknown>[],
+  options: {
+    chunkSize?: number;
+    onProgress?: (current: number, total: number) => void;
+    signal?: AbortSignal;
+  } = {}
+): Promise<BatchChunkResult> {
+  const { chunkSize = 500, onProgress, signal } = options;
+
+  if (inputs.length === 0) {
+    return { predictions: [] };
+  }
+
+  // For small batches, send all at once
+  if (inputs.length <= chunkSize) {
+    const requestId = `batch-${Date.now()}`;
+    const result = await runInference(requestId, inputs);
+
+    if (result.status === "error") {
+      return { predictions: [], error: result.message };
+    }
+
+    return {
+      predictions: result.prediction || [],
+      probabilities: result.probabilities,
+      classes: result.classes,
+    };
+  }
+
+  // For large batches, chunk the requests
+  const allPredictions: (string | number)[] = [];
+  const allProbabilities: number[][] = [];
+  let lastClasses: (string | number)[] | undefined;
+
+  const chunks: Record<string, unknown>[][] = [];
+  for (let i = 0; i < inputs.length; i += chunkSize) {
+    chunks.push(inputs.slice(i, i + chunkSize));
+  }
+
+  for (let i = 0; i < chunks.length; i++) {
+    // Check for cancellation
+    if (signal?.aborted) {
+      return {
+        predictions: allPredictions,
+        probabilities: allProbabilities.length > 0 ? allProbabilities : undefined,
+        classes: lastClasses,
+        error: `Cancelled (${allPredictions.length}/${inputs.length} processed)`,
+      };
+    }
+
+    onProgress?.(i * chunkSize, inputs.length);
+
+    const requestId = `batch-${Date.now()}-${i}`;
+    const result = await runInference(requestId, chunks[i]);
+
+    if (result.status === "error") {
+      // Return partial results on error
+      return {
+        predictions: allPredictions,
+        probabilities: allProbabilities.length > 0 ? allProbabilities : undefined,
+        classes: lastClasses,
+        error: `Error at chunk ${i + 1}: ${result.message} (${allPredictions.length}/${inputs.length} processed)`,
+      };
+    }
+
+    if (result.prediction) {
+      allPredictions.push(...result.prediction);
+    }
+    if (result.probabilities) {
+      allProbabilities.push(...result.probabilities);
+    }
+    if (result.classes) {
+      lastClasses = result.classes;
+    }
+  }
+
+  onProgress?.(inputs.length, inputs.length);
+
+  return {
+    predictions: allPredictions,
+    probabilities: allProbabilities.length > 0 ? allProbabilities : undefined,
+    classes: lastClasses,
+  };
 }

@@ -93,33 +93,51 @@ class InferenceServer:
         """Handle model info command."""
         respond_ok(request_id, model_info=self.model_info)
 
-    def handle_predict(self, request_id: str, input_data: dict) -> None:
-        """Handle prediction command."""
+    def handle_predict(self, request_id: str, input_data) -> None:
+        """Handle prediction command.
+
+        Supports both single prediction (dict) and batch prediction (list of dicts).
+        """
         import numpy as np
 
         try:
-            # Extract feature values in order
+            # Detect single vs batch input
+            if isinstance(input_data, list):
+                # Batch: list of dicts
+                samples = input_data
+            else:
+                # Single: dict
+                samples = [input_data]
+
+            if not samples:
+                respond_error(request_id, "No input data provided")
+                return
+
+            # Build feature matrix
             if self.model_info.get("feature_names"):
                 # Model has feature names, use them to order input
                 feature_names = self.model_info["feature_names"]
-                missing = [f for f in feature_names if f not in input_data]
-                if missing:
-                    respond_error(request_id, f"Missing features: {', '.join(missing)}")
-                    return
-                values = [[input_data[f] for f in feature_names]]
+                values = []
+                for i, sample in enumerate(samples):
+                    missing = [f for f in feature_names if f not in sample]
+                    if missing:
+                        respond_error(request_id, f"Row {i}: Missing features: {', '.join(missing)}")
+                        return
+                    values.append([sample[f] for f in feature_names])
             else:
                 # No feature names, expect numeric keys or array-like input
-                if isinstance(input_data, dict):
-                    # Sort by key if numeric, otherwise use as-is
-                    values = [list(input_data.values())]
-                else:
-                    values = [input_data]
+                values = []
+                for sample in samples:
+                    if isinstance(sample, dict):
+                        values.append(list(sample.values()))
+                    else:
+                        values.append(sample)
 
             X = np.array(values, dtype=np.float64)
-            prediction = self.model.predict(X)
+            predictions = self.model.predict(X)
 
             result = {
-                "prediction": prediction.tolist() if hasattr(prediction, "tolist") else list(prediction)
+                "prediction": predictions.tolist() if hasattr(predictions, "tolist") else list(predictions)
             }
 
             # Get probabilities for classifiers
