@@ -6,10 +6,16 @@ const MODEL_CONFIG: Record<string, { module: string; class: string }> = {
   linear_regression: { module: "sklearn.linear_model", class: "LinearRegression" },
   random_forest: { module: "sklearn.ensemble", class: "RandomForestRegressor" },
   gradient_boosting: { module: "sklearn.ensemble", class: "GradientBoostingRegressor" },
+  svr: { module: "sklearn.svm", class: "SVR" },
+  knn_regressor: { module: "sklearn.neighbors", class: "KNeighborsRegressor" },
+  mlp_regressor: { module: "sklearn.neural_network", class: "MLPRegressor" },
   // Classifiers
   logistic_regression: { module: "sklearn.linear_model", class: "LogisticRegression" },
   random_forest_classifier: { module: "sklearn.ensemble", class: "RandomForestClassifier" },
   gradient_boosting_classifier: { module: "sklearn.ensemble", class: "GradientBoostingClassifier" },
+  svc: { module: "sklearn.svm", class: "SVC" },
+  knn_classifier: { module: "sklearn.neighbors", class: "KNeighborsClassifier" },
+  mlp_classifier: { module: "sklearn.neural_network", class: "MLPClassifier" },
 };
 
 // Sanitize file path for embedding in Python string
