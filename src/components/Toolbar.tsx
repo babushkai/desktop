@@ -30,6 +30,7 @@ import {
 } from "../lib/tauri";
 import { generateTrainerCode, generateTrainerCodeWithSplit } from "../lib/trainerCodeGen";
 import { generateEvaluatorCode, generateEvaluatorCodeWithSplit } from "../lib/evaluatorCodeGen";
+import { MODEL_FILE } from "../lib/constants";
 import { generateExporterCode } from "../lib/exporterCodeGen";
 import { generateDataSplitCode } from "../lib/dataSplitCodeGen";
 import { cn } from "@/lib/utils";
@@ -193,7 +194,7 @@ export function Toolbar({
           if (useDataSplit) {
             evalCode = generateEvaluatorCodeWithSplit(trainerNode.data, inputPath);
           } else {
-            evalCode = generateEvaluatorCode(trainerNode.data, "model.joblib", inputPath);
+            evalCode = generateEvaluatorCode(trainerNode.data, MODEL_FILE, inputPath);
           }
           await runScriptAndWait(evalCode, inputPath, handleOutput);
         }
@@ -208,7 +209,7 @@ export function Toolbar({
             appendLog("");
             appendLog("--- Running Model Exporter ---");
 
-            const exportCode = generateExporterCode(modelExporterNode.data, "model.joblib");
+            const exportCode = generateExporterCode(modelExporterNode.data, MODEL_FILE);
             await runScriptAndWait(exportCode, inputPath, handleOutput);
           }
         }

@@ -1,5 +1,5 @@
 import { NodeData } from "../stores/pipelineStore";
-import { SPLIT_INDICES_FILE } from "./constants";
+import { WORK_DIR, SPLIT_INDICES_FILE } from "./constants";
 
 const sanitizePath = (p: string): string =>
   p.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
@@ -15,11 +15,13 @@ export const generateDataSplitCode = (
   const safePath = sanitizePath(inputPath);
 
   return `import sys
+import os
 import json
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
 try:
+    os.makedirs("${WORK_DIR}", exist_ok=True)
     df = pd.read_csv("${safePath}")
     print(f"Dataset loaded: {len(df)} rows")
 
