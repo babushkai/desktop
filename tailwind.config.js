@@ -5,11 +5,14 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Background colors
+        // Background colors - layered depth
         background: {
-          DEFAULT: "#0a0a0f",
-          surface: "#0f172a",
-          elevated: "#1e293b",
+          DEFAULT: "#0a0a0f",      // Canvas (darkest)
+          surface: "#0f172a",      // General surface
+          elevated: "#1e293b",     // Hover/active states
+          toolbar: "#101829",      // Top bar - slightly lighter
+          sidebar: "#0d1424",      // Side panels - medium navy
+          footer: "#0c1220",       // Bottom panel - deep navy
         },
         // Log panel colors (GitHub dark theme)
         log: {
