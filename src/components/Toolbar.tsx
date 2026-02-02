@@ -375,21 +375,21 @@ export function Toolbar({
                 pipelines.map((p) => (
                   <Menu.Item key={p.id}>
                     {({ active }) => (
-                      <button
+                      <div
                         onClick={() => handleLoadPipeline(p.id)}
                         className={cn(
-                          "w-full flex items-center justify-between px-3 py-2 text-sm text-left",
+                          "w-full flex items-center justify-between px-3 py-2 text-sm text-left cursor-pointer group",
                           active && "bg-background-elevated text-text-primary"
                         )}
                       >
                         <span className="truncate">{p.name}</span>
-                        <button
+                        <span
                           onClick={(e) => handleDeletePipeline(p.id, e)}
                           className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-state-error/20 text-state-error"
                         >
                           <RiDeleteBinLine className="w-3 h-3" />
-                        </button>
-                      </button>
+                        </span>
+                      </div>
                     )}
                   </Menu.Item>
                 ))
