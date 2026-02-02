@@ -28,7 +28,7 @@ import {
   runScriptAndWait,
   ScriptEvent,
 } from "../lib/tauri";
-import { generateTrainerCode, generateTrainerCodeWithSplit } from "../lib/trainerCodeGen";
+import { generateTrainerCode, generateTrainerCodeWithSplit, generateModelLoaderCode } from "../lib/trainerCodeGen";
 import { generateEvaluatorCode, generateEvaluatorCodeWithSplit } from "../lib/evaluatorCodeGen";
 import { MODEL_FILE } from "../lib/constants";
 import { generateExporterCode } from "../lib/exporterCodeGen";
@@ -159,23 +159,35 @@ export function Toolbar({
       }
 
       if (trainerNode) {
-        appendLog("");
-        appendLog("--- Running Trainer ---");
-        appendLog(`Input: ${inputPath}`);
-        appendLog(`Model: ${trainerNode.data.modelType || "linear_regression"}`);
-        appendLog(`Target: ${trainerNode.data.targetColumn || "target"}`);
-        if (!useDataSplit) {
-          appendLog(`Test split: ${((trainerNode.data.testSplit || 0.2) * 100).toFixed(0)}%`);
-        }
-        appendLog("");
+        const trainerData = trainerNode.data;
 
-        let trainerCode;
-        if (useDataSplit) {
-          trainerCode = generateTrainerCodeWithSplit(trainerNode.data, inputPath);
+        if (trainerData.trainerMode === "load") {
+          appendLog("");
+          appendLog("--- Loading Pre-trained Model ---");
+          appendLog(`Model file: ${trainerData.modelPath}`);
+          appendLog("");
+
+          const code = generateModelLoaderCode(trainerData);
+          await runScriptAndWait(code, "", handleOutput);
         } else {
-          trainerCode = generateTrainerCode(trainerNode.data, inputPath);
+          appendLog("");
+          appendLog("--- Running Trainer ---");
+          appendLog(`Input: ${inputPath}`);
+          appendLog(`Model: ${trainerData.modelType || "linear_regression"}`);
+          appendLog(`Target: ${trainerData.targetColumn || "target"}`);
+          if (!useDataSplit) {
+            appendLog(`Test split: ${((trainerData.testSplit || 0.2) * 100).toFixed(0)}%`);
+          }
+          appendLog("");
+
+          let trainerCode;
+          if (useDataSplit) {
+            trainerCode = generateTrainerCodeWithSplit(trainerData, inputPath);
+          } else {
+            trainerCode = generateTrainerCode(trainerData, inputPath);
+          }
+          await runScriptAndWait(trainerCode, inputPath, handleOutput);
         }
-        await runScriptAndWait(trainerCode, inputPath, handleOutput);
       } else if (scriptNode) {
         appendLog("--- Running Script ---");
         appendLog(`Input: ${inputPath}`);

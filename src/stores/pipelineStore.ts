@@ -35,6 +35,8 @@ export type NodeData = {
   modelType?: string;
   targetColumn?: string;
   testSplit?: number; // KEPT for backward compat
+  trainerMode?: "train" | "load"; // "train" = train new model, "load" = load pre-trained
+  modelPath?: string; // path to pre-trained model file (for load mode)
   // ModelExporter fields
   exportFormat?: string; // "joblib" | "pickle" | "onnx"
   outputFileName?: string;
@@ -262,9 +264,16 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
           errors.push("Trainer must be connected from a Data Loader or Data Split");
         }
       }
-      // Trainer nodes must have target column specified
-      if (!trainer.data.targetColumn) {
-        errors.push("Specify a target column in the Trainer");
+      // Validation depends on trainer mode
+      if (trainer.data.trainerMode === "load") {
+        if (!trainer.data.modelPath) {
+          errors.push("Select a model file in the Trainer node");
+        }
+      } else {
+        // Train mode (default)
+        if (!trainer.data.targetColumn) {
+          errors.push("Specify a target column in the Trainer");
+        }
       }
     }
 

@@ -1,6 +1,45 @@
 import { NodeData } from "../stores/pipelineStore";
 import { WORK_DIR, SPLIT_INDICES_FILE, MODEL_FILE } from "./constants";
 
+// Sanitize file path for embedding in Python string
+const sanitizePath = (p: string): string =>
+  p.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+
+export const generateModelLoaderCode = (nodeData: NodeData): string => {
+  const modelPath = sanitizePath(nodeData.modelPath || "");
+
+  return `import sys
+import os
+import shutil
+import joblib
+
+try:
+    os.makedirs("${WORK_DIR}", exist_ok=True)
+
+    source_path = "${modelPath}"
+    if not os.path.exists(source_path):
+        print(f"ERROR: Model file not found: {source_path}")
+        sys.exit(1)
+
+    print(f"Loading model from: {source_path}")
+    model = joblib.load(source_path)
+
+    if not hasattr(model, "predict"):
+        print("ERROR: Object does not have predict method - not a valid sklearn model")
+        sys.exit(1)
+
+    model_type = type(model).__name__
+    print(f"Model type: {model_type}")
+
+    shutil.copy(source_path, "${MODEL_FILE}")
+    print(f"Model copied to: ${MODEL_FILE}")
+
+except Exception as e:
+    print(f"ERROR: {e}")
+    sys.exit(1)
+`;
+};
+
 const MODEL_CONFIG: Record<string, { module: string; class: string }> = {
   // Regressors
   linear_regression: { module: "sklearn.linear_model", class: "LinearRegression" },
@@ -17,10 +56,6 @@ const MODEL_CONFIG: Record<string, { module: string; class: string }> = {
   knn_classifier: { module: "sklearn.neighbors", class: "KNeighborsClassifier" },
   mlp_classifier: { module: "sklearn.neural_network", class: "MLPClassifier" },
 };
-
-// Sanitize file path for embedding in Python string
-const sanitizePath = (p: string): string =>
-  p.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 
 export const generateTrainerCode = (nodeData: NodeData, inputPath: string): string => {
   const config = MODEL_CONFIG[nodeData.modelType || "linear_regression"];
