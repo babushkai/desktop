@@ -23,6 +23,7 @@ import {
   ExampleWorkflow,
 } from "../lib/exampleWorkflows";
 import { AlignType, alignNodes, distributeNodes } from "@/lib/alignment";
+import { DataProfile, ProfilingStatus } from "@/lib/dataProfileTypes";
 
 export type TrainerMode = "train" | "load";
 
@@ -118,6 +119,15 @@ interface PipelineState {
   clearInferenceHistory: () => void;
   setBatchResult: (result: BatchInferenceResult | null) => void;
 
+  // Data profiling
+  dataProfiles: Record<string, DataProfile>;
+  profilingStatus: Record<string, ProfilingStatus>;
+  profilingNodeId: string | null;
+  setDataProfile: (nodeId: string, profile: DataProfile | null) => void;
+  setProfilingStatus: (nodeId: string, status: ProfilingStatus) => void;
+  setProfilingNodeId: (nodeId: string | null) => void;
+  clearDataProfile: (nodeId: string) => void;
+
   // Node operations
   addNode: (type: "dataLoader" | "script" | "trainer" | "evaluator" | "modelExporter" | "dataSplit", position: { x: number; y: number }) => void;
   deleteNodes: (nodeIds: string[]) => void;
@@ -178,6 +188,9 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   playgroundOpen: false,
   inferenceHistory: [],
   batchResult: null,
+  dataProfiles: {},
+  profilingStatus: {},
+  profilingNodeId: null,
 
   setSelectedNodeId: (id) => set({ selectedNodeId: id }),
 
@@ -194,6 +207,33 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   clearInferenceHistory: () => set({ inferenceHistory: [] }),
 
   setBatchResult: (result) => set({ batchResult: result }),
+
+  // Data profiling actions
+  setDataProfile: (nodeId, profile) =>
+    set((state) => ({
+      dataProfiles: profile
+        ? { ...state.dataProfiles, [nodeId]: profile }
+        : Object.fromEntries(
+            Object.entries(state.dataProfiles).filter(([id]) => id !== nodeId)
+          ),
+    })),
+
+  setProfilingStatus: (nodeId, status) =>
+    set((state) => ({
+      profilingStatus: { ...state.profilingStatus, [nodeId]: status },
+    })),
+
+  setProfilingNodeId: (nodeId) => set({ profilingNodeId: nodeId }),
+
+  clearDataProfile: (nodeId) =>
+    set((state) => ({
+      dataProfiles: Object.fromEntries(
+        Object.entries(state.dataProfiles).filter(([id]) => id !== nodeId)
+      ),
+      profilingStatus: Object.fromEntries(
+        Object.entries(state.profilingStatus).filter(([id]) => id !== nodeId)
+      ),
+    })),
 
   addNode: (type, position) => {
     const id = `${type}-${++nodeIdCounter}`;
