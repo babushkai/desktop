@@ -1,9 +1,11 @@
 import { useState, useEffect, Fragment } from "react";
 import { Dialog, Transition } from "@headlessui/react";
-import { RiDeleteBinLine, RiLoader4Line } from "@remixicon/react";
+import { RiDeleteBinLine, RiLoader4Line, RiBox3Line } from "@remixicon/react";
 import { usePipelineStore } from "@/stores/pipelineStore";
-import { deleteRun, getRunMetrics } from "@/lib/tauri";
+import { deleteRun, getRunMetrics, RunMetadata } from "@/lib/tauri";
 import { cn } from "@/lib/utils";
+import { RegisterModelDialog } from "./RegisterModelDialog";
+import { MODEL_FILE } from "@/lib/constants";
 
 function formatRelativeTime(dateStr: string): string {
   const date = new Date(dateStr);
@@ -30,6 +32,7 @@ export function RunsPanel() {
   const [runMetricsCache, setRunMetricsCache] = useState<Record<string, string>>({});
   const [loadingMetrics, setLoadingMetrics] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [registerModelRun, setRegisterModelRun] = useState<RunMetadata | null>(null);
 
   useEffect(() => {
     loadRunHistory();
@@ -89,7 +92,7 @@ export function RunsPanel() {
               <th className="px-3 py-2">Status</th>
               <th className="px-3 py-2">Duration</th>
               <th className="px-3 py-2">Metric</th>
-              <th className="px-3 py-2 w-10"></th>
+              <th className="px-3 py-2 w-20"></th>
             </tr>
           </thead>
           <tbody>
@@ -114,12 +117,24 @@ export function RunsPanel() {
                   )}
                 </td>
                 <td className="px-3 py-2">
-                  <button
-                    onClick={() => handleDeleteClick(run.id)}
-                    className="p-1 rounded hover:bg-state-error/20 text-text-muted hover:text-state-error"
-                  >
-                    <RiDeleteBinLine className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    {run.status === "completed" && (
+                      <button
+                        onClick={() => setRegisterModelRun(run)}
+                        className="p-1 rounded hover:bg-accent/20 text-text-muted hover:text-accent"
+                        title="Register Model"
+                      >
+                        <RiBox3Line className="w-4 h-4" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDeleteClick(run.id)}
+                      className="p-1 rounded hover:bg-state-error/20 text-text-muted hover:text-state-error"
+                      title="Delete Run"
+                    >
+                      <RiDeleteBinLine className="w-4 h-4" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -174,6 +189,19 @@ export function RunsPanel() {
           </div>
         </Dialog>
       </Transition>
+
+      {/* Register Model Dialog */}
+      {registerModelRun && (
+        <RegisterModelDialog
+          isOpen={true}
+          onClose={() => setRegisterModelRun(null)}
+          run={registerModelRun}
+          modelPath={MODEL_FILE}
+          onSuccess={() => {
+            loadRunHistory();
+          }}
+        />
+      )}
     </>
   );
 }

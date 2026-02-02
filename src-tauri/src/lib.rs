@@ -38,6 +38,16 @@ pub fn run() {
             commands::list_runs,
             commands::get_run_metrics,
             commands::delete_run,
+            // Model Registry
+            commands::create_model,
+            commands::list_models,
+            commands::get_model,
+            commands::delete_model,
+            commands::register_model_version,
+            commands::list_model_versions,
+            commands::promote_model,
+            commands::delete_model_version,
+            commands::get_model_file_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

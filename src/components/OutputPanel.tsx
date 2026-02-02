@@ -12,10 +12,13 @@ import {
   RiBarChartBoxLine,
   RiFileCopyLine,
   RiHistoryLine,
+  RiBox3Line,
 } from "@remixicon/react";
 import { cn } from "@/lib/utils";
 import { MetricsPanel } from "./MetricsPanel";
 import { RunsPanel } from "./RunsPanel";
+import { ModelsPanel } from "./ModelsPanel";
+import { listModels } from "@/lib/tauri";
 
 interface StatusConfig {
   label: string;
@@ -112,6 +115,12 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
   const [copied, setCopied] = useState(false);
   const [panelHeight, setPanelHeight] = useState(DEFAULT_HEIGHT);
   const [isResizing, setIsResizing] = useState(false);
+  const [modelCount, setModelCount] = useState(0);
+
+  // Load model count
+  useEffect(() => {
+    listModels().then((models) => setModelCount(models.length));
+  }, []);
 
   // Handle resize drag
   useEffect(() => {
@@ -278,6 +287,25 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
                     </span>
                   )}
                 </Tab>
+                <Tab
+                  className={({ selected }) =>
+                    cn(
+                      "flex items-center gap-1.5 px-3 py-1 rounded-md text-sm font-medium transition-colors",
+                      "focus:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                      selected
+                        ? "bg-background-elevated text-text-primary"
+                        : "text-text-muted hover:text-text-secondary"
+                    )
+                  }
+                >
+                  <RiBox3Line className="w-3.5 h-3.5" />
+                  Models
+                  {modelCount > 0 && (
+                    <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-accent/20 text-accent">
+                      {modelCount > 99 ? "99+" : modelCount}
+                    </span>
+                  )}
+                </Tab>
               </Tab.List>
             </div>
 
@@ -360,6 +388,11 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
           {/* Runs Panel */}
           <Tab.Panel className="h-full">
             <RunsPanel />
+          </Tab.Panel>
+
+          {/* Models Panel */}
+          <Tab.Panel className="h-full">
+            <ModelsPanel />
           </Tab.Panel>
         </Tab.Panels>
       </Tab.Group>

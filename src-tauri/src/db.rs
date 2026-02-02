@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Mutex;
 
-const DB_VERSION: i32 = 2; // v1 = settings+pipelines, v2 = +runs+metrics
+const DB_VERSION: i32 = 3; // v1 = settings+pipelines, v2 = +runs+metrics, v3 = +models+model_versions
 
 #[derive(Serialize, Deserialize)]
 pub struct PipelineMetadata {
@@ -30,6 +30,33 @@ pub struct Metric {
     pub name: String,
     pub value: Option<f64>,
     pub value_json: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ModelMetadata {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+    pub version_count: i64,
+    pub latest_version: Option<i64>,
+    pub production_version: Option<i64>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ModelVersion {
+    pub id: String,
+    pub model_id: String,
+    pub version: i64,
+    pub run_id: Option<String>,
+    pub file_path: String,
+    pub file_size: Option<i64>,
+    pub format: String,
+    pub stage: String,
+    pub metrics_snapshot: Option<String>,
+    pub created_at: String,
+    pub promoted_at: Option<String>,
 }
 
 static DB: std::sync::OnceLock<Mutex<Connection>> = std::sync::OnceLock::new();
@@ -104,6 +131,50 @@ pub fn init_db(app_data_dir: &Path) -> Result<()> {
 
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_runs_started ON runs(started_at DESC)",
+            [],
+        )?;
+    }
+
+    // v3 tables (models, model_versions)
+    if version < 3 {
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS models (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS model_versions (
+                id TEXT PRIMARY KEY,
+                model_id TEXT NOT NULL,
+                version INTEGER NOT NULL,
+                run_id TEXT,
+                file_path TEXT NOT NULL,
+                file_size INTEGER,
+                format TEXT NOT NULL,
+                stage TEXT DEFAULT 'none',
+                metrics_snapshot TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                promoted_at TEXT,
+                FOREIGN KEY (model_id) REFERENCES models(id) ON DELETE CASCADE,
+                FOREIGN KEY (run_id) REFERENCES runs(id) ON DELETE SET NULL,
+                UNIQUE (model_id, version)
+            )",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_model_versions_model ON model_versions(model_id)",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_model_versions_stage ON model_versions(stage)",
             [],
         )?;
     }
@@ -312,6 +383,298 @@ pub fn delete_run(id: &str) -> Result<()> {
     }
 
     Ok(())
+}
+
+// Model Registry CRUD operations
+
+fn get_models_dir() -> Result<std::path::PathBuf> {
+    let app_data_dir = APP_DATA_DIR
+        .get()
+        .ok_or(rusqlite::Error::InvalidQuery)?;
+    Ok(app_data_dir.join("models"))
+}
+
+pub fn create_model(id: &str, name: &str, description: Option<&str>) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    conn.execute(
+        "INSERT INTO models (id, name, description, created_at, updated_at)
+         VALUES (?1, ?2, ?3, datetime('now'), datetime('now'))",
+        rusqlite::params![id, name, description],
+    )?;
+    Ok(())
+}
+
+pub fn list_models() -> Result<Vec<ModelMetadata>> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    let mut stmt = conn.prepare(
+        "SELECT
+            m.id, m.name, m.description, m.created_at, m.updated_at,
+            COUNT(mv.id) as version_count,
+            MAX(mv.version) as latest_version,
+            (SELECT version FROM model_versions WHERE model_id = m.id AND stage = 'production' LIMIT 1) as production_version
+         FROM models m
+         LEFT JOIN model_versions mv ON mv.model_id = m.id
+         GROUP BY m.id
+         ORDER BY m.updated_at DESC"
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok(ModelMetadata {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            description: row.get(2)?,
+            created_at: row.get(3)?,
+            updated_at: row.get(4)?,
+            version_count: row.get(5)?,
+            latest_version: row.get(6)?,
+            production_version: row.get(7)?,
+        })
+    })?;
+    rows.collect()
+}
+
+pub fn get_model(id: &str) -> Result<Option<ModelMetadata>> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    let result = conn.query_row(
+        "SELECT
+            m.id, m.name, m.description, m.created_at, m.updated_at,
+            COUNT(mv.id) as version_count,
+            MAX(mv.version) as latest_version,
+            (SELECT version FROM model_versions WHERE model_id = m.id AND stage = 'production' LIMIT 1) as production_version
+         FROM models m
+         LEFT JOIN model_versions mv ON mv.model_id = m.id
+         WHERE m.id = ?1
+         GROUP BY m.id",
+        [id],
+        |row| {
+            Ok(ModelMetadata {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                description: row.get(2)?,
+                created_at: row.get(3)?,
+                updated_at: row.get(4)?,
+                version_count: row.get(5)?,
+                latest_version: row.get(6)?,
+                production_version: row.get(7)?,
+            })
+        },
+    );
+    match result {
+        Ok(model) => Ok(Some(model)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+pub fn delete_model(id: &str) -> Result<()> {
+    // First get all version file paths for cleanup
+    let file_paths = {
+        let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+            rusqlite::Error::InvalidQuery
+        })?;
+        let mut stmt = conn.prepare("SELECT file_path FROM model_versions WHERE model_id = ?1")?;
+        let paths: Vec<String> = stmt.query_map([id], |row| row.get(0))?
+            .filter_map(|r| r.ok())
+            .collect();
+        paths
+    };
+
+    // Delete from database (CASCADE will delete versions)
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    conn.execute("DELETE FROM models WHERE id = ?1", [id])?;
+
+    // Delete model files
+    for path in file_paths {
+        let _ = std::fs::remove_file(&path);
+    }
+
+    // Try to remove model directory
+    if let Ok(models_dir) = get_models_dir() {
+        let model_dir = models_dir.join(id);
+        let _ = std::fs::remove_dir_all(&model_dir);
+    }
+
+    Ok(())
+}
+
+pub fn register_model_version(
+    version_id: &str,
+    model_id: &str,
+    run_id: Option<&str>,
+    source_path: &str,
+    format: &str,
+    metrics_snapshot: Option<&str>,
+) -> Result<i64> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+
+    // Get next version number
+    let next_version: i64 = conn
+        .query_row(
+            "SELECT COALESCE(MAX(version), 0) + 1 FROM model_versions WHERE model_id = ?1",
+            [model_id],
+            |row| row.get(0),
+        )
+        .unwrap_or(1);
+
+    // Create destination path
+    let models_dir = get_models_dir()?;
+    let version_dir = models_dir.join(model_id).join(format!("v{}", next_version));
+    std::fs::create_dir_all(&version_dir).map_err(|_| rusqlite::Error::InvalidQuery)?;
+
+    // Determine file extension from format
+    let extension = match format {
+        "joblib" => "joblib",
+        "pickle" => "pkl",
+        "onnx" => "onnx",
+        "coreml" => "mlmodel",
+        _ => "bin",
+    };
+    let dest_path = version_dir.join(format!("model.{}", extension));
+
+    // Copy file
+    std::fs::copy(source_path, &dest_path).map_err(|_| rusqlite::Error::InvalidQuery)?;
+
+    // Get file size
+    let file_size = std::fs::metadata(&dest_path)
+        .map(|m| m.len() as i64)
+        .ok();
+
+    let dest_path_str = dest_path.to_string_lossy().to_string();
+
+    // Insert version record
+    conn.execute(
+        "INSERT INTO model_versions (id, model_id, version, run_id, file_path, file_size, format, stage, metrics_snapshot, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'none', ?8, datetime('now'))",
+        rusqlite::params![version_id, model_id, next_version, run_id, dest_path_str, file_size, format, metrics_snapshot],
+    )?;
+
+    // Update model's updated_at
+    conn.execute(
+        "UPDATE models SET updated_at = datetime('now') WHERE id = ?1",
+        [model_id],
+    )?;
+
+    Ok(next_version)
+}
+
+pub fn list_model_versions(model_id: &str) -> Result<Vec<ModelVersion>> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    let mut stmt = conn.prepare(
+        "SELECT id, model_id, version, run_id, file_path, file_size, format, stage, metrics_snapshot, created_at, promoted_at
+         FROM model_versions WHERE model_id = ?1 ORDER BY version DESC"
+    )?;
+    let rows = stmt.query_map([model_id], map_model_version_row)?;
+    rows.collect()
+}
+
+fn map_model_version_row(row: &rusqlite::Row) -> Result<ModelVersion> {
+    Ok(ModelVersion {
+        id: row.get(0)?,
+        model_id: row.get(1)?,
+        version: row.get(2)?,
+        run_id: row.get(3)?,
+        file_path: row.get(4)?,
+        file_size: row.get(5)?,
+        format: row.get(6)?,
+        stage: row.get(7)?,
+        metrics_snapshot: row.get(8)?,
+        created_at: row.get(9)?,
+        promoted_at: row.get(10)?,
+    })
+}
+
+pub fn promote_model(version_id: &str, new_stage: &str) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+
+    if new_stage == "production" {
+        // Get model_id for this version
+        let model_id: String = conn.query_row(
+            "SELECT model_id FROM model_versions WHERE id = ?1",
+            [version_id],
+            |row| row.get(0),
+        )?;
+
+        // Demote current production version (if any) to staging
+        conn.execute(
+            "UPDATE model_versions SET stage = 'staging', promoted_at = NULL
+             WHERE model_id = ?1 AND stage = 'production'",
+            [&model_id],
+        )?;
+    }
+
+    // Now promote the requested version
+    let promoted_at = if new_stage == "none" {
+        None
+    } else {
+        Some(chrono::Utc::now().to_rfc3339())
+    };
+
+    conn.execute(
+        "UPDATE model_versions SET stage = ?1, promoted_at = ?2 WHERE id = ?3",
+        rusqlite::params![new_stage, promoted_at, version_id],
+    )?;
+
+    Ok(())
+}
+
+pub fn delete_model_version(version_id: &str) -> Result<()> {
+    // Get file path first
+    let file_path: Option<String> = {
+        let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+            rusqlite::Error::InvalidQuery
+        })?;
+        conn.query_row(
+            "SELECT file_path FROM model_versions WHERE id = ?1",
+            [version_id],
+            |row| row.get(0),
+        ).ok()
+    };
+
+    // Delete from database
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    conn.execute("DELETE FROM model_versions WHERE id = ?1", [version_id])?;
+
+    // Delete file
+    if let Some(path) = file_path {
+        let _ = std::fs::remove_file(&path);
+        // Try to remove parent directory if empty
+        if let Some(parent) = std::path::Path::new(&path).parent() {
+            let _ = std::fs::remove_dir(parent);
+        }
+    }
+
+    Ok(())
+}
+
+pub fn get_model_file_path(version_id: &str) -> Result<Option<String>> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    let result = conn.query_row(
+        "SELECT file_path FROM model_versions WHERE id = ?1",
+        [version_id],
+        |row| row.get(0),
+    );
+    match result {
+        Ok(path) => Ok(Some(path)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e),
+    }
 }
 
 #[cfg(test)]
