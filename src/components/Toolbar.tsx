@@ -289,16 +289,35 @@ export function Toolbar({
       }
 
       // Save metrics and complete run
+      const duration = Date.now() - startTime;
       if (runId) {
         if (collectedMetrics.length > 0) {
           await saveRunMetrics(runId, collectedMetrics);
         }
-        await completeRun(runId, Date.now() - startTime);
+        await completeRun(runId, duration);
+      }
+
+      // Log run summary
+      appendLog("");
+      appendLog("--- Run Complete ---");
+      appendLog(`Run ID: ${runId?.slice(0, 8)}...`);
+      appendLog(`Duration: ${(duration / 1000).toFixed(1)}s`);
+      appendLog(`Status: completed`);
+      if (collectedMetrics.length > 0) {
+        const acc = collectedMetrics.find(m => m.name === "accuracy");
+        const r2 = collectedMetrics.find(m => m.name === "r2");
+        if (acc) appendLog(`Accuracy: ${(acc.value! * 100).toFixed(1)}%`);
+        if (r2) appendLog(`R²: ${r2.value!.toFixed(4)}`);
       }
 
       setExecutionStatus("success");
     } catch (error) {
-      appendLog(`ERROR: ${error}`);
+      // Log run failure summary
+      appendLog("");
+      appendLog("--- Run Failed ---");
+      appendLog(`Run ID: ${runId?.slice(0, 8)}...`);
+      appendLog(`Error: ${String(error)}`);
+
       setExecutionStatus("error");
 
       // Mark run as failed

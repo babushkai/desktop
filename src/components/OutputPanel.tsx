@@ -11,9 +11,11 @@ import {
   RiArrowDownSLine,
   RiBarChartBoxLine,
   RiFileCopyLine,
+  RiHistoryLine,
 } from "@remixicon/react";
 import { cn } from "@/lib/utils";
 import { MetricsPanel } from "./MetricsPanel";
+import { RunsPanel } from "./RunsPanel";
 
 interface StatusConfig {
   label: string;
@@ -101,6 +103,7 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
   const executionStatus = usePipelineStore((s) => s.executionStatus);
   const metrics = usePipelineStore((s) => s.metrics);
   const clearLogs = usePipelineStore((s) => s.clearLogs);
+  const runHistory = usePipelineStore((s) => s.runHistory);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [startTime, setStartTime] = useState<Date | null>(null);
@@ -256,6 +259,25 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
                     <span className="w-1.5 h-1.5 rounded-full bg-accent" />
                   )}
                 </Tab>
+                <Tab
+                  className={({ selected }) =>
+                    cn(
+                      "flex items-center gap-1.5 px-3 py-1 rounded-md text-sm font-medium transition-colors",
+                      "focus:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                      selected
+                        ? "bg-background-elevated text-text-primary"
+                        : "text-text-muted hover:text-text-secondary"
+                    )
+                  }
+                >
+                  <RiHistoryLine className="w-3.5 h-3.5" />
+                  Runs
+                  {runHistory.length > 0 && (
+                    <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-accent/20 text-accent">
+                      {runHistory.length > 99 ? "99+" : runHistory.length}
+                    </span>
+                  )}
+                </Tab>
               </Tab.List>
             </div>
 
@@ -333,6 +355,11 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
           {/* Metrics Panel */}
           <Tab.Panel className="h-full">
             <MetricsPanel />
+          </Tab.Panel>
+
+          {/* Runs Panel */}
+          <Tab.Panel className="h-full">
+            <RunsPanel />
           </Tab.Panel>
         </Tab.Panels>
       </Tab.Group>
