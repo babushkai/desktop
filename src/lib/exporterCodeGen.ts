@@ -1,4 +1,5 @@
 import { NodeData } from "../stores/pipelineStore";
+import { EXPORTS_DIR } from "./constants";
 
 const sanitizePath = (p: string): string =>
   p.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
@@ -14,7 +15,7 @@ const getOutputPath = (name: string, format: string): string => {
   const ext = formatExtensions[format] || ".joblib";
   // Remove extension if user already added it (case-insensitive)
   const baseName = name.replace(new RegExp(`\\${ext}$`, "i"), "");
-  return `${baseName}${ext}`;
+  return `${EXPORTS_DIR}/${baseName}${ext}`;
 };
 
 export const generateExporterCode = (
@@ -28,8 +29,11 @@ export const generateExporterCode = (
 
   if (format === "onnx") {
     return `import sys
+import os
 import joblib
 import numpy as np
+
+os.makedirs("${EXPORTS_DIR}", exist_ok=True)
 
 try:
     model = joblib.load("${safeInputPath}")
@@ -74,8 +78,11 @@ except Exception as e:
 
   if (format === "pickle") {
     return `import sys
+import os
 import joblib
 import pickle
+
+os.makedirs("${EXPORTS_DIR}", exist_ok=True)
 
 try:
     model = joblib.load("${safeInputPath}")
@@ -98,7 +105,10 @@ except Exception as e:
 
   // Default: joblib (copy/rename)
   return `import sys
+import os
 import shutil
+
+os.makedirs("${EXPORTS_DIR}", exist_ok=True)
 
 try:
     shutil.copy("${safeInputPath}", "${outputPath}")
