@@ -96,8 +96,9 @@ describe("Toolbar", () => {
 
       render(<Toolbar {...defaultProps} />);
 
-      // Should show asterisk
-      expect(screen.getByText(/My Pipeline \*/)).toBeInTheDocument();
+      // Should show pipeline name and asterisk (asterisk is in separate span for warning color)
+      expect(screen.getByText(/My Pipeline/)).toBeInTheDocument();
+      expect(screen.getByText("*")).toBeInTheDocument();
     });
 
     it("shows 'Untitled *' when dirty with no name", () => {
@@ -108,7 +109,9 @@ describe("Toolbar", () => {
 
       render(<Toolbar {...defaultProps} />);
 
-      expect(screen.getByText(/Untitled \*/)).toBeInTheDocument();
+      // Asterisk is in a separate span for warning color
+      expect(screen.getByText(/Untitled/)).toBeInTheDocument();
+      expect(screen.getByText("*")).toBeInTheDocument();
     });
   });
 

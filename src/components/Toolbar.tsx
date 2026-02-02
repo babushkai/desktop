@@ -303,11 +303,13 @@ export function Toolbar({
         {currentPipelineName && (
           <span className="font-normal text-text-muted ml-2">
             - {currentPipelineName}
-            {isDirty && " *"}
+            {isDirty && <span className="text-state-warning"> *</span>}
           </span>
         )}
         {!currentPipelineName && isDirty && (
-          <span className="font-normal text-text-muted ml-2">- Untitled *</span>
+          <span className="font-normal text-text-muted ml-2">
+            - Untitled<span className="text-state-warning"> *</span>
+          </span>
         )}
       </h1>
 
