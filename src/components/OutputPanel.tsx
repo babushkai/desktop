@@ -10,8 +10,7 @@ import {
   RiTimeLine,
   RiArrowDownSLine,
   RiBarChartBoxLine,
-  RiExpandUpDownLine,
-  RiCollapseVerticalLine,
+  RiFileCopyLine,
 } from "@remixicon/react";
 import { cn } from "@/lib/utils";
 import { MetricsPanel } from "./MetricsPanel";
@@ -76,8 +75,7 @@ interface OutputPanelProps {
   onCollapse?: () => void;
 }
 
-const COLLAPSED_HEIGHT = 200;
-const EXPANDED_HEIGHT = 450;
+const PANEL_HEIGHT = 240;
 
 export function OutputPanel({ onCollapse }: OutputPanelProps) {
   const outputLogs = usePipelineStore((s) => s.outputLogs);
@@ -89,8 +87,7 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [endTime, setEndTime] = useState<Date | null>(null);
   const [elapsedMs, setElapsedMs] = useState<number>(0);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const panelHeight = isExpanded ? EXPANDED_HEIGHT : COLLAPSED_HEIGHT;
+  const [copied, setCopied] = useState(false);
 
   // Track execution timing
   useEffect(() => {
@@ -136,16 +133,23 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
     setElapsedMs(0);
   }, [clearLogs]);
 
+  const handleCopy = useCallback(async () => {
+    const text = outputLogs.join("\n");
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [outputLogs]);
+
   const statusConfig = getStatusConfig(executionStatus);
 
   return (
     <div
       className="flex flex-col bg-background border-t border-white/5"
-      style={{ height: panelHeight }}
+      style={{ height: PANEL_HEIGHT }}
     >
-      <Tab.Group>
+      <Tab.Group as="div" className="flex flex-col h-full">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-2 bg-background-surface border-b border-white/5">
+        <div className="flex items-center justify-between px-4 py-2 bg-background-surface border-b border-white/5 shrink-0">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               {onCollapse && (
@@ -226,15 +230,13 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
           </div>
           <div className="flex items-center gap-1">
             <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="btn-ghost text-xs h-7 px-2"
-              title={isExpanded ? "Collapse panel" : "Expand panel"}
+              onClick={handleCopy}
+              disabled={outputLogs.length === 0}
+              className="btn-ghost text-xs h-7 px-2 disabled:opacity-50"
+              title="Copy logs to clipboard"
             >
-              {isExpanded ? (
-                <RiCollapseVerticalLine className="w-3.5 h-3.5" />
-              ) : (
-                <RiExpandUpDownLine className="w-3.5 h-3.5" />
-              )}
+              <RiFileCopyLine className="w-3.5 h-3.5 mr-1" />
+              {copied ? "Copied!" : "Copy"}
             </button>
             <button onClick={handleClear} className="btn-ghost text-xs h-7 px-2">
               <RiDeleteBinLine className="w-3.5 h-3.5 mr-1" />
@@ -244,12 +246,12 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
         </div>
 
         {/* Tab Panels */}
-        <Tab.Panels className="flex-1 overflow-hidden">
+        <Tab.Panels className="flex-1 min-h-0">
           {/* Logs Panel */}
-          <Tab.Panel className="h-full">
+          <Tab.Panel className="h-full overflow-auto">
             <div
               ref={scrollRef}
-              className="h-full overflow-auto p-4 font-mono text-sm leading-relaxed whitespace-pre-wrap"
+              className="p-4 font-mono text-sm leading-relaxed"
             >
               {outputLogs.length === 0 ? (
                 <span className="text-text-muted">
