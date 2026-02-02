@@ -290,14 +290,14 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
 
         {/* Tab Panels */}
         <Tab.Panels className="flex-1 min-h-0">
-          {/* Logs Panel */}
-          <Tab.Panel className="h-full overflow-auto">
+          {/* Logs Panel - GitHub Dark Theme */}
+          <Tab.Panel className="h-full overflow-auto bg-[#0d1117]">
             <div
               ref={scrollRef}
-              className="p-4 font-mono text-sm leading-relaxed"
+              className="p-4 font-mono text-[13px] leading-[1.6]"
             >
               {outputLogs.length === 0 ? (
-                <span className="text-text-muted">
+                <span className="text-[#8b949e]">
                   Output will appear here when you run a script...
                 </span>
               ) : (
@@ -306,9 +306,31 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
                     key={i}
                     className={cn(
                       "whitespace-pre-wrap break-words",
-                      log.startsWith("ERROR") && "text-state-error",
-                      log.startsWith("---") && "text-text-muted",
-                      !log.startsWith("ERROR") && !log.startsWith("---") && "text-text-primary"
+                      log.startsWith("ERROR") && "text-[#f85149]",
+                      log.startsWith("---") && "text-[#58a6ff]",
+                      log.startsWith("Model") && "text-[#3fb950]",
+                      log.startsWith("R²") && "text-[#3fb950]",
+                      log.startsWith("MSE") && "text-[#d29922]",
+                      log.startsWith("MAE") && "text-[#d29922]",
+                      log.startsWith("RMSE") && "text-[#d29922]",
+                      log.startsWith("Accuracy") && "text-[#3fb950]",
+                      log.startsWith("Precision") && "text-[#3fb950]",
+                      log.startsWith("Recall") && "text-[#3fb950]",
+                      log.startsWith("F1") && "text-[#3fb950]",
+                      log.startsWith("=") && "text-[#8b949e]",
+                      !log.startsWith("ERROR") &&
+                      !log.startsWith("---") &&
+                      !log.startsWith("Model") &&
+                      !log.startsWith("R²") &&
+                      !log.startsWith("MSE") &&
+                      !log.startsWith("MAE") &&
+                      !log.startsWith("RMSE") &&
+                      !log.startsWith("Accuracy") &&
+                      !log.startsWith("Precision") &&
+                      !log.startsWith("Recall") &&
+                      !log.startsWith("F1") &&
+                      !log.startsWith("=") &&
+                      "text-[#c9d1d9]"
                     )}
                   >
                     {log}
