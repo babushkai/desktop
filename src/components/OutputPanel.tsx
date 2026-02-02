@@ -74,6 +74,10 @@ interface OutputPanelProps {
   onCollapse?: () => void;
 }
 
+const MIN_HEIGHT = 120;
+const MAX_HEIGHT = 600;
+const DEFAULT_HEIGHT = 208;
+
 export function OutputPanel({ onCollapse }: OutputPanelProps) {
   const outputLogs = usePipelineStore((s) => s.outputLogs);
   const executionStatus = usePipelineStore((s) => s.executionStatus);
@@ -84,6 +88,34 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [endTime, setEndTime] = useState<Date | null>(null);
   const [elapsedMs, setElapsedMs] = useState<number>(0);
+  const [panelHeight, setPanelHeight] = useState(DEFAULT_HEIGHT);
+  const [isResizing, setIsResizing] = useState(false);
+
+  // Handle resize drag
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newHeight = window.innerHeight - e.clientY;
+      setPanelHeight(Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, newHeight)));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    document.body.style.cursor = "row-resize";
+    document.body.style.userSelect = "none";
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isResizing]);
 
   // Track execution timing
   useEffect(() => {
@@ -132,7 +164,17 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
   const statusConfig = getStatusConfig(executionStatus);
 
   return (
-    <div className="h-52 flex flex-col bg-background border-t border-white/5">
+    <div
+      className="flex flex-col bg-background border-t border-white/5"
+      style={{ height: panelHeight }}
+    >
+      {/* Resize handle */}
+      <div
+        className="h-1 cursor-row-resize hover:bg-accent/50 transition-colors group"
+        onMouseDown={() => setIsResizing(true)}
+      >
+        <div className="h-full w-12 mx-auto bg-white/20 group-hover:bg-accent rounded-full" />
+      </div>
       <Tab.Group>
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-2 bg-background-surface border-b border-white/5">
