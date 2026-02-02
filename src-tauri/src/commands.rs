@@ -96,6 +96,12 @@ pub enum ScriptEvent {
         model_type: String,
         data: serde_json::Value,
     },
+    #[serde(rename = "dataProfile")]
+    DataProfile {
+        #[serde(rename = "nodeId")]
+        node_id: String,
+        data: serde_json::Value,
+    },
     #[serde(rename = "complete")]
     Complete,
     #[serde(rename = "exit")]
@@ -111,6 +117,8 @@ struct JsonOutput {
     total: Option<u32>,
     #[serde(rename = "modelType")]
     model_type: Option<String>,
+    #[serde(rename = "nodeId")]
+    node_id: Option<String>,
     data: Option<serde_json::Value>,
 }
 
@@ -269,6 +277,11 @@ fn parse_output_line(line: &str) -> ScriptEvent {
     // Try to parse as JSON first
     if let Ok(json) = serde_json::from_str::<JsonOutput>(line) {
         match json.event_type.as_str() {
+            "log" => {
+                if let Some(message) = json.message {
+                    return ScriptEvent::Log { message };
+                }
+            }
             "progress" => {
                 if let (Some(current), Some(total)) = (json.current, json.total) {
                     return ScriptEvent::Progress { current, total };
@@ -285,6 +298,11 @@ fn parse_output_line(line: &str) -> ScriptEvent {
             "metrics" => {
                 if let (Some(model_type), Some(data)) = (json.model_type, json.data) {
                     return ScriptEvent::Metrics { model_type, data };
+                }
+            }
+            "dataProfile" => {
+                if let (Some(node_id), Some(data)) = (json.node_id, json.data) {
+                    return ScriptEvent::DataProfile { node_id, data };
                 }
             }
             _ => {}
