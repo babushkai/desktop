@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
+import { DataProfile } from "./dataProfileTypes";
 
 export interface MetricsData {
   modelType: "classifier" | "regressor";
@@ -21,6 +22,7 @@ export type ScriptEvent =
   | { type: "progress"; current: number; total: number }
   | { type: "error"; message: string }
   | { type: "metrics"; modelType: string; data: MetricsData }
+  | { type: "dataProfile"; nodeId: string; data: DataProfile }
   | { type: "complete" }
   | { type: "exit"; code: number };
 

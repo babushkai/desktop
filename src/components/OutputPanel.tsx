@@ -13,11 +13,13 @@ import {
   RiFileCopyLine,
   RiHistoryLine,
   RiBox3Line,
+  RiSearchEyeLine,
 } from "@remixicon/react";
 import { cn } from "@/lib/utils";
 import { MetricsPanel } from "./MetricsPanel";
 import { RunsPanel } from "./RunsPanel";
 import { ModelsPanel } from "./ModelsPanel";
+import { DataProfilePanel } from "./DataProfilePanel";
 import { listModels } from "@/lib/tauri";
 
 interface StatusConfig {
@@ -257,6 +259,20 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
                       "focus:outline-none focus-visible:ring-2 focus-visible:ring-accent",
                       selected
                         ? "bg-background-elevated text-text-primary"
+                        : "text-text-muted hover:text-text-secondary"
+                    )
+                  }
+                >
+                  <RiSearchEyeLine className="w-3.5 h-3.5" />
+                  Data Profile
+                </Tab>
+                <Tab
+                  className={({ selected }) =>
+                    cn(
+                      "flex items-center gap-1.5 px-3 py-1 rounded-md text-sm font-medium transition-colors",
+                      "focus:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                      selected
+                        ? "bg-background-elevated text-text-primary"
                         : "text-text-muted hover:text-text-secondary",
                       metrics && "text-accent"
                     )
@@ -378,6 +394,11 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
                 ))
               )}
             </div>
+          </Tab.Panel>
+
+          {/* Data Profile Panel */}
+          <Tab.Panel className="h-full overflow-auto">
+            <DataProfilePanel />
           </Tab.Panel>
 
           {/* Metrics Panel */}
