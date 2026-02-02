@@ -29,7 +29,8 @@ import {
   ScriptEvent,
 } from "../lib/tauri";
 import { generateTrainerCode, generateTrainerCodeWithSplit } from "../lib/trainerCodeGen";
-import { generateEvaluatorCode, generateEvaluatorCodeWithSplit } from "../lib/evaluatorCodeGen";
+import { generateEvaluatorCode, generateEvaluatorCodeWithSplit, generateAutoEvaluatorCode } from "../lib/evaluatorCodeGen";
+import { generateLoadModelCode } from "../lib/loadModelCodeGen";
 import { MODEL_FILE } from "../lib/constants";
 import { generateExporterCode } from "../lib/exporterCodeGen";
 import { generateDataSplitCode } from "../lib/dataSplitCodeGen";
@@ -159,23 +160,35 @@ export function Toolbar({
       }
 
       if (trainerNode) {
-        appendLog("");
-        appendLog("--- Running Trainer ---");
-        appendLog(`Input: ${inputPath}`);
-        appendLog(`Model: ${trainerNode.data.modelType || "linear_regression"}`);
-        appendLog(`Target: ${trainerNode.data.targetColumn || "target"}`);
-        if (!useDataSplit) {
-          appendLog(`Test split: ${((trainerNode.data.testSplit || 0.2) * 100).toFixed(0)}%`);
-        }
-        appendLog("");
+        const isLoadMode = trainerNode.data.trainerMode === "load";
 
-        let trainerCode;
-        if (useDataSplit) {
-          trainerCode = generateTrainerCodeWithSplit(trainerNode.data, inputPath);
+        if (isLoadMode) {
+          appendLog("");
+          appendLog("--- Loading Pre-trained Model ---");
+          appendLog(`Model file: ${trainerNode.data.modelFilePath}`);
+          appendLog("");
+
+          const loadCode = generateLoadModelCode(trainerNode.data.modelFilePath!);
+          await runScriptAndWait(loadCode, inputPath, handleOutput);
         } else {
-          trainerCode = generateTrainerCode(trainerNode.data, inputPath);
+          appendLog("");
+          appendLog("--- Running Trainer ---");
+          appendLog(`Input: ${inputPath}`);
+          appendLog(`Model: ${trainerNode.data.modelType || "linear_regression"}`);
+          appendLog(`Target: ${trainerNode.data.targetColumn || "target"}`);
+          if (!useDataSplit) {
+            appendLog(`Test split: ${((trainerNode.data.testSplit || 0.2) * 100).toFixed(0)}%`);
+          }
+          appendLog("");
+
+          let trainerCode;
+          if (useDataSplit) {
+            trainerCode = generateTrainerCodeWithSplit(trainerNode.data, inputPath);
+          } else {
+            trainerCode = generateTrainerCode(trainerNode.data, inputPath);
+          }
+          await runScriptAndWait(trainerCode, inputPath, handleOutput);
         }
-        await runScriptAndWait(trainerCode, inputPath, handleOutput);
       } else if (scriptNode) {
         appendLog("--- Running Script ---");
         appendLog(`Input: ${inputPath}`);
@@ -184,17 +197,29 @@ export function Toolbar({
         await runScriptAndWait(scriptNode.data.code!, inputPath, handleOutput);
       }
 
-      if (evaluatorNode && trainerNode) {
+      if (evaluatorNode) {
         const evalEdge = edges.find((e) => e.target === evaluatorNode.id);
-        if (evalEdge?.source === trainerNode.id) {
+        const evalSourceNode = nodes.find((n) => n.id === evalEdge?.source);
+
+        // Run evaluator if connected to trainer or script
+        if (evalSourceNode?.type === "trainer" || evalSourceNode?.type === "script") {
           appendLog("");
           appendLog("--- Running Evaluator ---");
 
           let evalCode;
-          if (useDataSplit) {
+          // For load mode or script source, use auto-detect evaluator
+          const isLoadMode = trainerNode?.data.trainerMode === "load";
+          const isScriptSource = evalSourceNode?.type === "script";
+
+          if (isLoadMode || isScriptSource) {
+            // For load mode or script, use auto-detect evaluator
+            evalCode = generateAutoEvaluatorCode(MODEL_FILE, inputPath);
+          } else if (useDataSplit && trainerNode) {
             evalCode = generateEvaluatorCodeWithSplit(trainerNode.data, inputPath);
-          } else {
+          } else if (trainerNode) {
             evalCode = generateEvaluatorCode(trainerNode.data, MODEL_FILE, inputPath);
+          } else {
+            evalCode = generateAutoEvaluatorCode(MODEL_FILE, inputPath);
           }
           await runScriptAndWait(evalCode, inputPath, handleOutput);
         }
