@@ -75,7 +75,9 @@ interface OutputPanelProps {
   onCollapse?: () => void;
 }
 
-const PANEL_HEIGHT = 240;
+const DEFAULT_HEIGHT = 240;
+const MIN_HEIGHT = 150;
+const MAX_HEIGHT = 600;
 
 export function OutputPanel({ onCollapse }: OutputPanelProps) {
   const outputLogs = usePipelineStore((s) => s.outputLogs);
@@ -88,6 +90,34 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
   const [endTime, setEndTime] = useState<Date | null>(null);
   const [elapsedMs, setElapsedMs] = useState<number>(0);
   const [copied, setCopied] = useState(false);
+  const [panelHeight, setPanelHeight] = useState(DEFAULT_HEIGHT);
+  const [isResizing, setIsResizing] = useState(false);
+
+  // Handle resize drag
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newHeight = window.innerHeight - e.clientY;
+      setPanelHeight(Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, newHeight)));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    document.body.style.cursor = "ns-resize";
+    document.body.style.userSelect = "none";
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isResizing]);
 
   // Track execution timing
   useEffect(() => {
@@ -144,10 +174,23 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
 
   return (
     <div
-      className="flex flex-col bg-background border-t border-white/5"
-      style={{ height: PANEL_HEIGHT }}
+      className="flex flex-col bg-background"
+      style={{ height: panelHeight }}
     >
-      <Tab.Group as="div" className="flex flex-col h-full">
+      {/* Resize handle */}
+      <div
+        className={cn(
+          "h-2 cursor-ns-resize flex items-center justify-center shrink-0 border-t border-white/10 hover:border-accent transition-colors",
+          isResizing && "border-accent"
+        )}
+        onMouseDown={() => setIsResizing(true)}
+      >
+        <div className={cn(
+          "w-12 h-1 rounded-full bg-white/20 hover:bg-accent transition-colors",
+          isResizing && "bg-accent"
+        )} />
+      </div>
+      <Tab.Group as="div" className="flex flex-col flex-1 min-h-0">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-2 bg-background-surface border-b border-white/5 shrink-0">
           <div className="flex items-center gap-3">
