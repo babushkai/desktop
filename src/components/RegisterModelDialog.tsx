@@ -51,6 +51,7 @@ export function RegisterModelDialog({
   const [selectedModel, setSelectedModel] = useState<ModelMetadata | null>(null);
   const [query, setQuery] = useState("");
   const [description, setDescription] = useState("");
+  const [featureNamesInput, setFeatureNamesInput] = useState("");
 
   const format = detectFormat(modelPath);
   const isNewModel = query.length > 0 && !models.some((m) => m.name === query);
@@ -64,6 +65,7 @@ export function RegisterModelDialog({
       setSelectedModel(null);
       setQuery("");
       setDescription("");
+      setFeatureNamesInput("");
       setError(null);
     }
   }, [isOpen]);
@@ -117,7 +119,20 @@ export function RegisterModelDialog({
         // Ignore metrics fetch errors
       }
 
-      await registerModelVersion(modelId, modelPath, format, run.id, metricsSnapshot);
+      // Parse feature names
+      const featureNames = featureNamesInput
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+
+      await registerModelVersion(
+        modelId,
+        modelPath,
+        format,
+        run.id,
+        metricsSnapshot,
+        featureNames.length > 0 ? featureNames : undefined
+      );
 
       onSuccess?.();
       onClose();
@@ -261,6 +276,23 @@ export function RegisterModelDialog({
                       />
                     </div>
                   )}
+
+                  {/* Feature Names */}
+                  <div>
+                    <label className="block text-sm text-text-muted mb-1.5">
+                      Feature Names (optional)
+                    </label>
+                    <input
+                      type="text"
+                      className="input w-full"
+                      value={featureNamesInput}
+                      onChange={(e) => setFeatureNamesInput(e.target.value)}
+                      placeholder="sepal_length, sepal_width, petal_length, petal_width"
+                    />
+                    <p className="text-xs text-text-muted mt-1">
+                      Comma-separated list. Used for the inference playground.
+                    </p>
+                  </div>
 
                   {/* Source Run Info */}
                   <div className="bg-background rounded-lg p-3 text-sm">

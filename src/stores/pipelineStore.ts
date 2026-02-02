@@ -60,6 +60,18 @@ export const VALID_CONNECTIONS: [string, string][] = [
 
 export type ExecutionStatus = "idle" | "running" | "success" | "error";
 
+export interface InferenceRequest {
+  id: string;
+  timestamp: number;
+  input: Record<string, unknown>;
+  result?: {
+    prediction?: (number | string)[];
+    probabilities?: number[][];
+    classes?: (string | number)[];
+    error?: string;
+  };
+}
+
 interface PipelineState {
   nodes: Node<NodeData>[];
   edges: Edge[];
@@ -82,6 +94,15 @@ interface PipelineState {
   // Selection
   selectedNodeId: string | null;
   setSelectedNodeId: (id: string | null) => void;
+
+  // Playground
+  playgroundOpen: boolean;
+  inferenceHistory: InferenceRequest[];
+  openPlayground: () => void;
+  closePlayground: () => void;
+  openProperties: (nodeId: string | null) => void;
+  addInferenceRequest: (request: InferenceRequest) => void;
+  clearInferenceHistory: () => void;
 
   // Node operations
   addNode: (type: "dataLoader" | "script" | "trainer" | "evaluator" | "modelExporter" | "dataSplit", position: { x: number; y: number }) => void;
@@ -140,8 +161,22 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   currentRunId: null,
   runHistory: [],
   selectedRunId: null,
+  playgroundOpen: false,
+  inferenceHistory: [],
 
   setSelectedNodeId: (id) => set({ selectedNodeId: id }),
+
+  // Playground (mutually exclusive with PropertiesPanel)
+  openPlayground: () => set({ playgroundOpen: true, selectedNodeId: null }),
+  closePlayground: () => set({ playgroundOpen: false }),
+  openProperties: (nodeId) => set({ selectedNodeId: nodeId, playgroundOpen: false }),
+
+  addInferenceRequest: (request) =>
+    set((state) => ({
+      inferenceHistory: [request, ...state.inferenceHistory].slice(0, 50), // Keep last 50
+    })),
+
+  clearInferenceHistory: () => set({ inferenceHistory: [] }),
 
   addNode: (type, position) => {
     const id = `${type}-${++nodeIdCounter}`;

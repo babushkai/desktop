@@ -1,20 +1,27 @@
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useCallback } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Canvas } from "./components/Canvas";
 import { NodePalette } from "./components/NodePalette";
 import { OutputPanel } from "./components/OutputPanel";
 import { PropertiesPanel } from "./components/PropertiesPanel";
+import { PlaygroundPanel } from "./components/PlaygroundPanel";
 import { Toolbar } from "./components/Toolbar";
+import { usePipelineStore } from "./stores/pipelineStore";
 import { cn } from "./lib/utils";
 import {
   RiLayoutLeftLine,
   RiTerminalBoxLine,
 } from "@remixicon/react";
+import { useState } from "react";
 
 function App() {
   const [showNodePalette, setShowNodePalette] = useState(true);
   const [showOutputPanel, setShowOutputPanel] = useState(true);
+
+  const playgroundOpen = usePipelineStore((s) => s.playgroundOpen);
+  const openPlayground = usePipelineStore((s) => s.openPlayground);
+  const closePlayground = usePipelineStore((s) => s.closePlayground);
 
   // Keyboard shortcuts for panel toggles
   useEffect(() => {
@@ -39,11 +46,21 @@ function App() {
         e.preventDefault();
         setShowOutputPanel((prev) => !prev);
       }
+
+      // Ctrl/Cmd + Shift + P: Toggle playground panel
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === "P") {
+        e.preventDefault();
+        if (playgroundOpen) {
+          closePlayground();
+        } else {
+          openPlayground();
+        }
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
+  }, [playgroundOpen, openPlayground, closePlayground]);
 
   const toggleNodePalette = useCallback(() => {
     setShowNodePalette((prev) => !prev);
@@ -53,14 +70,24 @@ function App() {
     setShowOutputPanel((prev) => !prev);
   }, []);
 
+  const togglePlayground = useCallback(() => {
+    if (playgroundOpen) {
+      closePlayground();
+    } else {
+      openPlayground();
+    }
+  }, [playgroundOpen, openPlayground, closePlayground]);
+
   return (
     <ReactFlowProvider>
       <div className="flex flex-col h-screen bg-background text-text-primary">
         <Toolbar
           showNodePalette={showNodePalette}
           showOutputPanel={showOutputPanel}
+          showPlayground={playgroundOpen}
           onToggleNodePalette={toggleNodePalette}
           onToggleOutputPanel={toggleOutputPanel}
+          onTogglePlayground={togglePlayground}
         />
 
         <div className="flex flex-1 min-h-0 overflow-hidden">
@@ -95,6 +122,7 @@ function App() {
           </div>
 
           <PropertiesPanel />
+          <PlaygroundPanel />
         </div>
 
         {/* Output Panel - collapsible */}
