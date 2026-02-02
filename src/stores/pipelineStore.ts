@@ -72,6 +72,18 @@ export interface InferenceRequest {
   };
 }
 
+export interface BatchInferenceResult {
+  id: string;
+  timestamp: number;
+  fileName: string;
+  rowCount: number;
+  inputs: Record<string, unknown>[];
+  predictions: (number | string)[];
+  probabilities?: number[][];
+  classes?: (string | number)[];
+  error?: string;
+}
+
 interface PipelineState {
   nodes: Node<NodeData>[];
   edges: Edge[];
@@ -98,11 +110,13 @@ interface PipelineState {
   // Playground
   playgroundOpen: boolean;
   inferenceHistory: InferenceRequest[];
+  batchResult: BatchInferenceResult | null;
   openPlayground: () => void;
   closePlayground: () => void;
   openProperties: (nodeId: string | null) => void;
   addInferenceRequest: (request: InferenceRequest) => void;
   clearInferenceHistory: () => void;
+  setBatchResult: (result: BatchInferenceResult | null) => void;
 
   // Node operations
   addNode: (type: "dataLoader" | "script" | "trainer" | "evaluator" | "modelExporter" | "dataSplit", position: { x: number; y: number }) => void;
@@ -163,6 +177,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   selectedRunId: null,
   playgroundOpen: false,
   inferenceHistory: [],
+  batchResult: null,
 
   setSelectedNodeId: (id) => set({ selectedNodeId: id }),
 
@@ -177,6 +192,8 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
     })),
 
   clearInferenceHistory: () => set({ inferenceHistory: [] }),
+
+  setBatchResult: (result) => set({ batchResult: result }),
 
   addNode: (type, position) => {
     const id = `${type}-${++nodeIdCounter}`;
