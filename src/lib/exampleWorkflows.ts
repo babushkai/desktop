@@ -14,13 +14,13 @@ export function createClassificationWorkflow(dataPath: string): ExampleWorkflow 
       {
         id: "ex-dl-1",
         type: "dataLoader",
-        position: { x: 100, y: 200 },
+        position: { x: 100, y: 150 },
         data: { label: "Data Loader", filePath: dataPath },
       },
       {
         id: "ex-tr-1",
         type: "trainer",
-        position: { x: 350, y: 200 },
+        position: { x: 420, y: 100 },
         data: {
           label: "Trainer",
           modelType: "random_forest_classifier",
@@ -31,7 +31,7 @@ export function createClassificationWorkflow(dataPath: string): ExampleWorkflow 
       {
         id: "ex-ev-1",
         type: "evaluator",
-        position: { x: 600, y: 200 },
+        position: { x: 740, y: 150 },
         data: { label: "Evaluator" },
       },
     ],
@@ -49,13 +49,13 @@ export function createRegressionWorkflow(dataPath: string): ExampleWorkflow {
       {
         id: "ex-dl-1",
         type: "dataLoader",
-        position: { x: 100, y: 200 },
+        position: { x: 100, y: 150 },
         data: { label: "Data Loader", filePath: dataPath },
       },
       {
         id: "ex-tr-1",
         type: "trainer",
-        position: { x: 350, y: 200 },
+        position: { x: 420, y: 100 },
         data: {
           label: "Trainer",
           modelType: "linear_regression",
@@ -66,7 +66,7 @@ export function createRegressionWorkflow(dataPath: string): ExampleWorkflow {
       {
         id: "ex-ev-1",
         type: "evaluator",
-        position: { x: 600, y: 200 },
+        position: { x: 740, y: 150 },
         data: { label: "Evaluator" },
       },
     ],
