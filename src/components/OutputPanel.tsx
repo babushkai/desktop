@@ -71,6 +71,23 @@ function formatTimestamp(date: Date): string {
   });
 }
 
+function getLogClass(log: string): string {
+  // Error lines
+  if (log.startsWith("ERROR") || log.includes("Traceback")) {
+    return "text-log-error";
+  }
+  // Section headers (--- text ---)
+  if (log.startsWith("---")) {
+    return "text-log-info";
+  }
+  // Separators (only = or - chars, 3+ length)
+  if (/^[=\-]{3,}$/.test(log.trim())) {
+    return "text-log-muted";
+  }
+  // Default
+  return "text-log-text";
+}
+
 interface OutputPanelProps {
   onCollapse?: () => void;
 }
@@ -291,47 +308,20 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
         {/* Tab Panels */}
         <Tab.Panels className="flex-1 min-h-0">
           {/* Logs Panel - GitHub Dark Theme */}
-          <Tab.Panel className="h-full overflow-auto bg-[#0d1117]">
+          <Tab.Panel className="h-full overflow-auto bg-log-bg">
             <div
               ref={scrollRef}
               className="p-4 font-mono text-[13px] leading-[1.6]"
             >
               {outputLogs.length === 0 ? (
-                <span className="text-[#8b949e]">
+                <span className="text-log-muted">
                   Output will appear here when you run a script...
                 </span>
               ) : (
                 outputLogs.map((log, i) => (
                   <div
                     key={i}
-                    className={cn(
-                      "whitespace-pre-wrap break-words",
-                      log.startsWith("ERROR") && "text-[#f85149]",
-                      log.startsWith("---") && "text-[#58a6ff]",
-                      log.startsWith("Model") && "text-[#3fb950]",
-                      log.startsWith("R²") && "text-[#3fb950]",
-                      log.startsWith("MSE") && "text-[#d29922]",
-                      log.startsWith("MAE") && "text-[#d29922]",
-                      log.startsWith("RMSE") && "text-[#d29922]",
-                      log.startsWith("Accuracy") && "text-[#3fb950]",
-                      log.startsWith("Precision") && "text-[#3fb950]",
-                      log.startsWith("Recall") && "text-[#3fb950]",
-                      log.startsWith("F1") && "text-[#3fb950]",
-                      log.startsWith("=") && "text-[#8b949e]",
-                      !log.startsWith("ERROR") &&
-                      !log.startsWith("---") &&
-                      !log.startsWith("Model") &&
-                      !log.startsWith("R²") &&
-                      !log.startsWith("MSE") &&
-                      !log.startsWith("MAE") &&
-                      !log.startsWith("RMSE") &&
-                      !log.startsWith("Accuracy") &&
-                      !log.startsWith("Precision") &&
-                      !log.startsWith("Recall") &&
-                      !log.startsWith("F1") &&
-                      !log.startsWith("=") &&
-                      "text-[#c9d1d9]"
-                    )}
+                    className={cn("whitespace-pre-wrap break-words", getLogClass(log))}
                   >
                     {log}
                   </div>

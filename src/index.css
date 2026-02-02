@@ -2,6 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --log-bg: #0d1117;
+  --log-text: #c9d1d9;
+  --log-muted: #8b949e;
+  --log-error: #f85149;
+  --log-success: #3fb950;
+  --log-info: #58a6ff;
+}
+
 @layer base {
   * {
     box-sizing: border-box;
