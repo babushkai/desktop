@@ -148,33 +148,50 @@
 
   /* Button base */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg text-sm font-medium transition-all duration-200;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg text-sm font-medium;
+    @apply transition-all duration-150;
     @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background;
-    @apply disabled:pointer-events-none disabled:opacity-50;
+    @apply disabled:pointer-events-none disabled:opacity-40;
+    @apply active:scale-[0.98];
   }
 
   .btn-primary {
-    @apply btn bg-accent text-background hover:bg-accent/90 shadow-md px-4 py-2;
+    @apply btn px-4 py-2 font-semibold;
+    @apply bg-accent text-background;
+    @apply shadow-md shadow-accent/20;
+    @apply hover:bg-accent-hover hover:shadow-lg hover:shadow-accent/30;
   }
 
   .btn-secondary {
-    @apply btn bg-background-elevated text-text-secondary hover:bg-background-surface hover:text-text-primary px-4 py-2;
+    @apply btn px-4 py-2;
+    @apply bg-background-surface text-text-secondary;
+    @apply border border-white/10;
+    @apply hover:bg-background-elevated hover:text-text-primary hover:border-white/15;
   }
 
   .btn-ghost {
-    @apply btn hover:bg-background-elevated hover:text-text-primary px-3 py-2;
+    @apply btn px-3 py-2;
+    @apply text-text-secondary;
+    @apply hover:bg-white/10 hover:text-text-primary;
+    @apply active:bg-white/15;
   }
 
   .btn-destructive {
-    @apply btn bg-state-error text-white hover:bg-state-error/90 shadow-md px-4 py-2;
+    @apply btn px-4 py-2 font-semibold;
+    @apply bg-state-error text-white;
+    @apply shadow-md shadow-state-error/20;
+    @apply hover:bg-state-errorHover hover:shadow-lg hover:shadow-state-error/30;
   }
 
   /* Input base */
   .input {
-    @apply w-full rounded-lg border border-white/10 bg-background-surface px-3 py-2 text-sm text-text-primary;
+    @apply w-full rounded-lg px-3 py-2 text-sm text-text-primary;
+    @apply bg-background-surface;
+    @apply border border-white/15;
     @apply placeholder:text-text-muted;
-    @apply focus:outline-none focus:ring-2 focus:ring-accent focus:ring-offset-1 focus:ring-offset-background;
-    @apply disabled:cursor-not-allowed disabled:opacity-50;
+    @apply transition-all duration-150;
+    @apply focus:outline-none focus:border-accent/50 focus:ring-2 focus:ring-accent/20;
+    @apply disabled:cursor-not-allowed disabled:opacity-40;
   }
 
   /* Select base */

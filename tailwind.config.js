@@ -25,6 +25,7 @@ export default {
           DEFAULT: "#22d3ee",
           secondary: "#14b8a6",
           glow: "rgba(34, 211, 238, 0.15)",
+          hover: "#2ee8f8",
         },
         // Text colors
         text: {
@@ -35,7 +36,8 @@ export default {
         // Status colors
         state: {
           success: "#4ade80",
-          error: "#f87171",
+          error: "#ef4444",
+          errorHover: "#f87171",
           warning: "#fbbf24",
           running: "#fbbf24",
         },
@@ -53,6 +55,9 @@ export default {
         sm: "0.5rem",
         DEFAULT: "0.75rem",
         lg: "1rem",
+      },
+      opacity: {
+        15: "0.15",
       },
       boxShadow: {
         glow: "0 4px 24px rgba(34, 211, 238, 0.1)",

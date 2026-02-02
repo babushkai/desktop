@@ -240,8 +240,9 @@ export function NodeInput({ className, ...props }: NodeInputProps) {
       className={cn(
         "nodrag w-full px-2 py-1.5 text-xs rounded-md",
         "bg-background text-text-primary",
-        "border border-white/10",
-        "focus:outline-none focus:ring-1 focus:ring-accent",
+        "border border-white/15",
+        "transition-all duration-150",
+        "focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/20",
         "placeholder:text-text-muted",
         className
       )}
@@ -259,10 +260,11 @@ export function NodeSelect({ options, className, ...props }: NodeSelectProps) {
   return (
     <select
       className={cn(
-        "nodrag w-full px-2 py-1.5 text-xs rounded-md appearance-none",
+        "nodrag w-full px-2 py-1.5 text-xs rounded-md appearance-none cursor-pointer",
         "bg-background text-text-primary",
-        "border border-white/10",
-        "focus:outline-none focus:ring-1 focus:ring-accent",
+        "border border-white/15",
+        "transition-all duration-150",
+        "focus:outline-none focus:border-accent/50 focus:ring-1 focus:ring-accent/20",
         className
       )}
       {...props}
