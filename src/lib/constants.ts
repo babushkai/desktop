@@ -2,3 +2,4 @@
 export const WORK_DIR = "/tmp/mlops-desktop";
 export const SPLIT_INDICES_FILE = `${WORK_DIR}/split_indices.json`;
 export const MODEL_FILE = `${WORK_DIR}/model.joblib`;
+export const EXPORTS_DIR = `${WORK_DIR}/exports`;
