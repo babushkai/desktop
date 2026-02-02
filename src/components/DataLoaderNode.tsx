@@ -41,7 +41,11 @@ export function DataLoaderNode({ id, data, selected: isSelected }: NodeProps) {
         {fileName || "Select file..."}
       </NodeButton>
 
-      {nodeData.filePath && <NodeText className="break-all">{nodeData.filePath}</NodeText>}
+      {nodeData.filePath && (
+        <NodeText className="truncate max-w-[200px]" title={nodeData.filePath}>
+          {nodeData.filePath}
+        </NodeText>
+      )}
     </BaseNode>
   );
 }
