@@ -17,6 +17,14 @@ vi.mock("../lib/tauri", () => ({
   loadPipeline: vi.fn(() => Promise.resolve(null)),
 }));
 
+// Default props for Toolbar component
+const defaultProps = {
+  showNodePalette: true,
+  showOutputPanel: true,
+  onToggleNodePalette: vi.fn(),
+  onToggleOutputPanel: vi.fn(),
+};
+
 describe("Toolbar", () => {
   beforeEach(() => {
     // Reset store state
@@ -35,7 +43,7 @@ describe("Toolbar", () => {
 
   describe("Save Dialog", () => {
     it("shows save dialog when clicking Save with no pipeline name", async () => {
-      render(<Toolbar />);
+      render(<Toolbar {...defaultProps} />);
 
       const saveButton = screen.getByRole("button", { name: /^save$/i });
       fireEvent.click(saveButton);
@@ -46,7 +54,7 @@ describe("Toolbar", () => {
     });
 
     it("closes save dialog when clicking Cancel", async () => {
-      render(<Toolbar />);
+      render(<Toolbar {...defaultProps} />);
 
       // Open dialog
       const saveButton = screen.getByRole("button", { name: /^save$/i });
@@ -71,7 +79,7 @@ describe("Toolbar", () => {
         currentPipelineId: "existing-id",
       });
 
-      render(<Toolbar />);
+      render(<Toolbar {...defaultProps} />);
 
       const saveButton = screen.getByRole("button", { name: /^save$/i });
       fireEvent.click(saveButton);
@@ -86,7 +94,7 @@ describe("Toolbar", () => {
         isDirty: true,
       });
 
-      render(<Toolbar />);
+      render(<Toolbar {...defaultProps} />);
 
       // Should show asterisk
       expect(screen.getByText(/My Pipeline \*/)).toBeInTheDocument();
@@ -98,7 +106,7 @@ describe("Toolbar", () => {
         isDirty: true,
       });
 
-      render(<Toolbar />);
+      render(<Toolbar {...defaultProps} />);
 
       expect(screen.getByText(/Untitled \*/)).toBeInTheDocument();
     });
@@ -106,7 +114,7 @@ describe("Toolbar", () => {
 
   describe("Run button", () => {
     it("is disabled when no runnable pipeline", () => {
-      render(<Toolbar />);
+      render(<Toolbar {...defaultProps} />);
 
       const runButton = screen.getByRole("button", { name: /run/i });
       expect(runButton).toBeDisabled();
@@ -121,7 +129,7 @@ describe("Toolbar", () => {
         edges: [{ id: "e1", source: "dl-1", target: "sc-1" }],
       });
 
-      render(<Toolbar />);
+      render(<Toolbar {...defaultProps} />);
 
       const runButton = screen.getByRole("button", { name: /run/i });
       expect(runButton).not.toBeDisabled();

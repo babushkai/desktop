@@ -11,6 +11,8 @@ import {
   RiArrowDownSLine,
   RiCheckLine,
   RiCloseLine,
+  RiSideBarLine,
+  RiTerminalBoxLine,
 } from "@remixicon/react";
 import { usePipelineStore } from "../stores/pipelineStore";
 import {
@@ -29,7 +31,19 @@ import { generateExporterCode } from "../lib/exporterCodeGen";
 import { generateDataSplitCode } from "../lib/dataSplitCodeGen";
 import { cn } from "@/lib/utils";
 
-export function Toolbar() {
+interface ToolbarProps {
+  showNodePalette: boolean;
+  showOutputPanel: boolean;
+  onToggleNodePalette: () => void;
+  onToggleOutputPanel: () => void;
+}
+
+export function Toolbar({
+  showNodePalette,
+  showOutputPanel,
+  onToggleNodePalette,
+  onToggleOutputPanel,
+}: ToolbarProps) {
   const {
     nodes,
     edges,
@@ -392,6 +406,30 @@ export function Toolbar() {
             </button>
           </div>
         )}
+      </div>
+
+      {/* View toggles */}
+      <div className="flex items-center gap-1">
+        <button
+          onClick={onToggleNodePalette}
+          className={cn(
+            "btn-ghost h-8 w-8 p-0",
+            showNodePalette && "bg-accent/20 text-accent"
+          )}
+          title="Toggle Components Panel (Ctrl+B)"
+        >
+          <RiSideBarLine className="w-4 h-4" />
+        </button>
+        <button
+          onClick={onToggleOutputPanel}
+          className={cn(
+            "btn-ghost h-8 w-8 p-0",
+            showOutputPanel && "bg-accent/20 text-accent"
+          )}
+          title="Toggle Output Panel (Ctrl+J)"
+        >
+          <RiTerminalBoxLine className="w-4 h-4" />
+        </button>
       </div>
 
       <div className="w-px h-6 bg-white/10" />
