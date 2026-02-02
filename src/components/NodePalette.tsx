@@ -7,37 +7,85 @@ import {
   RiBrainLine,
   RiBarChartBoxLine,
   RiBox3Line,
+  RiDragMove2Line,
+  RiDeleteBinLine,
+  RiArrowLeftSLine,
 } from "@remixicon/react";
 import { cn } from "@/lib/utils";
 
-interface NodeButtonProps {
+interface NodeCardProps {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
+  description: string;
   onClick: () => void;
-  colorClass: string;
+  accentColor: string;
+  iconBg: string;
 }
 
-function NodeButton({ icon: Icon, label, onClick, colorClass }: NodeButtonProps) {
+function NodeCard({
+  icon: Icon,
+  label,
+  description,
+  onClick,
+  accentColor,
+  iconBg,
+}: NodeCardProps) {
   return (
     <button
       onClick={onClick}
       className={cn(
-        "w-full px-4 py-3 mb-2 rounded-lg",
-        "flex items-center gap-3",
-        "font-medium text-sm",
+        "w-full p-3 rounded-lg text-left",
+        "bg-background-elevated/50 hover:bg-background-elevated",
+        "border border-white/5 hover:border-white/10",
         "transition-all duration-150",
-        "hover:scale-[1.02] hover:shadow-md",
-        "active:scale-[0.98]",
-        colorClass
+        "hover:shadow-lg hover:shadow-black/20",
+        "group"
       )}
     >
-      <Icon className="w-5 h-5" />
-      {label}
+      <div className="flex items-start gap-3">
+        <div
+          className={cn(
+            "flex-shrink-0 w-9 h-9 rounded-lg",
+            "flex items-center justify-center",
+            "transition-transform duration-150",
+            "group-hover:scale-110",
+            iconBg
+          )}
+        >
+          <Icon className={cn("w-5 h-5", accentColor)} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className={cn("text-sm font-medium", accentColor)}>{label}</div>
+          <div className="text-[11px] text-text-muted mt-0.5 leading-snug">
+            {description}
+          </div>
+        </div>
+      </div>
     </button>
   );
 }
 
-export function NodePalette() {
+interface NodeGroupProps {
+  title: string;
+  children: React.ReactNode;
+}
+
+function NodeGroup({ title, children }: NodeGroupProps) {
+  return (
+    <div className="mb-4">
+      <h4 className="text-[10px] font-medium text-text-muted uppercase tracking-wider mb-2 px-1">
+        {title}
+      </h4>
+      <div className="space-y-2">{children}</div>
+    </div>
+  );
+}
+
+interface NodePaletteProps {
+  onCollapse?: () => void;
+}
+
+export function NodePalette({ onCollapse }: NodePaletteProps) {
   const addNode = usePipelineStore((state) => state.addNode);
 
   const handleAddDataLoader = useCallback(() => {
@@ -65,61 +113,100 @@ export function NodePalette() {
   }, [addNode]);
 
   return (
-    <div className="w-52 p-4 bg-background-surface border-r border-white/5">
-      <h3 className="mb-4 text-sm font-medium text-text-muted uppercase tracking-wider">
-        Nodes
-      </h3>
-
-      <NodeButton
-        icon={RiDatabase2Line}
-        label="Data Loader"
-        onClick={handleAddDataLoader}
-        colorClass="bg-node-dataloader/90 hover:bg-node-dataloader text-emerald-950"
-      />
-
-      <NodeButton
-        icon={RiCodeLine}
-        label="Script"
-        onClick={handleAddScript}
-        colorClass="bg-node-script/90 hover:bg-node-script text-sky-950"
-      />
-
-      <NodeButton
-        icon={RiScissorsCutLine}
-        label="Data Split"
-        onClick={handleAddDataSplit}
-        colorClass="bg-node-datasplit/90 hover:bg-node-datasplit text-fuchsia-950"
-      />
-
-      <NodeButton
-        icon={RiBrainLine}
-        label="Trainer"
-        onClick={handleAddTrainer}
-        colorClass="bg-node-trainer/90 hover:bg-node-trainer text-violet-950"
-      />
-
-      <NodeButton
-        icon={RiBarChartBoxLine}
-        label="Evaluator"
-        onClick={handleAddEvaluator}
-        colorClass="bg-node-evaluator/90 hover:bg-node-evaluator text-orange-950"
-      />
-
-      <NodeButton
-        icon={RiBox3Line}
-        label="Model Exporter"
-        onClick={handleAddModelExporter}
-        colorClass="bg-node-exporter/90 hover:bg-node-exporter text-teal-950"
-      />
-
-      <div className="mt-6 p-3 rounded-lg bg-background border border-white/5">
-        <p className="text-xs text-text-muted mb-2">
-          <span className="font-medium text-text-secondary">Tip:</span> Build a pipeline with
-          nodes.
+    <div className="w-56 flex flex-col h-full bg-background-surface border-r border-white/5">
+      <div className="p-4 border-b border-white/5">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-text-primary">Components</h3>
+          {onCollapse && (
+            <button
+              onClick={onCollapse}
+              className="p-1 rounded hover:bg-white/10 text-text-muted hover:text-text-primary transition-colors"
+              title="Collapse panel (Ctrl+B)"
+            >
+              <RiArrowLeftSLine className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+        <p className="text-[11px] text-text-muted mt-1">
+          Click to add to canvas
         </p>
-        <p className="text-[10px] text-text-muted font-mono">
-          DataLoader → DataSplit → Trainer → Evaluator → Exporter
-        </p>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4">
+        <NodeGroup title="Data">
+          <NodeCard
+            icon={RiDatabase2Line}
+            label="Data Loader"
+            description="Load CSV, JSON, or Parquet files"
+            onClick={handleAddDataLoader}
+            accentColor="text-node-dataloader"
+            iconBg="bg-node-dataloader/20"
+          />
+          <NodeCard
+            icon={RiScissorsCutLine}
+            label="Data Split"
+            description="Split data into train/test sets"
+            onClick={handleAddDataSplit}
+            accentColor="text-node-datasplit"
+            iconBg="bg-node-datasplit/20"
+          />
+        </NodeGroup>
+
+        <NodeGroup title="Machine Learning">
+          <NodeCard
+            icon={RiBrainLine}
+            label="Trainer"
+            description="Train ML models with scikit-learn"
+            onClick={handleAddTrainer}
+            accentColor="text-node-trainer"
+            iconBg="bg-node-trainer/20"
+          />
+          <NodeCard
+            icon={RiBarChartBoxLine}
+            label="Evaluator"
+            description="Compute metrics and confusion matrix"
+            onClick={handleAddEvaluator}
+            accentColor="text-node-evaluator"
+            iconBg="bg-node-evaluator/20"
+          />
+        </NodeGroup>
+
+        <NodeGroup title="Output">
+          <NodeCard
+            icon={RiBox3Line}
+            label="Model Exporter"
+            description="Export to joblib, pickle, or ONNX"
+            onClick={handleAddModelExporter}
+            accentColor="text-node-exporter"
+            iconBg="bg-node-exporter/20"
+          />
+          <NodeCard
+            icon={RiCodeLine}
+            label="Script"
+            description="Run custom Python code"
+            onClick={handleAddScript}
+            accentColor="text-node-script"
+            iconBg="bg-node-script/20"
+          />
+        </NodeGroup>
+      </div>
+
+      <div className="p-4 border-t border-white/5 bg-background/50">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-[11px] text-text-muted">
+            <RiDragMove2Line className="w-3.5 h-3.5 text-text-secondary" />
+            <span>Drag nodes to reposition</span>
+          </div>
+          <div className="flex items-center gap-2 text-[11px] text-text-muted">
+            <RiDeleteBinLine className="w-3.5 h-3.5 text-text-secondary" />
+            <span>
+              <kbd className="px-1.5 py-0.5 rounded bg-background-elevated text-text-secondary text-[10px] font-mono">
+                Del
+              </kbd>{" "}
+              to remove selected
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );

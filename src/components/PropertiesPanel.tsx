@@ -1,6 +1,7 @@
 import { lazy, Suspense, useCallback } from "react";
 import { usePipelineStore, NodeData } from "../stores/pipelineStore";
 import { RiCodeLine } from "@remixicon/react";
+import { defineGithubDarkTheme } from "@/lib/monacoTheme";
 
 const Editor = lazy(() => import("@monaco-editor/react"));
 
@@ -47,9 +48,10 @@ export function PropertiesPanel() {
           <Editor
             height="100%"
             language="python"
-            theme="vs-dark"
+            theme="github-dark"
             value={nodeData?.code || ""}
             onChange={handleCodeChange}
+            beforeMount={defineGithubDarkTheme}
             options={{
               minimap: { enabled: false },
               fontSize: 13,
