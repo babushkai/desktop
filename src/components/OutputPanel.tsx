@@ -10,6 +10,8 @@ import {
   RiTimeLine,
   RiArrowDownSLine,
   RiBarChartBoxLine,
+  RiExpandUpDownLine,
+  RiCollapseVerticalLine,
 } from "@remixicon/react";
 import { cn } from "@/lib/utils";
 import { MetricsPanel } from "./MetricsPanel";
@@ -74,9 +76,8 @@ interface OutputPanelProps {
   onCollapse?: () => void;
 }
 
-const MIN_HEIGHT = 120;
-const MAX_HEIGHT = 600;
-const DEFAULT_HEIGHT = 208;
+const COLLAPSED_HEIGHT = 200;
+const EXPANDED_HEIGHT = 450;
 
 export function OutputPanel({ onCollapse }: OutputPanelProps) {
   const outputLogs = usePipelineStore((s) => s.outputLogs);
@@ -88,34 +89,8 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [endTime, setEndTime] = useState<Date | null>(null);
   const [elapsedMs, setElapsedMs] = useState<number>(0);
-  const [panelHeight, setPanelHeight] = useState(DEFAULT_HEIGHT);
-  const [isResizing, setIsResizing] = useState(false);
-
-  // Handle resize drag
-  useEffect(() => {
-    if (!isResizing) return;
-
-    const handleMouseMove = (e: MouseEvent) => {
-      const newHeight = window.innerHeight - e.clientY;
-      setPanelHeight(Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, newHeight)));
-    };
-
-    const handleMouseUp = () => {
-      setIsResizing(false);
-    };
-
-    document.addEventListener("mousemove", handleMouseMove);
-    document.addEventListener("mouseup", handleMouseUp);
-    document.body.style.cursor = "row-resize";
-    document.body.style.userSelect = "none";
-
-    return () => {
-      document.removeEventListener("mousemove", handleMouseMove);
-      document.removeEventListener("mouseup", handleMouseUp);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-  }, [isResizing]);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const panelHeight = isExpanded ? EXPANDED_HEIGHT : COLLAPSED_HEIGHT;
 
   // Track execution timing
   useEffect(() => {
@@ -165,18 +140,9 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
 
   return (
     <div
-      className="flex flex-col bg-background relative"
+      className="flex flex-col bg-background border-t border-white/5"
       style={{ height: panelHeight }}
     >
-      {/* Resize handle - positioned at top edge */}
-      <div
-        className="absolute -top-2 left-0 right-0 h-4 cursor-row-resize z-10 flex items-center justify-center group"
-        onMouseDown={() => setIsResizing(true)}
-      >
-        <div className="w-20 h-1 bg-white/30 group-hover:bg-accent rounded-full transition-colors" />
-      </div>
-      {/* Top border */}
-      <div className="h-px bg-white/10 shrink-0" />
       <Tab.Group>
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-2 bg-background-surface border-b border-white/5">
@@ -258,10 +224,23 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
               </div>
             )}
           </div>
-          <button onClick={handleClear} className="btn-ghost text-xs h-7 px-2">
-            <RiDeleteBinLine className="w-3.5 h-3.5 mr-1" />
-            Clear
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setIsExpanded(!isExpanded)}
+              className="btn-ghost text-xs h-7 px-2"
+              title={isExpanded ? "Collapse panel" : "Expand panel"}
+            >
+              {isExpanded ? (
+                <RiCollapseVerticalLine className="w-3.5 h-3.5" />
+              ) : (
+                <RiExpandUpDownLine className="w-3.5 h-3.5" />
+              )}
+            </button>
+            <button onClick={handleClear} className="btn-ghost text-xs h-7 px-2">
+              <RiDeleteBinLine className="w-3.5 h-3.5 mr-1" />
+              Clear
+            </button>
+          </div>
         </div>
 
         {/* Tab Panels */}
