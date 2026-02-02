@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Mutex;
 
+const DB_VERSION: i32 = 2; // v1 = settings+pipelines, v2 = +runs+metrics
+
 #[derive(Serialize, Deserialize)]
 pub struct PipelineMetadata {
     pub id: String,
@@ -11,36 +13,116 @@ pub struct PipelineMetadata {
     pub updated_at: String,
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+pub struct RunMetadata {
+    pub id: String,
+    pub pipeline_name: String,
+    pub status: String,
+    pub started_at: String,
+    pub completed_at: Option<String>,
+    pub duration_ms: Option<i64>,
+    pub hyperparameters: Option<String>,
+    pub error_message: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Metric {
+    pub name: String,
+    pub value: Option<f64>,
+    pub value_json: Option<String>,
+}
+
 static DB: std::sync::OnceLock<Mutex<Connection>> = std::sync::OnceLock::new();
+static APP_DATA_DIR: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
 
 pub fn init_db(app_data_dir: &Path) -> Result<()> {
+    // Store app data dir for artifact management
+    let _ = APP_DATA_DIR.set(app_data_dir.to_path_buf());
+
     let db_path = app_data_dir.join("settings.db");
     let conn = Connection::open(&db_path)?;
 
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS settings (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        )",
-        [],
-    )?;
+    // Check current version
+    let version: i32 = conn
+        .pragma_query_value(None, "user_version", |row| row.get(0))
+        .unwrap_or(0);
 
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS pipelines (
-            id TEXT PRIMARY KEY,
-            name TEXT NOT NULL,
-            data TEXT NOT NULL,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
-        )",
-        [],
-    )?;
+    // v1 tables (settings, pipelines)
+    if version < 1 {
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS pipelines (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                data TEXT NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )",
+            [],
+        )?;
+    }
+
+    // v2 tables (runs, run_metrics)
+    if version < 2 {
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS runs (
+                id TEXT PRIMARY KEY,
+                pipeline_name TEXT NOT NULL,
+                status TEXT NOT NULL,
+                started_at TEXT NOT NULL,
+                completed_at TEXT,
+                duration_ms INTEGER,
+                hyperparameters TEXT,
+                error_message TEXT
+            )",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS run_metrics (
+                run_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                value REAL,
+                value_json TEXT,
+                PRIMARY KEY (run_id, name),
+                FOREIGN KEY (run_id) REFERENCES runs(id) ON DELETE CASCADE
+            )",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_runs_pipeline ON runs(pipeline_name)",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_runs_started ON runs(started_at DESC)",
+            [],
+        )?;
+    }
+
+    // Update version
+    conn.pragma_update(None, "user_version", DB_VERSION)?;
 
     DB.set(Mutex::new(conn)).map_err(|_| {
         rusqlite::Error::InvalidParameterName("DB already initialized".to_string())
     })?;
 
     Ok(())
+}
+
+fn get_artifacts_dir() -> Result<std::path::PathBuf> {
+    let app_data_dir = APP_DATA_DIR
+        .get()
+        .ok_or(rusqlite::Error::InvalidQuery)?;
+    Ok(app_data_dir.join("artifacts"))
 }
 
 pub fn get_setting(key: &str) -> Option<String> {
@@ -118,6 +200,117 @@ pub fn delete_pipeline(id: &str) -> Result<()> {
         rusqlite::Error::InvalidQuery
     })?;
     conn.execute("DELETE FROM pipelines WHERE id = ?1", [id])?;
+    Ok(())
+}
+
+// Run CRUD operations
+
+pub fn create_run(id: &str, pipeline_name: &str, hyperparameters: &str) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    let now = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "INSERT INTO runs (id, pipeline_name, status, started_at, hyperparameters)
+         VALUES (?1, ?2, 'running', ?3, ?4)",
+        [id, pipeline_name, &now, hyperparameters],
+    )?;
+    Ok(())
+}
+
+pub fn update_run(id: &str, status: &str, duration_ms: Option<i64>, error: Option<&str>) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    let now = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "UPDATE runs SET status = ?2, completed_at = ?3, duration_ms = ?4, error_message = ?5 WHERE id = ?1",
+        rusqlite::params![id, status, now, duration_ms, error],
+    )?;
+    Ok(())
+}
+
+pub fn save_run_metrics(run_id: &str, metrics: &[Metric]) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    for metric in metrics {
+        conn.execute(
+            "INSERT OR REPLACE INTO run_metrics (run_id, name, value, value_json)
+             VALUES (?1, ?2, ?3, ?4)",
+            rusqlite::params![run_id, metric.name, metric.value, metric.value_json],
+        )?;
+    }
+    Ok(())
+}
+
+pub fn list_runs(pipeline_name: Option<&str>) -> Result<Vec<RunMetadata>> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+
+    let query = match pipeline_name {
+        Some(_) => "SELECT id, pipeline_name, status, started_at, completed_at, duration_ms, hyperparameters, error_message
+                    FROM runs WHERE pipeline_name = ?1 ORDER BY started_at DESC",
+        None => "SELECT id, pipeline_name, status, started_at, completed_at, duration_ms, hyperparameters, error_message
+                 FROM runs ORDER BY started_at DESC",
+    };
+
+    let mut stmt = conn.prepare(query)?;
+
+    let rows = if let Some(name) = pipeline_name {
+        stmt.query_map([name], map_run_row)?
+    } else {
+        stmt.query_map([], map_run_row)?
+    };
+
+    rows.collect()
+}
+
+fn map_run_row(row: &rusqlite::Row) -> Result<RunMetadata> {
+    Ok(RunMetadata {
+        id: row.get(0)?,
+        pipeline_name: row.get(1)?,
+        status: row.get(2)?,
+        started_at: row.get(3)?,
+        completed_at: row.get(4)?,
+        duration_ms: row.get(5)?,
+        hyperparameters: row.get(6)?,
+        error_message: row.get(7)?,
+    })
+}
+
+pub fn get_run_metrics(run_id: &str) -> Result<Vec<Metric>> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    let mut stmt = conn.prepare(
+        "SELECT name, value, value_json FROM run_metrics WHERE run_id = ?1"
+    )?;
+    let rows = stmt.query_map([run_id], |row| {
+        Ok(Metric {
+            name: row.get(0)?,
+            value: row.get(1)?,
+            value_json: row.get(2)?,
+        })
+    })?;
+    rows.collect()
+}
+
+pub fn delete_run(id: &str) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    conn.execute("DELETE FROM runs WHERE id = ?1", [id])?;
+
+    // Delete artifact directory
+    if let Ok(artifacts_dir) = get_artifacts_dir() {
+        let run_artifacts = artifacts_dir.join(id);
+        if run_artifacts.exists() {
+            let _ = std::fs::remove_dir_all(&run_artifacts);
+        }
+    }
+
     Ok(())
 }
 

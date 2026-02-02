@@ -120,3 +120,65 @@ export async function getExampleDataPath(dataset: string): Promise<string> {
 export async function listExampleDatasets(): Promise<ExampleDataset[]> {
   return invoke<ExampleDataset[]>("list_example_datasets");
 }
+
+// Run history
+
+export interface RunMetadata {
+  id: string;
+  pipeline_name: string;
+  status: string;
+  started_at: string;
+  completed_at?: string;
+  duration_ms?: number;
+  hyperparameters?: string;
+  error_message?: string;
+}
+
+export interface Metric {
+  name: string;
+  value?: number;
+  value_json?: string;
+}
+
+export interface MetricInput {
+  name: string;
+  value?: number;
+  valueJson?: string;
+}
+
+export async function createRun(pipelineName: string, hyperparameters: object): Promise<string> {
+  return invoke<string>("create_run", {
+    pipelineName,
+    hyperparameters: JSON.stringify(hyperparameters),
+  });
+}
+
+export async function completeRun(id: string, durationMs: number): Promise<void> {
+  return invoke("complete_run", { id, durationMs });
+}
+
+export async function failRun(id: string, error: string): Promise<void> {
+  return invoke("fail_run", { id, error });
+}
+
+export async function saveRunMetrics(runId: string, metrics: MetricInput[]): Promise<void> {
+  // Convert camelCase valueJson to snake_case value_json for Rust
+  const rustMetrics = metrics.map((m) => ({
+    name: m.name,
+    value: m.value,
+    value_json: m.valueJson,
+  }));
+  return invoke("save_run_metrics", { runId, metrics: rustMetrics });
+}
+
+export async function listRuns(pipelineName?: string): Promise<RunMetadata[]> {
+  return invoke<RunMetadata[]>("list_runs", { pipelineName });
+}
+
+export async function getRunMetrics(runId: string): Promise<Metric[]> {
+  return invoke<Metric[]>("get_run_metrics", { runId });
+}
+
+export async function deleteRun(id: string): Promise<void> {
+  return invoke("delete_run", { id });
+}
