@@ -324,10 +324,11 @@ export function NodeCheckbox({ label, className, ...props }: NodeCheckboxProps) 
 interface NodeTextProps {
   children: React.ReactNode;
   className?: string;
+  title?: string;
 }
 
-export function NodeText({ children, className }: NodeTextProps) {
-  return <div className={cn("text-xs text-text-secondary", className)}>{children}</div>;
+export function NodeText({ children, className, title }: NodeTextProps) {
+  return <div className={cn("text-xs text-text-secondary", className)} title={title}>{children}</div>;
 }
 
 interface NodeButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {

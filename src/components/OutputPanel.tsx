@@ -10,6 +10,7 @@ import {
   RiTimeLine,
   RiArrowDownSLine,
   RiBarChartBoxLine,
+  RiFileCopyLine,
 } from "@remixicon/react";
 import { cn } from "@/lib/utils";
 import { MetricsPanel } from "./MetricsPanel";
@@ -70,9 +71,30 @@ function formatTimestamp(date: Date): string {
   });
 }
 
+function getLogClass(log: string): string {
+  // Error lines
+  if (log.startsWith("ERROR") || log.includes("Traceback")) {
+    return "text-log-error";
+  }
+  // Section headers (--- text ---)
+  if (log.startsWith("---")) {
+    return "text-log-info";
+  }
+  // Separators (only = or - chars, 3+ length)
+  if (/^[=\-]{3,}$/.test(log.trim())) {
+    return "text-log-muted";
+  }
+  // Default
+  return "text-log-text";
+}
+
 interface OutputPanelProps {
   onCollapse?: () => void;
 }
+
+const DEFAULT_HEIGHT = 240;
+const MIN_HEIGHT = 150;
+const MAX_HEIGHT = 600;
 
 export function OutputPanel({ onCollapse }: OutputPanelProps) {
   const outputLogs = usePipelineStore((s) => s.outputLogs);
@@ -84,6 +106,35 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
   const [startTime, setStartTime] = useState<Date | null>(null);
   const [endTime, setEndTime] = useState<Date | null>(null);
   const [elapsedMs, setElapsedMs] = useState<number>(0);
+  const [copied, setCopied] = useState(false);
+  const [panelHeight, setPanelHeight] = useState(DEFAULT_HEIGHT);
+  const [isResizing, setIsResizing] = useState(false);
+
+  // Handle resize drag
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newHeight = window.innerHeight - e.clientY;
+      setPanelHeight(Math.min(MAX_HEIGHT, Math.max(MIN_HEIGHT, newHeight)));
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    document.body.style.cursor = "ns-resize";
+    document.body.style.userSelect = "none";
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isResizing]);
 
   // Track execution timing
   useEffect(() => {
@@ -129,13 +180,36 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
     setElapsedMs(0);
   }, [clearLogs]);
 
+  const handleCopy = useCallback(async () => {
+    const text = outputLogs.join("\n");
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [outputLogs]);
+
   const statusConfig = getStatusConfig(executionStatus);
 
   return (
-    <div className="h-52 flex flex-col bg-background border-t border-white/5">
-      <Tab.Group>
+    <div
+      className="flex flex-col bg-background"
+      style={{ height: panelHeight }}
+    >
+      {/* Resize handle */}
+      <div
+        className={cn(
+          "h-2 cursor-ns-resize flex items-center justify-center shrink-0 border-t border-white/10 hover:border-accent transition-colors",
+          isResizing && "border-accent"
+        )}
+        onMouseDown={() => setIsResizing(true)}
+      >
+        <div className={cn(
+          "w-12 h-1 rounded-full bg-white/20 hover:bg-accent transition-colors",
+          isResizing && "bg-accent"
+        )} />
+      </div>
+      <Tab.Group as="div" className="flex flex-col flex-1 min-h-0">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-2 bg-background-surface border-b border-white/5">
+        <div className="flex items-center justify-between px-4 py-2 bg-background-surface border-b border-white/5 shrink-0">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               {onCollapse && (
@@ -214,34 +288,40 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
               </div>
             )}
           </div>
-          <button onClick={handleClear} className="btn-ghost text-xs h-7 px-2">
-            <RiDeleteBinLine className="w-3.5 h-3.5 mr-1" />
-            Clear
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={handleCopy}
+              disabled={outputLogs.length === 0}
+              className="btn-ghost text-xs h-7 px-2 disabled:opacity-50"
+              title="Copy logs to clipboard"
+            >
+              <RiFileCopyLine className="w-3.5 h-3.5 mr-1" />
+              {copied ? "Copied!" : "Copy"}
+            </button>
+            <button onClick={handleClear} className="btn-ghost text-xs h-7 px-2">
+              <RiDeleteBinLine className="w-3.5 h-3.5 mr-1" />
+              Clear
+            </button>
+          </div>
         </div>
 
         {/* Tab Panels */}
-        <Tab.Panels className="flex-1 overflow-hidden">
-          {/* Logs Panel */}
-          <Tab.Panel className="h-full">
+        <Tab.Panels className="flex-1 min-h-0">
+          {/* Logs Panel - GitHub Dark Theme */}
+          <Tab.Panel className="h-full overflow-auto bg-log-bg">
             <div
               ref={scrollRef}
-              className="h-full overflow-auto p-4 font-mono text-sm leading-relaxed whitespace-pre-wrap"
+              className="p-4 font-mono text-[13px] leading-[1.6]"
             >
               {outputLogs.length === 0 ? (
-                <span className="text-text-muted">
+                <span className="text-log-muted">
                   Output will appear here when you run a script...
                 </span>
               ) : (
                 outputLogs.map((log, i) => (
                   <div
                     key={i}
-                    className={cn(
-                      "whitespace-pre-wrap break-words",
-                      log.startsWith("ERROR") && "text-state-error",
-                      log.startsWith("---") && "text-text-muted",
-                      !log.startsWith("ERROR") && !log.startsWith("---") && "text-text-primary"
-                    )}
+                    className={cn("whitespace-pre-wrap break-words", getLogClass(log))}
                   >
                     {log}
                   </div>

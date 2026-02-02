@@ -13,6 +13,8 @@ import {
   RiCloseLine,
   RiSideBarLine,
   RiTerminalBoxLine,
+  RiFlaskLine,
+  RiHome4Line,
 } from "@remixicon/react";
 import { usePipelineStore } from "../stores/pipelineStore";
 import {
@@ -28,6 +30,7 @@ import {
 } from "../lib/tauri";
 import { generateTrainerCode, generateTrainerCodeWithSplit } from "../lib/trainerCodeGen";
 import { generateEvaluatorCode, generateEvaluatorCodeWithSplit } from "../lib/evaluatorCodeGen";
+import { MODEL_FILE } from "../lib/constants";
 import { generateExporterCode } from "../lib/exporterCodeGen";
 import { generateDataSplitCode } from "../lib/dataSplitCodeGen";
 import { cn } from "@/lib/utils";
@@ -60,6 +63,7 @@ export function Toolbar({
     isDirty,
     savePipeline,
     loadPipeline,
+    loadExampleWorkflow,
     newPipeline,
   } = usePipelineStore();
 
@@ -135,7 +139,7 @@ export function Toolbar({
       } else if (event.type === "error") {
         appendLog(`ERROR: ${event.message}`);
       } else if (event.type === "metrics") {
-        setMetrics(event.data);
+        setMetrics({ ...event.data, modelType: event.modelType as "classifier" | "regressor" });
       }
     };
 
@@ -190,7 +194,7 @@ export function Toolbar({
           if (useDataSplit) {
             evalCode = generateEvaluatorCodeWithSplit(trainerNode.data, inputPath);
           } else {
-            evalCode = generateEvaluatorCode(trainerNode.data, "model.joblib", inputPath);
+            evalCode = generateEvaluatorCode(trainerNode.data, MODEL_FILE, inputPath);
           }
           await runScriptAndWait(evalCode, inputPath, handleOutput);
         }
@@ -205,7 +209,7 @@ export function Toolbar({
             appendLog("");
             appendLog("--- Running Model Exporter ---");
 
-            const exportCode = generateExporterCode(modelExporterNode.data, "model.joblib");
+            const exportCode = generateExporterCode(modelExporterNode.data, MODEL_FILE);
             await runScriptAndWait(exportCode, inputPath, handleOutput);
           }
         }
@@ -293,6 +297,22 @@ export function Toolbar({
     newPipeline();
   }, [isDirty, newPipeline]);
 
+  const handleLoadExample = useCallback(
+    async (type: "classification" | "regression") => {
+      if (isDirty) {
+        const confirmed = window.confirm("Discard unsaved changes?");
+        if (!confirmed) return;
+      }
+      try {
+        await loadExampleWorkflow(type);
+        appendLog(`Loaded example: ${type === "classification" ? "Iris Classification" : "California Housing"}`);
+      } catch (error) {
+        appendLog(`ERROR: Failed to load example: ${error}`);
+      }
+    },
+    [isDirty, loadExampleWorkflow, appendLog]
+  );
+
   const hasExecutableNode = nodes.some(
     (n) => n.type === "script" || n.type === "trainer" || n.type === "evaluator"
   );
@@ -356,25 +376,57 @@ export function Toolbar({
                 pipelines.map((p) => (
                   <Menu.Item key={p.id}>
                     {({ active }) => (
-                      <button
+                      <div
                         onClick={() => handleLoadPipeline(p.id)}
                         className={cn(
-                          "w-full flex items-center justify-between px-3 py-2 text-sm text-left",
+                          "w-full flex items-center justify-between px-3 py-2 text-sm text-left cursor-pointer group",
                           active && "bg-background-elevated text-text-primary"
                         )}
                       >
                         <span className="truncate">{p.name}</span>
-                        <button
+                        <span
                           onClick={(e) => handleDeletePipeline(p.id, e)}
                           className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-state-error/20 text-state-error"
                         >
                           <RiDeleteBinLine className="w-3 h-3" />
-                        </button>
-                      </button>
+                        </span>
+                      </div>
                     )}
                   </Menu.Item>
                 ))
               )}
+              <div className="border-t border-white/5 my-1" />
+              <div className="px-3 py-2 text-xs font-semibold text-text-muted uppercase tracking-wider">
+                Example Workflows
+              </div>
+              <Menu.Item>
+                {({ active }) => (
+                  <button
+                    onClick={() => handleLoadExample("classification")}
+                    className={cn(
+                      "w-full flex items-center gap-2 px-3 py-2 text-sm",
+                      active && "bg-background-elevated"
+                    )}
+                  >
+                    <RiFlaskLine className="w-4 h-4 text-text-muted" />
+                    Iris Classification
+                  </button>
+                )}
+              </Menu.Item>
+              <Menu.Item>
+                {({ active }) => (
+                  <button
+                    onClick={() => handleLoadExample("regression")}
+                    className={cn(
+                      "w-full flex items-center gap-2 px-3 py-2 text-sm",
+                      active && "bg-background-elevated"
+                    )}
+                  >
+                    <RiHome4Line className="w-4 h-4 text-text-muted" />
+                    California Housing
+                  </button>
+                )}
+              </Menu.Item>
             </Menu.Items>
           </Transition>
         </Menu>

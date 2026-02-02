@@ -11,6 +11,15 @@ export default {
           surface: "#0f172a",
           elevated: "#1e293b",
         },
+        // Log panel colors (GitHub dark theme)
+        log: {
+          bg: "var(--log-bg)",
+          text: "var(--log-text)",
+          muted: "var(--log-muted)",
+          error: "var(--log-error)",
+          success: "var(--log-success)",
+          info: "var(--log-info)",
+        },
         // Accent colors
         accent: {
           DEFAULT: "#22d3ee",

@@ -1,10 +1,15 @@
 import { NodeData } from "../stores/pipelineStore";
-import { SPLIT_INDICES_FILE, MODEL_FILE } from "./constants";
+import { WORK_DIR, SPLIT_INDICES_FILE, MODEL_FILE } from "./constants";
 
 const MODEL_CONFIG: Record<string, { module: string; class: string }> = {
+  // Regressors
   linear_regression: { module: "sklearn.linear_model", class: "LinearRegression" },
   random_forest: { module: "sklearn.ensemble", class: "RandomForestRegressor" },
   gradient_boosting: { module: "sklearn.ensemble", class: "GradientBoostingRegressor" },
+  // Classifiers
+  logistic_regression: { module: "sklearn.linear_model", class: "LogisticRegression" },
+  random_forest_classifier: { module: "sklearn.ensemble", class: "RandomForestClassifier" },
+  gradient_boosting_classifier: { module: "sklearn.ensemble", class: "GradientBoostingClassifier" },
 };
 
 // Sanitize file path for embedding in Python string
@@ -18,6 +23,7 @@ export const generateTrainerCode = (nodeData: NodeData, inputPath: string): stri
   const safePath = sanitizePath(inputPath);
 
   return `import sys
+import os
 import pandas as pd
 import joblib
 from sklearn.model_selection import train_test_split
@@ -25,6 +31,7 @@ from sklearn.metrics import mean_squared_error, mean_absolute_error
 from ${config.module} import ${config.class}
 
 try:
+    os.makedirs("${WORK_DIR}", exist_ok=True)
     df = pd.read_csv("${safePath}")
 
     target_col = "${targetCol}"
@@ -73,6 +80,8 @@ import joblib
 from ${config.module} import ${config.class}
 
 try:
+    os.makedirs("${WORK_DIR}", exist_ok=True)
+
     # Pre-execution validation
     if not os.path.exists("${SPLIT_INDICES_FILE}"):
         print("ERROR: ${SPLIT_INDICES_FILE} not found. Run DataSplit node first.")
