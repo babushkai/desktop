@@ -18,7 +18,9 @@ import { ModelExporterNode } from "./ModelExporterNode";
 import { CanvasControls, CanvasMode } from "./CanvasControls";
 import { ZoomControls } from "./ZoomControls";
 import { SelectionContextMenu } from "./SelectionContextMenu";
+import { AlignmentGuides } from "./AlignmentGuides";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useAlignmentGuides } from "@/hooks/useAlignmentGuides";
 import { AlignType } from "@/lib/alignment";
 
 const nodeTypes: NodeTypes = {
@@ -57,6 +59,9 @@ export function Canvas() {
 
   const [canvasMode, setCanvasMode] = useState<CanvasMode>("pointer");
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+
+  // Alignment guides for drag snapping
+  const { guides, checkAlignment, clearGuides } = useAlignmentGuides();
 
   // Close context menu helper
   const closeContextMenu = useCallback(() => {
@@ -140,6 +145,18 @@ export function Canvas() {
     closeContextMenu();
   }, [getSelectedNodes, deleteNodes, closeContextMenu]);
 
+  // Node drag handlers for alignment guides
+  const handleNodeDrag = useCallback(
+    (_event: React.MouseEvent, node: Node) => {
+      checkAlignment(node, nodes);
+    },
+    [checkAlignment, nodes]
+  );
+
+  const handleNodeDragStop = useCallback(() => {
+    clearGuides();
+  }, [clearGuides]);
+
   const proOptions = useMemo(() => ({ hideAttribution: true }), []);
 
   // Get selected nodes for context menu
@@ -155,6 +172,8 @@ export function Canvas() {
       onNodesDelete={handleNodesDelete}
       onSelectionChange={handleSelectionChange}
       onSelectionContextMenu={handleSelectionContextMenu}
+      onNodeDrag={handleNodeDrag}
+      onNodeDragStop={handleNodeDragStop}
       nodeTypes={nodeTypes}
       isValidConnection={isValidConnection}
       deleteKeyCode={["Backspace", "Delete"]}
@@ -172,6 +191,7 @@ export function Canvas() {
       />
       <CanvasControls onModeChange={setCanvasMode} />
       <ZoomControls />
+      <AlignmentGuides guides={guides} />
       <MiniMap nodeColor={getNodeColor} maskColor="rgba(10, 10, 15, 0.8)" />
       {contextMenu && selectedNodes.length >= 2 && (
         <SelectionContextMenu
