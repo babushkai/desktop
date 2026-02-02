@@ -12,8 +12,14 @@ import {
 import {
   savePipeline as savePipelineApi,
   loadPipeline as loadPipelineApi,
+  getExampleDataPath,
   MetricsData,
 } from "../lib/tauri";
+import {
+  createClassificationWorkflow,
+  createRegressionWorkflow,
+  ExampleWorkflow,
+} from "../lib/exampleWorkflows";
 import { AlignType, alignNodes, distributeNodes } from "@/lib/alignment";
 
 export type NodeData = {
@@ -88,6 +94,7 @@ interface PipelineState {
   // Pipeline save/load
   savePipeline: (name: string) => Promise<string>;
   loadPipeline: (id: string) => Promise<void>;
+  loadExampleWorkflow: (type: "classification" | "regression") => Promise<void>;
   newPipeline: () => void;
 
   // Alignment and selection
@@ -349,6 +356,34 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
       });
     } catch (e) {
       console.error("Failed to load pipeline:", e);
+    }
+  },
+
+  loadExampleWorkflow: async (type) => {
+    try {
+      const dataset = type === "classification" ? "iris.csv" : "california_housing.csv";
+      const dataPath = await getExampleDataPath(dataset);
+
+      let workflow: ExampleWorkflow;
+      if (type === "classification") {
+        workflow = createClassificationWorkflow(dataPath);
+      } else {
+        workflow = createRegressionWorkflow(dataPath);
+      }
+
+      set({
+        nodes: workflow.nodes,
+        edges: workflow.edges,
+        currentPipelineId: null,
+        currentPipelineName: workflow.name,
+        isDirty: false,
+        outputLogs: [],
+        metrics: null,
+        executionStatus: "idle",
+      });
+    } catch (e) {
+      console.error("Failed to load example workflow:", e);
+      throw e;
     }
   },
 

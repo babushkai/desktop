@@ -29,6 +29,8 @@ pub fn run() {
             commands::load_pipeline,
             commands::list_pipelines,
             commands::delete_pipeline,
+            commands::get_example_data_path,
+            commands::list_example_datasets,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

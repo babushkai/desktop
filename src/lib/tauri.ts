@@ -101,3 +101,22 @@ export async function listPipelines(): Promise<PipelineMetadata[]> {
 export async function deletePipeline(id: string): Promise<void> {
   return invoke("delete_pipeline", { id });
 }
+
+// Example datasets
+
+export interface ExampleDataset {
+  id: string;
+  name: string;
+  description: string;
+  task_type: string;
+  target_column: string;
+  recommended_model: string;
+}
+
+export async function getExampleDataPath(dataset: string): Promise<string> {
+  return invoke<string>("get_example_data_path", { dataset });
+}
+
+export async function listExampleDatasets(): Promise<ExampleDataset[]> {
+  return invoke<ExampleDataset[]>("list_example_datasets");
+}

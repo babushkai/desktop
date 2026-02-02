@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader};
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
+use tauri::path::BaseDirectory;
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::{db, python};
@@ -227,4 +228,60 @@ fn parse_output_line(line: &str) -> ScriptEvent {
     ScriptEvent::Log {
         message: line.to_string(),
     }
+}
+
+// Example data commands
+
+#[derive(Clone, Serialize)]
+pub struct ExampleDataset {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub task_type: String,
+    pub target_column: String,
+    pub recommended_model: String,
+}
+
+#[tauri::command]
+pub fn get_example_data_path(app: AppHandle, dataset: String) -> Result<String, String> {
+    let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let examples_dir = app_data_dir.join("examples");
+    std::fs::create_dir_all(&examples_dir).map_err(|e| e.to_string())?;
+
+    let dest_path = examples_dir.join(&dataset);
+
+    if !dest_path.exists() {
+        // Tauri 2.0: resources/ prefix is stripped when resolving
+        let resource_path = app
+            .path()
+            .resolve(format!("resources/examples/{}", dataset), BaseDirectory::Resource)
+            .map_err(|e| format!("Example data not found: {}", e))?;
+
+        std::fs::copy(&resource_path, &dest_path)
+            .map_err(|e| format!("Failed to copy example data to {}: {}", dest_path.display(), e))?;
+    }
+
+    Ok(dest_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub fn list_example_datasets() -> Vec<ExampleDataset> {
+    vec![
+        ExampleDataset {
+            id: "iris.csv".to_string(),
+            name: "Iris Classification".to_string(),
+            description: "Classify iris flowers (150 samples, 3 classes)".to_string(),
+            task_type: "classification".to_string(),
+            target_column: "species".to_string(),
+            recommended_model: "random_forest".to_string(),
+        },
+        ExampleDataset {
+            id: "california_housing.csv".to_string(),
+            name: "California Housing".to_string(),
+            description: "Predict house values (200 samples)".to_string(),
+            task_type: "regression".to_string(),
+            target_column: "MedHouseVal".to_string(),
+            recommended_model: "linear_regression".to_string(),
+        },
+    ]
 }
