@@ -352,3 +352,38 @@ export function NodeButton({ className, children, ...props }: NodeButtonProps) {
     </button>
   );
 }
+
+interface OptionGroup {
+  label: string;
+  options: { value: string; label: string }[];
+}
+
+interface NodeSelectGroupedProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
+  groups: OptionGroup[];
+  className?: string;
+}
+
+export function NodeSelectGrouped({ groups, className, ...props }: NodeSelectGroupedProps) {
+  return (
+    <select
+      className={cn(
+        "nodrag w-full px-2 py-1.5 text-xs rounded-md appearance-none",
+        "bg-background text-text-primary",
+        "border border-white/10",
+        "focus:outline-none focus:ring-1 focus:ring-accent",
+        className
+      )}
+      {...props}
+    >
+      {groups.map((group) => (
+        <optgroup key={group.label} label={group.label}>
+          {group.options.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </select>
+  );
+}

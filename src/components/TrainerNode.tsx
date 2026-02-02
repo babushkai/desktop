@@ -1,13 +1,32 @@
 import { useCallback } from "react";
 import { NodeProps } from "@xyflow/react";
 import { usePipelineStore, NodeData } from "../stores/pipelineStore";
-import { BaseNode, NodeLabel, NodeInput, NodeSlider, NodeSelect } from "./BaseNode";
+import { BaseNode, NodeLabel, NodeInput, NodeSlider, NodeSelectGrouped } from "./BaseNode";
 import { RiBrainLine } from "@remixicon/react";
 
-const modelOptions = [
-  { value: "linear_regression", label: "Linear Regression" },
-  { value: "random_forest", label: "Random Forest" },
-  { value: "gradient_boosting", label: "Gradient Boosting" },
+const modelGroups = [
+  {
+    label: "Regression",
+    options: [
+      { value: "linear_regression", label: "Linear Regression" },
+      { value: "random_forest", label: "Random Forest" },
+      { value: "gradient_boosting", label: "Gradient Boosting" },
+      { value: "svr", label: "SVM (SVR)" },
+      { value: "knn_regressor", label: "KNN" },
+      { value: "mlp_regressor", label: "Neural Network (MLP)" },
+    ],
+  },
+  {
+    label: "Classification",
+    options: [
+      { value: "logistic_regression", label: "Logistic Regression" },
+      { value: "random_forest_classifier", label: "Random Forest" },
+      { value: "gradient_boosting_classifier", label: "Gradient Boosting" },
+      { value: "svc", label: "SVM (SVC)" },
+      { value: "knn_classifier", label: "KNN" },
+      { value: "mlp_classifier", label: "Neural Network (MLP)" },
+    ],
+  },
 ];
 
 export function TrainerNode({ id, data, selected }: NodeProps) {
@@ -49,8 +68,8 @@ export function TrainerNode({ id, data, selected }: NodeProps) {
     >
       <div>
         <NodeLabel>Model</NodeLabel>
-        <NodeSelect
-          options={modelOptions}
+        <NodeSelectGrouped
+          groups={modelGroups}
           value={nodeData.modelType || "linear_regression"}
           onChange={handleModelTypeChange}
         />
