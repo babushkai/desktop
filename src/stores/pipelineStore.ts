@@ -12,6 +12,7 @@ import {
 import {
   savePipeline as savePipelineApi,
   loadPipeline as loadPipelineApi,
+  MetricsData,
 } from "../lib/tauri";
 import { AlignType, alignNodes, distributeNodes } from "@/lib/alignment";
 
@@ -51,6 +52,7 @@ interface PipelineState {
   edges: Edge[];
   executionStatus: ExecutionStatus;
   outputLogs: string[];
+  metrics: MetricsData | null;
   pythonPath: string | null;
   validationErrors: string[];
 
@@ -78,6 +80,7 @@ interface PipelineState {
   setExecutionStatus: (status: ExecutionStatus) => void;
   appendLog: (message: string) => void;
   clearLogs: () => void;
+  setMetrics: (metrics: MetricsData) => void;
 
   // Settings
   setPythonPath: (path: string | null) => void;
@@ -103,6 +106,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   edges: [],
   executionStatus: "idle",
   outputLogs: [],
+  metrics: null,
   pythonPath: null,
   validationErrors: [],
   currentPipelineId: null,
@@ -312,7 +316,9 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
     }));
   },
 
-  clearLogs: () => set({ outputLogs: [] }),
+  clearLogs: () => set({ outputLogs: [], metrics: null }),
+
+  setMetrics: (metrics) => set({ metrics }),
 
   setPythonPath: (path) => set({ pythonPath: path }),
 

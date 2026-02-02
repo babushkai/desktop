@@ -20,6 +20,7 @@ import joblib
 import numpy as np
 from sklearn.base import is_classifier, is_regressor
 from sklearn.model_selection import train_test_split
+import json as _json
 
 try:
     model = joblib.load("${safeModelPath}")
@@ -48,25 +49,62 @@ try:
 
         print("Model Type: Classifier")
         print("-" * 40)
-        print(f"Accuracy:  {accuracy_score(y_test, y_pred):.4f}")
 
+        acc = accuracy_score(y_test, y_pred)
         average = 'binary' if len(np.unique(y)) == 2 else 'weighted'
-        print(f"Precision: {precision_score(y_test, y_pred, average=average, zero_division=0):.4f}")
-        print(f"Recall:    {recall_score(y_test, y_pred, average=average, zero_division=0):.4f}")
-        print(f"F1 Score:  {f1_score(y_test, y_pred, average=average, zero_division=0):.4f}")
+        prec = precision_score(y_test, y_pred, average=average, zero_division=0)
+        rec = recall_score(y_test, y_pred, average=average, zero_division=0)
+        f1 = f1_score(y_test, y_pred, average=average, zero_division=0)
+        cm = confusion_matrix(y_test, y_pred)
+
+        print(f"Accuracy:  {acc:.4f}")
+        print(f"Precision: {prec:.4f}")
+        print(f"Recall:    {rec:.4f}")
+        print(f"F1 Score:  {f1:.4f}")
         print("-" * 40)
         print("Confusion Matrix:")
-        print(confusion_matrix(y_test, y_pred))
+        print(cm)
+
+        # Emit structured metrics for visualization
+        print(_json.dumps({
+            "type": "metrics",
+            "modelType": "classifier",
+            "data": {
+                "accuracy": float(acc),
+                "precision": float(prec),
+                "recall": float(rec),
+                "f1": float(f1),
+                "confusionMatrix": cm.tolist()
+            }
+        }))
 
     elif is_regressor(model):
         from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 
         print("Model Type: Regressor")
         print("-" * 40)
-        print(f"R2 Score:  {r2_score(y_test, y_pred):.4f}")
-        print(f"MSE:       {mean_squared_error(y_test, y_pred):.4f}")
-        print(f"RMSE:      {np.sqrt(mean_squared_error(y_test, y_pred)):.4f}")
-        print(f"MAE:       {mean_absolute_error(y_test, y_pred):.4f}")
+
+        r2 = r2_score(y_test, y_pred)
+        mse = mean_squared_error(y_test, y_pred)
+        rmse = np.sqrt(mse)
+        mae = mean_absolute_error(y_test, y_pred)
+
+        print(f"R2 Score:  {r2:.4f}")
+        print(f"MSE:       {mse:.4f}")
+        print(f"RMSE:      {rmse:.4f}")
+        print(f"MAE:       {mae:.4f}")
+
+        # Emit structured metrics for visualization
+        print(_json.dumps({
+            "type": "metrics",
+            "modelType": "regressor",
+            "data": {
+                "r2": float(r2),
+                "mse": float(mse),
+                "rmse": float(rmse),
+                "mae": float(mae)
+            }
+        }))
 
     else:
         print(f"Warning: Could not determine model type for {type(model).__name__}")
@@ -94,6 +132,7 @@ import pandas as pd
 import joblib
 import numpy as np
 from sklearn.base import is_classifier, is_regressor
+import json as _json
 
 try:
     # Pre-execution validation
@@ -136,25 +175,62 @@ try:
 
         print("Model Type: Classifier")
         print("-" * 40)
-        print(f"Accuracy:  {accuracy_score(y_test, y_pred):.4f}")
 
+        acc = accuracy_score(y_test, y_pred)
         average = 'binary' if len(np.unique(y)) == 2 else 'weighted'
-        print(f"Precision: {precision_score(y_test, y_pred, average=average, zero_division=0):.4f}")
-        print(f"Recall:    {recall_score(y_test, y_pred, average=average, zero_division=0):.4f}")
-        print(f"F1 Score:  {f1_score(y_test, y_pred, average=average, zero_division=0):.4f}")
+        prec = precision_score(y_test, y_pred, average=average, zero_division=0)
+        rec = recall_score(y_test, y_pred, average=average, zero_division=0)
+        f1 = f1_score(y_test, y_pred, average=average, zero_division=0)
+        cm = confusion_matrix(y_test, y_pred)
+
+        print(f"Accuracy:  {acc:.4f}")
+        print(f"Precision: {prec:.4f}")
+        print(f"Recall:    {rec:.4f}")
+        print(f"F1 Score:  {f1:.4f}")
         print("-" * 40)
         print("Confusion Matrix:")
-        print(confusion_matrix(y_test, y_pred))
+        print(cm)
+
+        # Emit structured metrics for visualization
+        print(_json.dumps({
+            "type": "metrics",
+            "modelType": "classifier",
+            "data": {
+                "accuracy": float(acc),
+                "precision": float(prec),
+                "recall": float(rec),
+                "f1": float(f1),
+                "confusionMatrix": cm.tolist()
+            }
+        }))
 
     elif is_regressor(model):
         from sklearn.metrics import r2_score, mean_squared_error, mean_absolute_error
 
         print("Model Type: Regressor")
         print("-" * 40)
-        print(f"R2 Score:  {r2_score(y_test, y_pred):.4f}")
-        print(f"MSE:       {mean_squared_error(y_test, y_pred):.4f}")
-        print(f"RMSE:      {np.sqrt(mean_squared_error(y_test, y_pred)):.4f}")
-        print(f"MAE:       {mean_absolute_error(y_test, y_pred):.4f}")
+
+        r2 = r2_score(y_test, y_pred)
+        mse = mean_squared_error(y_test, y_pred)
+        rmse = np.sqrt(mse)
+        mae = mean_absolute_error(y_test, y_pred)
+
+        print(f"R2 Score:  {r2:.4f}")
+        print(f"MSE:       {mse:.4f}")
+        print(f"RMSE:      {rmse:.4f}")
+        print(f"MAE:       {mae:.4f}")
+
+        # Emit structured metrics for visualization
+        print(_json.dumps({
+            "type": "metrics",
+            "modelType": "regressor",
+            "data": {
+                "r2": float(r2),
+                "mse": float(mse),
+                "rmse": float(rmse),
+                "mae": float(mae)
+            }
+        }))
 
     else:
         print(f"Warning: Could not determine model type for {type(model).__name__}")

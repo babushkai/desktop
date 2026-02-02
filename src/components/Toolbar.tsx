@@ -24,6 +24,7 @@ import {
   deletePipeline,
   PipelineMetadata,
   runScriptAndWait,
+  ScriptEvent,
 } from "../lib/tauri";
 import { generateTrainerCode, generateTrainerCodeWithSplit } from "../lib/trainerCodeGen";
 import { generateEvaluatorCode, generateEvaluatorCodeWithSplit } from "../lib/evaluatorCodeGen";
@@ -53,6 +54,7 @@ export function Toolbar({
     setExecutionStatus,
     appendLog,
     clearLogs,
+    setMetrics,
     validatePipeline,
     currentPipelineName,
     isDirty,
@@ -127,11 +129,13 @@ export function Toolbar({
       return;
     }
 
-    const handleOutput = (event: { type: string; message?: string; code?: number }) => {
-      if (event.type === "log" && event.message) {
+    const handleOutput = (event: ScriptEvent) => {
+      if (event.type === "log") {
         appendLog(event.message);
-      } else if (event.type === "error" && event.message) {
+      } else if (event.type === "error") {
         appendLog(`ERROR: ${event.message}`);
+      } else if (event.type === "metrics") {
+        setMetrics(event.data);
       }
     };
 
