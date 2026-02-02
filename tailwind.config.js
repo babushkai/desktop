@@ -5,14 +5,11 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Background colors - layered depth
+        // Background colors - base tokens (depth via CSS panel classes)
         background: {
-          DEFAULT: "#0a0a0f",      // Canvas (darkest)
-          surface: "#0f172a",      // General surface
-          elevated: "#1e293b",     // Hover/active states
-          toolbar: "#101829",      // Top bar - slightly lighter
-          sidebar: "#0d1424",      // Side panels - medium navy
-          footer: "#0c1220",       // Bottom panel - deep navy
+          DEFAULT: "var(--surface-0)",
+          surface: "var(--surface-2)",
+          elevated: "var(--surface-4)",
         },
         // Log panel colors (GitHub dark theme)
         log: {
@@ -60,10 +57,6 @@ export default {
       boxShadow: {
         glow: "0 4px 24px rgba(34, 211, 238, 0.1)",
         "glow-sm": "0 2px 12px rgba(34, 211, 238, 0.08)",
-        "panel-r": "2px 0 8px -2px rgba(0, 0, 0, 0.4)",
-        "panel-l": "-2px 0 8px -2px rgba(0, 0, 0, 0.4)",
-        "panel-t": "0 -2px 8px -2px rgba(0, 0, 0, 0.4)",
-        "panel-b": "0 2px 8px -2px rgba(0, 0, 0, 0.4)",
       },
       animation: {
         "pulse-glow": "pulse-glow 2s ease-in-out infinite",

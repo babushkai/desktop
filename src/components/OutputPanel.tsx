@@ -191,7 +191,7 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
 
   return (
     <div
-      className="flex flex-col bg-background-footer"
+      className="flex flex-col panel-footer"
       style={{ height: panelHeight }}
     >
       {/* Resize handle */}
@@ -209,7 +209,7 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
       </div>
       <Tab.Group as="div" className="flex flex-col flex-1 min-h-0">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-2 bg-background-footer shadow-panel-t border-b border-white/10 shrink-0">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-white/5 shrink-0">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
               {onCollapse && (
