@@ -113,7 +113,7 @@ export function NodePalette({ onCollapse }: NodePaletteProps) {
   }, [addNode]);
 
   return (
-    <div className="w-56 flex flex-col h-full bg-background-surface border-r border-white/5">
+    <div className="w-56 flex flex-col h-full bg-background-surface shadow-panel-r border-r border-white/10">
       <div className="p-4 border-b border-white/5">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold text-text-primary">Components</h3>

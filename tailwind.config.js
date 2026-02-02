@@ -57,6 +57,10 @@ export default {
       boxShadow: {
         glow: "0 4px 24px rgba(34, 211, 238, 0.1)",
         "glow-sm": "0 2px 12px rgba(34, 211, 238, 0.08)",
+        "panel-r": "2px 0 8px -2px rgba(0, 0, 0, 0.4)",
+        "panel-l": "-2px 0 8px -2px rgba(0, 0, 0, 0.4)",
+        "panel-t": "0 -2px 8px -2px rgba(0, 0, 0, 0.4)",
+        "panel-b": "0 2px 8px -2px rgba(0, 0, 0, 0.4)",
       },
       animation: {
         "pulse-glow": "pulse-glow 2s ease-in-out infinite",
