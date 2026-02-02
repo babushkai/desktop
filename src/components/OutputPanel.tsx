@@ -165,16 +165,18 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
 
   return (
     <div
-      className="flex flex-col bg-background border-t border-white/5"
+      className="flex flex-col bg-background relative"
       style={{ height: panelHeight }}
     >
-      {/* Resize handle */}
+      {/* Resize handle - positioned at top edge */}
       <div
-        className="h-1 cursor-row-resize hover:bg-accent/50 transition-colors group"
+        className="absolute -top-2 left-0 right-0 h-4 cursor-row-resize z-10 flex items-center justify-center group"
         onMouseDown={() => setIsResizing(true)}
       >
-        <div className="h-full w-12 mx-auto bg-white/20 group-hover:bg-accent rounded-full" />
+        <div className="w-20 h-1 bg-white/30 group-hover:bg-accent rounded-full transition-colors" />
       </div>
+      {/* Top border */}
+      <div className="h-px bg-white/10 shrink-0" />
       <Tab.Group>
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-2 bg-background-surface border-b border-white/5">
