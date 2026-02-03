@@ -14,12 +14,14 @@ import {
   RiHistoryLine,
   RiBox3Line,
   RiSearchEyeLine,
+  RiSettings3Line,
 } from "@remixicon/react";
 import { cn } from "@/lib/utils";
 import { MetricsPanel } from "./MetricsPanel";
 import { RunsPanel } from "./RunsPanel";
 import { ModelsPanel } from "./ModelsPanel";
 import { DataProfilePanel } from "./DataProfilePanel";
+import { TrialsPanel } from "./TrialsPanel";
 import { listModels } from "@/lib/tauri";
 
 interface StatusConfig {
@@ -109,6 +111,8 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
   const metrics = usePipelineStore((s) => s.metrics);
   const clearLogs = usePipelineStore((s) => s.clearLogs);
   const runHistory = usePipelineStore((s) => s.runHistory);
+  const tuningTrials = usePipelineStore((s) => s.tuningTrials);
+  const tuningNodeId = usePipelineStore((s) => s.tuningNodeId);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [startTime, setStartTime] = useState<Date | null>(null);
@@ -322,6 +326,26 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
                     </span>
                   )}
                 </Tab>
+                <Tab
+                  className={({ selected }) =>
+                    cn(
+                      "flex items-center gap-1.5 px-3 py-1 rounded-md text-sm font-medium transition-colors",
+                      "focus:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                      selected
+                        ? "bg-background-elevated text-text-primary"
+                        : "text-text-muted hover:text-text-secondary",
+                      tuningNodeId && "text-accent"
+                    )
+                  }
+                >
+                  <RiSettings3Line className="w-3.5 h-3.5" />
+                  Trials
+                  {tuningTrials.length > 0 && (
+                    <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-accent/20 text-accent">
+                      {tuningTrials.length > 99 ? "99+" : tuningTrials.length}
+                    </span>
+                  )}
+                </Tab>
               </Tab.List>
             </div>
 
@@ -414,6 +438,11 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
           {/* Models Panel */}
           <Tab.Panel className="h-full">
             <ModelsPanel />
+          </Tab.Panel>
+
+          {/* Trials Panel */}
+          <Tab.Panel className="h-full">
+            <TrialsPanel />
           </Tab.Panel>
         </Tab.Panels>
       </Tab.Group>

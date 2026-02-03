@@ -117,6 +117,116 @@ const [inputValue, setInputValue] = useState("");
 )}
 ```
 
+## Native Browser Elements vs Custom Components
+
+**Problem:** Native HTML elements (`<select>`, `<input type="date">`, `<input type="color">`, etc.) use OS-level rendering that ignores CSS styling. This creates visual inconsistency in dark-themed apps.
+
+**Solution:** Always use custom components from Headless UI for form controls that need consistent styling:
+
+```typescript
+// BAD - Native select ignores dark theme styling
+<select className="bg-background text-text-primary">
+  <option>Option 1</option>
+</select>
+
+// GOOD - Headless UI Listbox with full styling control
+import { Listbox } from "@headlessui/react";
+
+<Listbox value={selected} onChange={setSelected}>
+  <Listbox.Button className="bg-background text-text-primary ...">
+    {selected.label}
+  </Listbox.Button>
+  <Listbox.Options className="bg-background-surface ...">
+    {options.map((opt) => (
+      <Listbox.Option key={opt.value} value={opt} className={({ active }) =>
+        active ? "bg-accent/20 text-accent" : "text-text-primary"
+      }>
+        {opt.label}
+      </Listbox.Option>
+    ))}
+  </Listbox.Options>
+</Listbox>
+```
+
+**Components to replace:**
+- `<select>` → `Listbox` (Headless UI)
+- `<input type="checkbox">` → `Switch` or `Checkbox` (Headless UI)
+- `<input type="radio">` → `RadioGroup` (Headless UI)
+- Dropdowns/menus → `Menu` (Headless UI)
+- Modals → `Dialog` (Headless UI)
+
+## Code Generation Best Practices
+
+When generating code (Python, SQL, etc.) from TypeScript:
+
+### 1. Indentation in Template Strings
+Python is whitespace-sensitive. When embedding generated code into template strings, carefully manage indentation:
+
+```typescript
+// BAD - Indentation breaks when inserted
+function generateCode() {
+  const params = generateParams(); // Returns "    x = 1\n    y = 2"
+  return `
+def func():
+${params}  // Wrong! params already has 4 spaces, template adds none
+    print(x)
+`;
+}
+
+// GOOD - Match indentation to target location
+function generateParams(): string {
+  return lines.map(l => `        ${l}`).join("\n"); // 8 spaces for inside function
+}
+```
+
+### 2. Type Conversions Between Languages
+Always convert language-specific values when generating code:
+
+```typescript
+// JSON/TypeScript → Python conversions
+function toPythonValue(value: unknown): string {
+  if (value === null) return "None";      // null → None
+  if (value === true) return "True";      // true → True
+  if (value === false) return "False";    // false → False
+  if (typeof value === "string") return `"${value}"`;
+  return String(value);
+}
+
+// Don't use JSON.stringify() for Python code - it outputs null, not None
+```
+
+### 3. Test Generated Code
+Always test generated scripts manually before assuming they work:
+```bash
+python3 /path/to/generated/script.py
+```
+
+## Database Migration Debugging
+
+When SQLite migrations don't apply as expected:
+
+1. **Check current version:** `sqlite3 path/to/db "PRAGMA user_version;"`
+2. **List tables:** `sqlite3 path/to/db ".tables"`
+3. **Manual fix:** If version updated but tables missing, run CREATE TABLE manually
+4. **Location:** App database is at `~/Library/Application Support/com.mlops.desktop/settings.db`
+
+## Python Environment in Tauri
+
+The app uses system Python detected at runtime. Different Python installations may have different packages:
+
+```bash
+# Check which Python the app uses
+which python3
+
+# Verify package in correct Python
+/opt/homebrew/bin/python3 -c "import package_name"
+
+# Install for correct Python (macOS Homebrew)
+/opt/homebrew/bin/python3 -m pip install --break-system-packages package_name
+```
+
+**Tip:** When adding Python dependencies, always document the required packages and provide clear installation instructions in the UI.
+
 ## Plan Files
 
 Store plan files in the project's `.claude/plans/` folder, not the global `~/.claude/plans/`:

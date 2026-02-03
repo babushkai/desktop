@@ -24,7 +24,9 @@ export type ScriptEvent =
   | { type: "metrics"; modelType: string; data: MetricsData }
   | { type: "dataProfile"; nodeId: string; data: DataProfile }
   | { type: "complete" }
-  | { type: "exit"; code: number };
+  | { type: "exit"; code: number }
+  | { type: "trial"; trialNumber: number; params: Record<string, unknown>; score: number; durationMs?: number }
+  | { type: "tuningComplete"; bestParams: Record<string, unknown>; bestScore: number; totalTrials: number; durationMs?: number };
 
 export async function getPythonPath(): Promise<string | null> {
   return invoke<string | null>("get_python_path");
@@ -408,4 +410,97 @@ export async function runBatchInference(
     probabilities: allProbabilities.length > 0 ? allProbabilities : undefined,
     classes: lastClasses,
   };
+}
+
+// Tuning
+
+export async function checkPythonPackage(packageName: string): Promise<boolean> {
+  return invoke<boolean>("check_python_package", { package: packageName });
+}
+
+export interface TuningSession {
+  id: string;
+  run_id: string;
+  sampler: string;
+  search_space: string;
+  n_trials?: number;
+  cv_folds: number;
+  scoring_metric: string;
+  status: string;
+  best_trial_id?: string;
+  created_at: string;
+  completed_at?: string;
+}
+
+export interface TuningTrial {
+  id: string;
+  session_id: string;
+  trial_number: number;
+  hyperparameters: string;
+  score?: number;
+  duration_ms?: number;
+  status: string;
+  error_message?: string;
+  created_at: string;
+}
+
+export async function createTuningSession(
+  runId: string,
+  sampler: string,
+  searchSpace: string,
+  nTrials: number | null,
+  cvFolds: number,
+  scoringMetric: string
+): Promise<string> {
+  return invoke<string>("create_tuning_session", {
+    runId,
+    sampler,
+    searchSpace,
+    nTrials,
+    cvFolds,
+    scoringMetric,
+  });
+}
+
+export async function completeTuningSession(
+  sessionId: string,
+  bestTrialId?: string
+): Promise<void> {
+  return invoke("complete_tuning_session", { sessionId, bestTrialId });
+}
+
+export async function cancelTuningSession(sessionId: string): Promise<void> {
+  return invoke("cancel_tuning_session", { sessionId });
+}
+
+export async function getTuningSession(sessionId: string): Promise<TuningSession | null> {
+  return invoke<TuningSession | null>("get_tuning_session", { sessionId });
+}
+
+export async function getTuningSessionByRun(runId: string): Promise<TuningSession | null> {
+  return invoke<TuningSession | null>("get_tuning_session_by_run", { runId });
+}
+
+export async function saveTuningTrial(
+  sessionId: string,
+  trialNumber: number,
+  hyperparameters: string,
+  score?: number,
+  durationMs?: number
+): Promise<string> {
+  return invoke<string>("save_tuning_trial", {
+    sessionId,
+    trialNumber,
+    hyperparameters,
+    score,
+    durationMs,
+  });
+}
+
+export async function listTuningTrials(sessionId: string): Promise<TuningTrial[]> {
+  return invoke<TuningTrial[]>("list_tuning_trials", { sessionId });
+}
+
+export async function getBestTrial(sessionId: string): Promise<TuningTrial | null> {
+  return invoke<TuningTrial | null>("get_best_trial", { sessionId });
 }

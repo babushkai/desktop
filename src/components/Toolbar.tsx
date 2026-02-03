@@ -81,6 +81,9 @@ export function Toolbar({
     profilingNodeId,
     setProfilingStatus,
     setProfilingNodeId,
+    tuningNodeId,
+    setTuningNodeId,
+    setTuningStatus,
   } = usePipelineStore();
 
   const [isEditingPath, setIsEditingPath] = useState(false);
@@ -360,6 +363,17 @@ export function Toolbar({
       appendLog(`ERROR: ${error}`);
     }
   }, [appendLog, profilingNodeId, setProfilingStatus, setProfilingNodeId]);
+
+  const handleCancelTuning = useCallback(async () => {
+    try {
+      await cancelScript();
+      appendLog("--- Tuning cancelled ---");
+      setTuningStatus("cancelled");
+      setTuningNodeId(null);
+    } catch (error) {
+      appendLog(`ERROR: ${error}`);
+    }
+  }, [appendLog, setTuningStatus, setTuningNodeId]);
 
   const handleSavePythonPath = useCallback(async () => {
     await setPythonPath(pathInput);
@@ -641,7 +655,12 @@ export function Toolbar({
       )}
 
       {/* Run/Cancel buttons */}
-      {profilingNodeId ? (
+      {tuningNodeId ? (
+        <button onClick={handleCancelTuning} className="btn-destructive">
+          <RiStopFill className="w-4 h-4" />
+          Cancel Tuning
+        </button>
+      ) : profilingNodeId ? (
         <button onClick={handleCancelProfiling} className="btn-destructive">
           <RiStopFill className="w-4 h-4" />
           Cancel Profile
@@ -654,7 +673,7 @@ export function Toolbar({
       ) : (
         <button
           onClick={handleRun}
-          disabled={!isRunnable || profilingNodeId !== null}
+          disabled={!isRunnable || profilingNodeId !== null || tuningNodeId !== null}
           className="btn-primary"
         >
           <RiPlayFill className="w-4 h-4" />

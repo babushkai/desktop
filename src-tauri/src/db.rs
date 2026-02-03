@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Mutex;
 
-const DB_VERSION: i32 = 4; // v1 = settings+pipelines, v2 = +runs+metrics, v3 = +models+model_versions, v4 = +feature_names
+const DB_VERSION: i32 = 5; // v1 = settings+pipelines, v2 = +runs+metrics, v3 = +models+model_versions, v4 = +feature_names, v5 = +tuning_sessions+tuning_trials
 
 #[derive(Serialize, Deserialize)]
 pub struct PipelineMetadata {
@@ -58,6 +58,34 @@ pub struct ModelVersion {
     pub feature_names: Option<String>, // JSON array of feature names
     pub created_at: String,
     pub promoted_at: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct TuningSession {
+    pub id: String,
+    pub run_id: String,
+    pub sampler: String,
+    pub search_space: String, // JSON
+    pub n_trials: Option<i32>,
+    pub cv_folds: i32,
+    pub scoring_metric: String,
+    pub status: String,
+    pub best_trial_id: Option<String>,
+    pub created_at: String,
+    pub completed_at: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct TuningTrial {
+    pub id: String,
+    pub session_id: String,
+    pub trial_number: i32,
+    pub hyperparameters: String, // JSON
+    pub score: Option<f64>,
+    pub duration_ms: Option<i64>,
+    pub status: String,
+    pub error_message: Option<String>,
+    pub created_at: String,
 }
 
 static DB: std::sync::OnceLock<Mutex<Connection>> = std::sync::OnceLock::new();
@@ -184,6 +212,53 @@ pub fn init_db(app_data_dir: &Path) -> Result<()> {
     if version < 4 {
         conn.execute(
             "ALTER TABLE model_versions ADD COLUMN feature_names TEXT",
+            [],
+        )?;
+    }
+
+    // v5 tables (tuning_sessions, tuning_trials)
+    if version < 5 {
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS tuning_sessions (
+                id TEXT PRIMARY KEY,
+                run_id TEXT NOT NULL,
+                sampler TEXT NOT NULL,
+                search_space TEXT NOT NULL,
+                n_trials INTEGER,
+                cv_folds INTEGER DEFAULT 3,
+                scoring_metric TEXT NOT NULL,
+                status TEXT DEFAULT 'pending',
+                best_trial_id TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                completed_at TEXT,
+                FOREIGN KEY (run_id) REFERENCES runs(id) ON DELETE CASCADE
+            )",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS tuning_trials (
+                id TEXT PRIMARY KEY,
+                session_id TEXT NOT NULL,
+                trial_number INTEGER NOT NULL,
+                hyperparameters TEXT NOT NULL,
+                score REAL,
+                duration_ms INTEGER,
+                status TEXT DEFAULT 'pending',
+                error_message TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES tuning_sessions(id) ON DELETE CASCADE
+            )",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_trials_session ON tuning_trials(session_id)",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_trials_score ON tuning_trials(session_id, score DESC)",
             [],
         )?;
     }
@@ -700,6 +775,181 @@ pub fn get_model_version(version_id: &str) -> Result<Option<ModelVersion>> {
     );
     match result {
         Ok(version) => Ok(Some(version)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+// Tuning Session CRUD operations
+
+pub fn create_tuning_session(
+    id: &str,
+    run_id: &str,
+    sampler: &str,
+    search_space: &str,
+    n_trials: Option<i32>,
+    cv_folds: i32,
+    scoring_metric: &str,
+) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    conn.execute(
+        "INSERT INTO tuning_sessions (id, run_id, sampler, search_space, n_trials, cv_folds, scoring_metric, status, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 'running', datetime('now'))",
+        rusqlite::params![id, run_id, sampler, search_space, n_trials, cv_folds, scoring_metric],
+    )?;
+    Ok(())
+}
+
+pub fn update_tuning_session(
+    id: &str,
+    status: &str,
+    best_trial_id: Option<&str>,
+) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    let now = chrono::Utc::now().to_rfc3339();
+    conn.execute(
+        "UPDATE tuning_sessions SET status = ?2, best_trial_id = ?3, completed_at = ?4 WHERE id = ?1",
+        rusqlite::params![id, status, best_trial_id, now],
+    )?;
+    Ok(())
+}
+
+pub fn get_tuning_session(session_id: &str) -> Result<Option<TuningSession>> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    let result = conn.query_row(
+        "SELECT id, run_id, sampler, search_space, n_trials, cv_folds, scoring_metric, status, best_trial_id, created_at, completed_at
+         FROM tuning_sessions WHERE id = ?1",
+        [session_id],
+        |row| {
+            Ok(TuningSession {
+                id: row.get(0)?,
+                run_id: row.get(1)?,
+                sampler: row.get(2)?,
+                search_space: row.get(3)?,
+                n_trials: row.get(4)?,
+                cv_folds: row.get(5)?,
+                scoring_metric: row.get(6)?,
+                status: row.get(7)?,
+                best_trial_id: row.get(8)?,
+                created_at: row.get(9)?,
+                completed_at: row.get(10)?,
+            })
+        },
+    );
+    match result {
+        Ok(session) => Ok(Some(session)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+pub fn get_tuning_session_by_run(run_id: &str) -> Result<Option<TuningSession>> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    let result = conn.query_row(
+        "SELECT id, run_id, sampler, search_space, n_trials, cv_folds, scoring_metric, status, best_trial_id, created_at, completed_at
+         FROM tuning_sessions WHERE run_id = ?1",
+        [run_id],
+        |row| {
+            Ok(TuningSession {
+                id: row.get(0)?,
+                run_id: row.get(1)?,
+                sampler: row.get(2)?,
+                search_space: row.get(3)?,
+                n_trials: row.get(4)?,
+                cv_folds: row.get(5)?,
+                scoring_metric: row.get(6)?,
+                status: row.get(7)?,
+                best_trial_id: row.get(8)?,
+                created_at: row.get(9)?,
+                completed_at: row.get(10)?,
+            })
+        },
+    );
+    match result {
+        Ok(session) => Ok(Some(session)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+// Tuning Trial CRUD operations
+
+pub fn create_tuning_trial(
+    id: &str,
+    session_id: &str,
+    trial_number: i32,
+    hyperparameters: &str,
+    score: Option<f64>,
+    duration_ms: Option<i64>,
+    status: &str,
+) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    conn.execute(
+        "INSERT INTO tuning_trials (id, session_id, trial_number, hyperparameters, score, duration_ms, status, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, datetime('now'))",
+        rusqlite::params![id, session_id, trial_number, hyperparameters, score, duration_ms, status],
+    )?;
+    Ok(())
+}
+
+pub fn list_tuning_trials(session_id: &str) -> Result<Vec<TuningTrial>> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    let mut stmt = conn.prepare(
+        "SELECT id, session_id, trial_number, hyperparameters, score, duration_ms, status, error_message, created_at
+         FROM tuning_trials WHERE session_id = ?1 ORDER BY trial_number ASC"
+    )?;
+    let rows = stmt.query_map([session_id], |row| {
+        Ok(TuningTrial {
+            id: row.get(0)?,
+            session_id: row.get(1)?,
+            trial_number: row.get(2)?,
+            hyperparameters: row.get(3)?,
+            score: row.get(4)?,
+            duration_ms: row.get(5)?,
+            status: row.get(6)?,
+            error_message: row.get(7)?,
+            created_at: row.get(8)?,
+        })
+    })?;
+    rows.collect()
+}
+
+pub fn get_best_trial(session_id: &str) -> Result<Option<TuningTrial>> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    let result = conn.query_row(
+        "SELECT id, session_id, trial_number, hyperparameters, score, duration_ms, status, error_message, created_at
+         FROM tuning_trials WHERE session_id = ?1 AND score IS NOT NULL ORDER BY score DESC LIMIT 1",
+        [session_id],
+        |row| {
+            Ok(TuningTrial {
+                id: row.get(0)?,
+                session_id: row.get(1)?,
+                trial_number: row.get(2)?,
+                hyperparameters: row.get(3)?,
+                score: row.get(4)?,
+                duration_ms: row.get(5)?,
+                status: row.get(6)?,
+                error_message: row.get(7)?,
+                created_at: row.get(8)?,
+            })
+        },
+    );
+    match result {
+        Ok(trial) => Ok(Some(trial)),
         Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
         Err(e) => Err(e),
     }

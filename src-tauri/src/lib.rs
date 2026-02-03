@@ -56,6 +56,16 @@ pub fn run() {
             commands::stop_inference_server,
             commands::get_inference_server_status,
             commands::run_inference,
+            // Tuning
+            commands::check_python_package,
+            commands::create_tuning_session,
+            commands::complete_tuning_session,
+            commands::cancel_tuning_session,
+            commands::get_tuning_session,
+            commands::get_tuning_session_by_run,
+            commands::save_tuning_trial,
+            commands::list_tuning_trials,
+            commands::get_best_trial,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
