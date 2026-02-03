@@ -709,3 +709,108 @@ export async function getModelVersionsForComparison(
 export async function getComparableVersions(modelId: string): Promise<ModelVersion[]> {
   return invoke<ModelVersion[]>("get_comparable_versions", { modelId });
 }
+
+// HTTP Server (v10)
+
+export interface HttpServerConfig {
+  host: string;
+  port: number;
+  use_onnx: boolean;
+  cors_origins?: string[];
+}
+
+export interface HttpServerStatus {
+  running: boolean;
+  host?: string;
+  port?: number;
+  version_id?: string;
+  model_name?: string;
+  runtime?: string;
+  model_info?: ModelInfo;
+  url?: string;
+}
+
+export interface HttpRequestLog {
+  id: string;
+  timestamp: number;
+  method: string;
+  path: string;
+  status_code: number;
+  latency_ms: number;
+  batch_size: number;
+}
+
+export interface HttpServerMetrics {
+  total_requests: number;
+  successful_requests: number;
+  failed_requests: number;
+  avg_latency_ms: number;
+  requests_per_minute: number;
+  recent_requests: HttpRequestLog[];
+}
+
+export interface HttpServerError {
+  code: string;
+  message: string;
+}
+
+export async function startHttpServer(
+  versionId: string,
+  config?: Partial<HttpServerConfig>
+): Promise<HttpServerStatus> {
+  const fullConfig: HttpServerConfig = {
+    host: config?.host ?? "127.0.0.1",
+    port: config?.port ?? 8080,
+    use_onnx: config?.use_onnx ?? false,
+    cors_origins: config?.cors_origins,
+  };
+  return invoke<HttpServerStatus>("start_http_server", { versionId, config: fullConfig });
+}
+
+export async function stopHttpServer(): Promise<void> {
+  return invoke("stop_http_server");
+}
+
+export async function getHttpServerStatus(): Promise<HttpServerStatus> {
+  return invoke<HttpServerStatus>("get_http_server_status");
+}
+
+export async function getHttpServerMetrics(): Promise<HttpServerMetrics> {
+  return invoke<HttpServerMetrics>("get_http_server_metrics");
+}
+
+export async function resetHttpServerMetrics(): Promise<void> {
+  return invoke("reset_http_server_metrics");
+}
+
+export async function getServingVersionId(): Promise<string | null> {
+  return invoke<string | null>("get_serving_version_id");
+}
+
+export async function deleteModelVersionSafe(versionId: string): Promise<void> {
+  return invoke("delete_model_version_safe", { versionId });
+}
+
+export async function listenToHttpRequestLog(
+  callback: (log: HttpRequestLog) => void
+): Promise<UnlistenFn> {
+  return listen<HttpRequestLog>("http-request-log", (event) => {
+    callback(event.payload);
+  });
+}
+
+export async function listenToHttpServerError(
+  callback: (error: HttpServerError) => void
+): Promise<UnlistenFn> {
+  return listen<HttpServerError>("http-server-error", (event) => {
+    callback(event.payload);
+  });
+}
+
+export async function listenToHttpServerLog(
+  callback: (log: string) => void
+): Promise<UnlistenFn> {
+  return listen<string>("http-server-log", (event) => {
+    callback(event.payload);
+  });
+}
