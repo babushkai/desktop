@@ -258,6 +258,8 @@ ${paramExtraction}
 
     # Run optimization
     ${optimizeCall}
+    sys.stdout.flush()
+    sys.stderr.flush()
 
     total_duration = int((time.time() - start_time) * 1000)
 
@@ -418,6 +420,8 @@ ${paramExtraction}
 
     # Run optimization
     ${optimizeCall}
+    sys.stdout.flush()
+    sys.stderr.flush()
 
     total_duration = int((time.time() - start_time) * 1000)
 
