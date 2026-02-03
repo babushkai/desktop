@@ -11,6 +11,7 @@ import {
   RiEyeLine,
   RiCheckLine,
   RiLineChartLine,
+  RiServerLine,
 } from "@remixicon/react";
 import {
   listModels,
@@ -23,6 +24,7 @@ import {
   ModelVersion,
 } from "@/lib/tauri";
 import { cn } from "@/lib/utils";
+import { usePipelineStore } from "@/stores/pipelineStore";
 import { ModelDetailsModal } from "./ModelDetailsModal";
 import { VersionComparisonModal } from "./VersionComparisonModal";
 
@@ -329,6 +331,7 @@ interface ModelRowProps {
   onStageChange: (versionId: string, stage: string) => void;
   onViewDetails: (version: ModelVersion) => void;
   onCompareVersions: () => void;
+  onServe: (versionId: string) => void;
 }
 
 function ModelRow({
@@ -340,6 +343,7 @@ function ModelRow({
   onStageChange,
   onViewDetails,
   onCompareVersions,
+  onServe,
 }: ModelRowProps) {
   const [versions, setVersions] = useState<ModelVersion[]>([]);
   const [loadingVersions, setLoadingVersions] = useState(false);
@@ -508,6 +512,13 @@ function ModelRow({
                         <td className="px-3 py-2">
                           <div className="flex items-center gap-1">
                             <button
+                              onClick={() => onServe(version.id)}
+                              className="p-1 rounded hover:bg-accent/20 text-text-muted hover:text-accent"
+                              title="Serve this model"
+                            >
+                              <RiServerLine className="w-3.5 h-3.5" />
+                            </button>
+                            <button
                               onClick={() => onViewDetails(version)}
                               className="p-1 rounded hover:bg-white/10 text-text-muted hover:text-text-primary"
                               title="View details"
@@ -537,6 +548,7 @@ function ModelRow({
 }
 
 export function ModelsPanel() {
+  const openServingPanel = usePipelineStore((s) => s.openServingPanel);
   const [models, setModels] = useState<ModelMetadata[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedModelId, setExpandedModelId] = useState<string | null>(null);
@@ -702,6 +714,7 @@ export function ModelsPanel() {
                     onStageChange={handleStageChange}
                     onViewDetails={setSelectedVersion}
                     onCompareVersions={() => setComparisonModel({ id: model.id, name: model.name })}
+                    onServe={openServingPanel}
                   />
                 ))}
               </tbody>

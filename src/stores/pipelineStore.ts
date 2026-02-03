@@ -170,6 +170,13 @@ interface PipelineState {
   clearExplainData: (runId: string) => void;
   getExplainData: (runId: string) => ExplainData | null;
 
+  // HTTP Server serving (v10)
+  servingVersionId: string | null;
+  servingPanelOpen: boolean;
+  setServingVersionId: (versionId: string | null) => void;
+  openServingPanel: (versionId?: string) => void;
+  closeServingPanel: () => void;
+
   // Node operations
   addNode: (type: "dataLoader" | "script" | "trainer" | "evaluator" | "modelExporter" | "dataSplit", position: { x: number; y: number }) => void;
   deleteNodes: (nodeIds: string[]) => void;
@@ -255,6 +262,8 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   explainRunId: null,
   explainStatus: "idle",
   explainProgress: null,
+  servingVersionId: null,
+  servingPanelOpen: false,
 
   setSelectedNodeId: (id) => set({ selectedNodeId: id }),
 
@@ -338,6 +347,19 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
     const state = get();
     return state.explainDataByRun[runId] || null;
   },
+
+  // HTTP Server serving actions
+  setServingVersionId: (versionId) => set({ servingVersionId: versionId }),
+
+  openServingPanel: (versionId) =>
+    set({
+      servingPanelOpen: true,
+      servingVersionId: versionId ?? null,
+      playgroundOpen: false,
+      selectedNodeId: null,
+    }),
+
+  closeServingPanel: () => set({ servingPanelOpen: false }),
 
   addNode: (type, position) => {
     const id = `${type}-${++nodeIdCounter}`;

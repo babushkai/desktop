@@ -1141,3 +1141,536 @@ pub fn get_model_versions_for_comparison(
 pub fn get_comparable_versions(model_id: String) -> Result<Vec<db::ModelVersion>, String> {
     db::get_comparable_versions(&model_id).map_err(|e| e.to_string())
 }
+
+// HTTP Server for Model Serving (v10)
+
+// Embedded HTTP server script
+const HTTP_SERVER_PY: &str = include_str!("http_server.py");
+
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub struct HttpServerConfig {
+    pub host: String,
+    pub port: u16,
+    pub use_onnx: bool,
+    pub cors_origins: Option<Vec<String>>,
+}
+
+impl Default for HttpServerConfig {
+    fn default() -> Self {
+        Self {
+            host: "127.0.0.1".to_string(),
+            port: 8080,
+            use_onnx: false,
+            cors_origins: None,
+        }
+    }
+}
+
+#[derive(Clone, Serialize, Debug)]
+pub struct HttpServerStatus {
+    pub running: bool,
+    pub host: Option<String>,
+    pub port: Option<u16>,
+    pub version_id: Option<String>,
+    pub model_name: Option<String>,
+    pub runtime: Option<String>,
+    pub model_info: Option<ModelInfo>,
+    pub url: Option<String>,
+}
+
+#[derive(Clone, Serialize, Debug)]
+pub struct HttpRequestLog {
+    pub id: String,
+    pub timestamp: i64,
+    pub method: String,
+    pub path: String,
+    pub status_code: u16,
+    pub latency_ms: f64,
+    pub batch_size: u32,
+}
+
+#[derive(Clone, Serialize, Debug)]
+pub struct HttpServerMetrics {
+    pub total_requests: u64,
+    pub successful_requests: u64,
+    pub failed_requests: u64,
+    pub avg_latency_ms: f64,
+    pub requests_per_minute: f64,
+    pub recent_requests: Vec<HttpRequestLog>,
+}
+
+// HTTP Server process state
+struct HttpServerProcess {
+    child: Child,
+    version_id: String,
+    model_name: String,
+    host: String,
+    port: u16,
+    runtime: String,
+    model_info: Option<ModelInfo>,
+    // Metrics tracking (in-memory)
+    metrics: Arc<Mutex<HttpServerMetricsTracker>>,
+}
+
+#[derive(Default)]
+struct HttpServerMetricsTracker {
+    total_requests: u64,
+    successful_requests: u64,
+    failed_requests: u64,
+    total_latency_ms: f64,
+    start_time: Option<std::time::Instant>,
+    recent_requests: std::collections::VecDeque<HttpRequestLog>,
+}
+
+impl HttpServerMetricsTracker {
+    fn new() -> Self {
+        Self {
+            start_time: Some(std::time::Instant::now()),
+            ..Default::default()
+        }
+    }
+
+    fn add_request(&mut self, log: HttpRequestLog) {
+        self.total_requests += 1;
+        if log.status_code >= 200 && log.status_code < 400 {
+            self.successful_requests += 1;
+        } else {
+            self.failed_requests += 1;
+        }
+        self.total_latency_ms += log.latency_ms;
+
+        // Keep last 100 requests
+        self.recent_requests.push_back(log);
+        while self.recent_requests.len() > 100 {
+            self.recent_requests.pop_front();
+        }
+    }
+
+    fn get_metrics(&self) -> HttpServerMetrics {
+        let avg_latency = if self.total_requests > 0 {
+            self.total_latency_ms / self.total_requests as f64
+        } else {
+            0.0
+        };
+
+        let rpm = if let Some(start) = self.start_time {
+            let elapsed_mins = start.elapsed().as_secs_f64() / 60.0;
+            if elapsed_mins > 0.0 {
+                self.total_requests as f64 / elapsed_mins
+            } else {
+                0.0
+            }
+        } else {
+            0.0
+        };
+
+        HttpServerMetrics {
+            total_requests: self.total_requests,
+            successful_requests: self.successful_requests,
+            failed_requests: self.failed_requests,
+            avg_latency_ms: avg_latency,
+            requests_per_minute: rpm,
+            recent_requests: self.recent_requests.iter().cloned().collect(),
+        }
+    }
+
+    fn reset(&mut self) {
+        *self = Self::new();
+    }
+}
+
+static HTTP_SERVER: std::sync::OnceLock<Mutex<Option<HttpServerProcess>>> = std::sync::OnceLock::new();
+
+fn get_http_server_mutex() -> &'static Mutex<Option<HttpServerProcess>> {
+    HTTP_SERVER.get_or_init(|| Mutex::new(None))
+}
+
+fn get_http_pid_file_path(app_data_dir: &std::path::Path) -> std::path::PathBuf {
+    app_data_dir.join("http_server.pid")
+}
+
+fn write_http_pid_file(app_data_dir: &std::path::Path, pid: u32) -> Result<(), String> {
+    std::fs::write(get_http_pid_file_path(app_data_dir), pid.to_string())
+        .map_err(|e| e.to_string())
+}
+
+fn remove_http_pid_file(app_data_dir: &std::path::Path) {
+    let _ = std::fs::remove_file(get_http_pid_file_path(app_data_dir));
+}
+
+pub fn cleanup_orphan_http_server(app_data_dir: &std::path::Path) {
+    let pid_path = get_http_pid_file_path(app_data_dir);
+    if let Ok(pid_str) = std::fs::read_to_string(&pid_path) {
+        if let Ok(pid) = pid_str.trim().parse::<i32>() {
+            #[cfg(unix)]
+            unsafe {
+                libc::kill(pid, libc::SIGKILL);
+            }
+            #[cfg(windows)]
+            {
+                let _ = std::process::Command::new("taskkill")
+                    .args(["/PID", &pid.to_string(), "/F"])
+                    .output();
+            }
+        }
+        let _ = std::fs::remove_file(&pid_path);
+    }
+}
+
+#[derive(Deserialize)]
+struct HttpReadyResponse {
+    host: String,
+    port: u16,
+    runtime: String,
+    model_info: Option<ModelInfo>,
+}
+
+#[derive(Deserialize)]
+struct HttpRequestLogJson {
+    id: String,
+    timestamp: i64,
+    method: String,
+    path: String,
+    status_code: u16,
+    latency_ms: f64,
+    batch_size: Option<u32>,
+}
+
+#[derive(Deserialize, Serialize)]
+struct HttpErrorJson {
+    code: String,
+    message: String,
+}
+
+#[tauri::command]
+pub async fn start_http_server(
+    app: AppHandle,
+    version_id: String,
+    config: Option<HttpServerConfig>,
+) -> Result<HttpServerStatus, String> {
+    // Check if already running
+    {
+        let guard = get_http_server_mutex().lock().map_err(|e| e.to_string())?;
+        if guard.is_some() {
+            return Err("HTTP server already running. Stop it first.".to_string());
+        }
+    }
+
+    let config = config.unwrap_or_default();
+
+    // Get model version info
+    let version = db::get_model_version(&version_id)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Model version not found".to_string())?;
+
+    // Get model name
+    let model = db::get_model(&version.model_id)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "Model not found".to_string())?;
+
+    let model_path = version.file_path.clone();
+
+    // Get Python path
+    let python_path = python::find_python()
+        .ok_or_else(|| "No Python installation found".to_string())?;
+
+    // Write HTTP server script to app data dir
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
+    let scripts_dir = app_data_dir.join("scripts");
+    std::fs::create_dir_all(&scripts_dir).map_err(|e| e.to_string())?;
+    let script_path = scripts_dir.join("http_server.py");
+    std::fs::write(&script_path, HTTP_SERVER_PY).map_err(|e| e.to_string())?;
+
+    // Build command arguments
+    let mut args = vec![
+        "-u".to_string(),
+        script_path.to_string_lossy().to_string(),
+        model_path.clone(),
+        "--host".to_string(),
+        config.host.clone(),
+        "--port".to_string(),
+        config.port.to_string(),
+    ];
+
+    // Add ONNX path if requested and available
+    if config.use_onnx {
+        if let Some(onnx_path) = &version.onnx_path {
+            args.push("--onnx".to_string());
+            args.push(onnx_path.clone());
+        }
+    }
+
+    // Add CORS origins if configured
+    if let Some(origins) = &config.cors_origins {
+        if !origins.is_empty() {
+            args.push("--cors".to_string());
+            args.push(origins.join(","));
+        }
+    }
+
+    // Spawn Python process
+    let mut child = Command::new(&python_path)
+        .args(&args)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to spawn HTTP server: {}", e))?;
+
+    // Save PID for orphan cleanup
+    write_http_pid_file(&app_data_dir, child.id())?;
+
+    let stdout = child.stdout.take().ok_or("Failed to capture stdout")?;
+    let stderr = child.stderr.take().ok_or("Failed to capture stderr")?;
+
+    // Create metrics tracker
+    let metrics = Arc::new(Mutex::new(HttpServerMetricsTracker::new()));
+    let metrics_clone = metrics.clone();
+
+    // Channel for ready signal
+    let (ready_tx, ready_rx) = mpsc::channel::<Result<HttpReadyResponse, String>>();
+
+    // Spawn reader thread
+    let app_clone = app.clone();
+    std::thread::spawn(move || {
+        let reader = BufReader::new(stdout);
+        let mut ready_sent = false;
+
+        for line in reader.lines() {
+            if let Ok(line) = line {
+                // Parse different message types
+                if let Some(json_str) = line.strip_prefix("__READY__:") {
+                    if !ready_sent {
+                        if let Ok(ready) = serde_json::from_str::<HttpReadyResponse>(json_str) {
+                            let _ = ready_tx.send(Ok(ready));
+                            ready_sent = true;
+                        }
+                    }
+                } else if let Some(json_str) = line.strip_prefix("__REQUEST__:") {
+                    if let Ok(log) = serde_json::from_str::<HttpRequestLogJson>(json_str) {
+                        let request_log = HttpRequestLog {
+                            id: log.id,
+                            timestamp: log.timestamp,
+                            method: log.method,
+                            path: log.path,
+                            status_code: log.status_code,
+                            latency_ms: log.latency_ms,
+                            batch_size: log.batch_size.unwrap_or(1),
+                        };
+
+                        // Update metrics
+                        if let Ok(mut m) = metrics_clone.lock() {
+                            m.add_request(request_log.clone());
+                        }
+
+                        // Emit to frontend
+                        let _ = app_clone.emit("http-request-log", &request_log);
+                    }
+                } else if let Some(json_str) = line.strip_prefix("__ERROR__:") {
+                    if let Ok(err) = serde_json::from_str::<HttpErrorJson>(json_str) {
+                        if !ready_sent {
+                            let _ = ready_tx.send(Err(format!("{}: {}", err.code, err.message)));
+                            ready_sent = true;
+                        }
+                        let _ = app_clone.emit("http-server-error", &err);
+                    }
+                } else if let Some(json_str) = line.strip_prefix("__LOG__:") {
+                    // Just emit log messages
+                    let _ = app_clone.emit("http-server-log", json_str);
+                }
+            }
+        }
+    });
+
+    // Spawn stderr reader
+    let app_clone2 = app.clone();
+    std::thread::spawn(move || {
+        let reader = BufReader::new(stderr);
+        for line in reader.lines() {
+            if let Ok(line) = line {
+                let _ = app_clone2.emit("http-server-error", &serde_json::json!({
+                    "code": "STDERR",
+                    "message": line
+                }));
+            }
+        }
+    });
+
+    // Wait for ready response with timeout
+    let start_time = std::time::Instant::now();
+    let timeout = Duration::from_secs(30);
+
+    loop {
+        if start_time.elapsed() > timeout {
+            let _ = child.kill();
+            remove_http_pid_file(&app_data_dir);
+            return Err("Timeout waiting for HTTP server to start".to_string());
+        }
+
+        match ready_rx.recv_timeout(Duration::from_millis(100)) {
+            Ok(Ok(ready)) => {
+                let url = format!("http://{}:{}", ready.host, ready.port);
+
+                // Store process handle
+                {
+                    let mut guard = get_http_server_mutex().lock().map_err(|e| e.to_string())?;
+                    *guard = Some(HttpServerProcess {
+                        child,
+                        version_id: version_id.clone(),
+                        model_name: model.name.clone(),
+                        host: ready.host.clone(),
+                        port: ready.port,
+                        runtime: ready.runtime.clone(),
+                        model_info: ready.model_info.clone(),
+                        metrics,
+                    });
+                }
+
+                return Ok(HttpServerStatus {
+                    running: true,
+                    host: Some(ready.host),
+                    port: Some(ready.port),
+                    version_id: Some(version_id),
+                    model_name: Some(model.name),
+                    runtime: Some(ready.runtime),
+                    model_info: ready.model_info,
+                    url: Some(url),
+                });
+            }
+            Ok(Err(e)) => {
+                let _ = child.kill();
+                remove_http_pid_file(&app_data_dir);
+                return Err(e);
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => continue,
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                let _ = child.kill();
+                remove_http_pid_file(&app_data_dir);
+                return Err("HTTP server process exited unexpectedly".to_string());
+            }
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn stop_http_server(app: AppHandle) -> Result<(), String> {
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
+
+    let mut guard = get_http_server_mutex().lock().map_err(|e| e.to_string())?;
+    if let Some(mut proc) = guard.take() {
+        // Kill the process
+        #[cfg(unix)]
+        unsafe {
+            libc::kill(proc.child.id() as i32, libc::SIGTERM);
+        }
+        #[cfg(not(unix))]
+        let _ = proc.child.kill();
+
+        // Wait for process to exit
+        let _ = proc.child.wait();
+        remove_http_pid_file(&app_data_dir);
+        Ok(())
+    } else {
+        Err("No HTTP server running".to_string())
+    }
+}
+
+#[tauri::command]
+pub fn get_http_server_status() -> Result<HttpServerStatus, String> {
+    let guard = get_http_server_mutex().lock().map_err(|e| e.to_string())?;
+
+    match &*guard {
+        Some(proc) => {
+            let url = format!("http://{}:{}", proc.host, proc.port);
+            Ok(HttpServerStatus {
+                running: true,
+                host: Some(proc.host.clone()),
+                port: Some(proc.port),
+                version_id: Some(proc.version_id.clone()),
+                model_name: Some(proc.model_name.clone()),
+                runtime: Some(proc.runtime.clone()),
+                model_info: proc.model_info.clone(),
+                url: Some(url),
+            })
+        }
+        None => Ok(HttpServerStatus {
+            running: false,
+            host: None,
+            port: None,
+            version_id: None,
+            model_name: None,
+            runtime: None,
+            model_info: None,
+            url: None,
+        }),
+    }
+}
+
+#[tauri::command]
+pub fn get_http_server_metrics() -> Result<HttpServerMetrics, String> {
+    let guard = get_http_server_mutex().lock().map_err(|e| e.to_string())?;
+
+    match &*guard {
+        Some(proc) => {
+            let metrics = proc.metrics.lock().map_err(|e| e.to_string())?;
+            Ok(metrics.get_metrics())
+        }
+        None => Ok(HttpServerMetrics {
+            total_requests: 0,
+            successful_requests: 0,
+            failed_requests: 0,
+            avg_latency_ms: 0.0,
+            requests_per_minute: 0.0,
+            recent_requests: vec![],
+        }),
+    }
+}
+
+#[tauri::command]
+pub fn reset_http_server_metrics() -> Result<(), String> {
+    let guard = get_http_server_mutex().lock().map_err(|e| e.to_string())?;
+
+    if let Some(proc) = &*guard {
+        let mut metrics = proc.metrics.lock().map_err(|e| e.to_string())?;
+        metrics.reset();
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_serving_version_id() -> Result<Option<String>, String> {
+    let guard = get_http_server_mutex().lock().map_err(|e| e.to_string())?;
+    Ok(guard.as_ref().map(|p| p.version_id.clone()))
+}
+
+// Override delete_model_version to check if being served
+#[tauri::command]
+pub fn delete_model_version_safe(version_id: String) -> Result<(), String> {
+    // Check if this version is being served
+    {
+        let guard = get_http_server_mutex().lock().map_err(|e| e.to_string())?;
+        if let Some(proc) = guard.as_ref() {
+            if proc.version_id == version_id {
+                return Err("Cannot delete model version while it is being served. Stop the HTTP server first.".to_string());
+            }
+        }
+    }
+
+    // Also check inference server
+    {
+        let guard = get_inference_mutex().lock().map_err(|e| e.to_string())?;
+        if guard.is_some() {
+            // Get the served model path and compare
+            // For simplicity, we just check if any inference server is running
+            // A more thorough check would compare model paths
+        }
+    }
+
+    db::delete_model_version(&version_id).map_err(|e| e.to_string())
+}

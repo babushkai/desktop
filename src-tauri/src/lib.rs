@@ -17,8 +17,9 @@ pub fn run() {
             let app_data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&app_data_dir)?;
             db::init_db(&app_data_dir)?;
-            // Clean up any orphaned inference server from previous crash
+            // Clean up any orphaned servers from previous crash
             commands::cleanup_orphan_inference_server(&app_data_dir);
+            commands::cleanup_orphan_http_server(&app_data_dir);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -94,6 +95,14 @@ pub fn run() {
             commands::list_all_model_versions_filtered,
             commands::get_model_versions_for_comparison,
             commands::get_comparable_versions,
+            // HTTP Server (v10)
+            commands::start_http_server,
+            commands::stop_http_server,
+            commands::get_http_server_status,
+            commands::get_http_server_metrics,
+            commands::reset_http_server_metrics,
+            commands::get_serving_version_id,
+            commands::delete_model_version_safe,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -15,6 +15,7 @@ import {
   RiBox3Line,
   RiSearchEyeLine,
   RiSettings3Line,
+  RiServerLine,
 } from "@remixicon/react";
 import { cn } from "@/lib/utils";
 import { MetricsPanel } from "./MetricsPanel";
@@ -22,7 +23,8 @@ import { RunsPanel } from "./RunsPanel";
 import { ModelsPanel } from "./ModelsPanel";
 import { DataProfilePanel } from "./DataProfilePanel";
 import { TrialsPanel } from "./TrialsPanel";
-import { listModels } from "@/lib/tauri";
+import { ServingPanel } from "./ServingPanel";
+import { listModels, getHttpServerStatus } from "@/lib/tauri";
 
 interface StatusConfig {
   label: string;
@@ -124,10 +126,12 @@ export function OutputPanel({ onCollapse, onExplainRun, canExplain = true }: Out
   const [panelHeight, setPanelHeight] = useState(DEFAULT_HEIGHT);
   const [isResizing, setIsResizing] = useState(false);
   const [modelCount, setModelCount] = useState(0);
+  const [serverRunning, setServerRunning] = useState(false);
 
-  // Load model count
+  // Load model count and check server status
   useEffect(() => {
     listModels().then((models) => setModelCount(models.length));
+    getHttpServerStatus().then((status) => setServerRunning(status.running));
   }, []);
 
   // Handle resize drag
@@ -348,6 +352,24 @@ export function OutputPanel({ onCollapse, onExplainRun, canExplain = true }: Out
                     </span>
                   )}
                 </Tab>
+                <Tab
+                  className={({ selected }) =>
+                    cn(
+                      "flex items-center gap-1.5 px-3 py-1 rounded-md text-sm font-medium transition-colors",
+                      "focus:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                      selected
+                        ? "bg-background-elevated text-text-primary"
+                        : "text-text-muted hover:text-text-secondary",
+                      serverRunning && "text-state-success"
+                    )
+                  }
+                >
+                  <RiServerLine className="w-3.5 h-3.5" />
+                  Serving
+                  {serverRunning && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-state-success animate-pulse" />
+                  )}
+                </Tab>
               </Tab.List>
             </div>
 
@@ -445,6 +467,11 @@ export function OutputPanel({ onCollapse, onExplainRun, canExplain = true }: Out
           {/* Trials Panel */}
           <Tab.Panel className="h-full">
             <TrialsPanel />
+          </Tab.Panel>
+
+          {/* Serving Panel */}
+          <Tab.Panel className="h-full">
+            <ServingPanel />
           </Tab.Panel>
         </Tab.Panels>
       </Tab.Group>
