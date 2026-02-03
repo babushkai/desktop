@@ -290,19 +290,16 @@ export function TuningPanel({ nodeId, onStartTuning, onClose }: TuningPanelProps
             value={config.scoringMetric}
             onChange={handleMetricChange}
             disabled={isDisabled}
+            style={{ backgroundColor: '#1a1a2e', color: '#e4e4e7' }}
             className={cn(
-              "w-full h-8 px-3 text-sm rounded-md appearance-none cursor-pointer",
-              "bg-background border border-white/10",
-              "text-text-primary",
+              "w-full h-8 px-3 text-sm rounded-md cursor-pointer",
+              "border border-white/10",
               "focus:outline-none focus:ring-1 focus:ring-accent",
-              "disabled:opacity-50 disabled:cursor-not-allowed",
-              // Custom dropdown arrow
-              "bg-[url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2012%2012%22%3E%3Cpath%20fill%3D%22%239ca3af%22%20d%3D%22M3%204.5L6%208l3-3.5H3z%22%2F%3E%3C%2Fsvg%3E')]",
-              "bg-[length:12px] bg-[right_8px_center] bg-no-repeat pr-8"
+              "disabled:opacity-50 disabled:cursor-not-allowed"
             )}
           >
             {validMetrics.map((m) => (
-              <option key={m.value} value={m.value} className="bg-background-surface text-text-primary">
+              <option key={m.value} value={m.value} style={{ backgroundColor: '#1a1a2e', color: '#e4e4e7' }}>
                 {m.label}
               </option>
             ))}
