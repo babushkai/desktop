@@ -14,8 +14,10 @@ import {
   loadPipeline as loadPipelineApi,
   getExampleDataPath,
   listRuns,
+  listExperiments,
   MetricsData,
   RunMetadata,
+  Experiment,
 } from "../lib/tauri";
 import {
   createClassificationWorkflow,
@@ -112,6 +114,13 @@ interface PipelineState {
   runHistory: RunMetadata[];
   selectedRunId: string | null;
 
+  // Experiments
+  experiments: Experiment[];
+  selectedExperimentId: string | null;
+  runsViewMode: 'flat' | 'by-experiment';
+  selectedRunsForComparison: string[];
+  experimentFilter: string | null; // null = all, 'none' = unassigned, or experiment ID
+
   // Selection
   selectedNodeId: string | null;
   setSelectedNodeId: (id: string | null) => void;
@@ -190,7 +199,15 @@ interface PipelineState {
   // Run history
   setCurrentRunId: (id: string | null) => void;
   setSelectedRunId: (id: string | null) => void;
-  loadRunHistory: (pipelineName?: string) => Promise<void>;
+  loadRunHistory: (pipelineName?: string, experimentId?: string) => Promise<void>;
+
+  // Experiments
+  loadExperiments: (includeArchived?: boolean) => Promise<void>;
+  setSelectedExperimentId: (id: string | null) => void;
+  setRunsViewMode: (mode: 'flat' | 'by-experiment') => void;
+  setExperimentFilter: (filter: string | null) => void;
+  toggleRunForComparison: (runId: string) => void;
+  clearComparisonSelection: () => void;
 
   // Alignment and selection
   alignSelectedNodes: (alignType: AlignType) => void;
@@ -218,6 +235,11 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   currentRunId: null,
   runHistory: [],
   selectedRunId: null,
+  experiments: [],
+  selectedExperimentId: null,
+  runsViewMode: 'flat',
+  selectedRunsForComparison: [],
+  experimentFilter: null,
   playgroundOpen: false,
   inferenceHistory: [],
   batchResult: null,
@@ -608,14 +630,53 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
 
   setSelectedRunId: (id) => set({ selectedRunId: id }),
 
-  loadRunHistory: async (pipelineName) => {
+  loadRunHistory: async (pipelineName, experimentId) => {
     try {
-      const runs = await listRuns(pipelineName);
-      set({ runHistory: runs });
+      // Handle special 'none' filter for unassigned runs
+      const expId = experimentId === 'none' ? undefined : experimentId;
+      const runs = await listRuns(pipelineName, expId);
+
+      // If filtering for unassigned runs, filter client-side
+      const filteredRuns = experimentId === 'none'
+        ? runs.filter(r => !r.experiment_id)
+        : runs;
+
+      set({ runHistory: filteredRuns });
     } catch (error) {
       console.error("Failed to load run history:", error);
     }
   },
+
+  // Experiments
+  loadExperiments: async (includeArchived = false) => {
+    try {
+      const experiments = await listExperiments(includeArchived);
+      set({ experiments });
+    } catch (error) {
+      console.error("Failed to load experiments:", error);
+    }
+  },
+
+  setSelectedExperimentId: (id) => set({ selectedExperimentId: id }),
+
+  setRunsViewMode: (mode) => set({ runsViewMode: mode }),
+
+  setExperimentFilter: (filter) => set({ experimentFilter: filter }),
+
+  toggleRunForComparison: (runId) => {
+    set((state) => {
+      const selected = state.selectedRunsForComparison;
+      if (selected.includes(runId)) {
+        return { selectedRunsForComparison: selected.filter(id => id !== runId) };
+      } else if (selected.length < 5) {
+        // Max 5 runs for comparison
+        return { selectedRunsForComparison: [...selected, runId] };
+      }
+      return state;
+    });
+  },
+
+  clearComparisonSelection: () => set({ selectedRunsForComparison: [] }),
 
   // Alignment and selection
   alignSelectedNodes: (alignType) => {

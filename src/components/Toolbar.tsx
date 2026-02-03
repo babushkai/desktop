@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, Fragment } from "react";
-import { Menu, Transition, Dialog } from "@headlessui/react";
+import { Menu, Transition, Dialog, Listbox } from "@headlessui/react";
 import {
   RiPlayFill,
   RiStopFill,
@@ -16,6 +16,7 @@ import {
   RiFlaskLine,
   RiHome4Line,
   RiRocketLine,
+  RiTestTubeLine,
 } from "@remixicon/react";
 import { usePipelineStore } from "../stores/pipelineStore";
 import {
@@ -34,6 +35,7 @@ import {
   saveRunMetrics,
   MetricInput,
 } from "../lib/tauri";
+import { ExperimentDialog } from "./ExperimentDialog";
 import { generateTrainerCode, generateTrainerCodeWithSplit } from "../lib/trainerCodeGen";
 import { generateEvaluatorCode, generateEvaluatorCodeWithSplit, generateAutoEvaluatorCode } from "../lib/evaluatorCodeGen";
 import { generateLoadModelCode } from "../lib/loadModelCodeGen";
@@ -84,6 +86,10 @@ export function Toolbar({
     tuningNodeId,
     setTuningNodeId,
     setTuningStatus,
+    experiments,
+    selectedExperimentId,
+    setSelectedExperimentId,
+    loadExperiments,
   } = usePipelineStore();
 
   const [isEditingPath, setIsEditingPath] = useState(false);
@@ -91,6 +97,7 @@ export function Toolbar({
   const [pipelines, setPipelines] = useState<PipelineMetadata[]>([]);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveNameInput, setSaveNameInput] = useState("");
+  const [showExperimentDialog, setShowExperimentDialog] = useState(false);
 
   useEffect(() => {
     const loadPythonPath = async () => {
@@ -105,6 +112,11 @@ export function Toolbar({
     };
     loadPythonPath();
   }, [setStorePythonPath]);
+
+  // Load experiments on mount
+  useEffect(() => {
+    loadExperiments();
+  }, [loadExperiments]);
 
   const handleRun = useCallback(async () => {
     const errors = validatePipeline();
@@ -172,7 +184,9 @@ export function Toolbar({
     const startTime = Date.now();
 
     try {
-      runId = await createRun(pipelineName, hyperparams);
+      // Only pass experimentId if an experiment is selected (active experiments only)
+      const activeExperiment = experiments.find(e => e.id === selectedExperimentId && e.status === 'active');
+      runId = await createRun(pipelineName, hyperparams, activeExperiment?.id);
       setCurrentRunId(runId);
     } catch (error) {
       console.error("Failed to create run:", error);
@@ -339,7 +353,7 @@ export function Toolbar({
 
     // Refresh run history
     await loadRunHistory(pipelineName);
-  }, [nodes, edges, validatePipeline, clearLogs, appendLog, setExecutionStatus, currentPipelineName, setCurrentRunId, loadRunHistory]);
+  }, [nodes, edges, validatePipeline, clearLogs, appendLog, setExecutionStatus, currentPipelineName, setCurrentRunId, loadRunHistory, experiments, selectedExperimentId]);
 
   const handleCancel = useCallback(async () => {
     try {
@@ -575,6 +589,84 @@ export function Toolbar({
         </Menu>
       </div>
 
+      {/* Experiment selector */}
+      <div className="flex items-center gap-2">
+        <RiTestTubeLine className="w-4 h-4 text-text-muted" />
+        <Listbox value={selectedExperimentId} onChange={setSelectedExperimentId}>
+          <div className="relative">
+            <Listbox.Button className="btn-secondary min-w-[140px] justify-between">
+              <span className={cn(!selectedExperimentId && "text-text-muted")}>
+                {selectedExperimentId
+                  ? experiments.find((e) => e.id === selectedExperimentId)?.name || "Unknown"
+                  : "No Experiment"}
+              </span>
+              <RiArrowDownSLine className="w-4 h-4 ml-1" />
+            </Listbox.Button>
+            <Transition
+              as={Fragment}
+              leave="transition ease-in duration-100"
+              leaveFrom="opacity-100"
+              leaveTo="opacity-0"
+            >
+              <Listbox.Options className="absolute left-0 mt-1 w-56 origin-top-left rounded-lg bg-background-surface border border-white/10 shadow-lg focus:outline-none z-50 overflow-hidden">
+                <Listbox.Option
+                  value={null}
+                  className={({ active }) =>
+                    cn(
+                      "relative cursor-pointer select-none py-2 px-3 text-sm",
+                      active && "bg-background-elevated"
+                    )
+                  }
+                >
+                  {({ selected }) => (
+                    <div className="flex items-center justify-between">
+                      <span className="text-text-muted">(No Experiment)</span>
+                      {selected && <RiCheckLine className="w-4 h-4 text-accent" />}
+                    </div>
+                  )}
+                </Listbox.Option>
+                {experiments.filter(e => e.status === 'active').length > 0 && (
+                  <div className="border-t border-white/5" />
+                )}
+                {experiments.filter(e => e.status === 'active').map((exp) => (
+                  <Listbox.Option
+                    key={exp.id}
+                    value={exp.id}
+                    className={({ active }) =>
+                      cn(
+                        "relative cursor-pointer select-none py-2 px-3 text-sm",
+                        active && "bg-background-elevated"
+                      )
+                    }
+                  >
+                    {({ selected }) => (
+                      <div className="flex items-center justify-between">
+                        <span className={selected ? "font-medium text-text-primary" : "text-text-secondary"}>
+                          {exp.name}
+                        </span>
+                        {selected && <RiCheckLine className="w-4 h-4 text-accent" />}
+                      </div>
+                    )}
+                  </Listbox.Option>
+                ))}
+                <div className="border-t border-white/5" />
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowExperimentDialog(true);
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-accent hover:bg-background-elevated"
+                >
+                  <RiAddLine className="w-4 h-4" />
+                  New Experiment...
+                </button>
+              </Listbox.Options>
+            </Transition>
+          </div>
+        </Listbox>
+      </div>
+
       <div className="flex-1" />
 
       {/* Python path display/edit */}
@@ -690,6 +782,13 @@ export function Toolbar({
           executionStatus === "error" && "bg-state-error",
           executionStatus === "idle" && "bg-text-muted"
         )}
+      />
+
+      {/* Experiment Dialog */}
+      <ExperimentDialog
+        isOpen={showExperimentDialog}
+        onClose={() => setShowExperimentDialog(false)}
+        onSuccess={() => loadExperiments()}
       />
 
       {/* Save Dialog */}

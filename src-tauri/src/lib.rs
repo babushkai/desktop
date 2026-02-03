@@ -66,6 +66,23 @@ pub fn run() {
             commands::save_tuning_trial,
             commands::list_tuning_trials,
             commands::get_best_trial,
+            // Experiments
+            commands::create_experiment,
+            commands::update_experiment,
+            commands::list_experiments,
+            commands::get_experiment,
+            commands::delete_experiment,
+            // Run Annotations
+            commands::update_run_display_name,
+            commands::set_run_experiment,
+            commands::set_run_note,
+            commands::get_run_note,
+            commands::delete_run_note,
+            commands::add_run_tag,
+            commands::remove_run_tag,
+            commands::get_run_tags,
+            commands::list_all_tags,
+            commands::get_runs_for_comparison,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

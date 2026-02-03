@@ -161,6 +161,11 @@ export interface RunMetadata {
   duration_ms?: number;
   hyperparameters?: string;
   error_message?: string;
+  experiment_id?: string;
+  experiment_name?: string; // Joined from experiments table
+  display_name?: string;
+  notes?: string;           // Joined from run_notes table
+  tags?: string[];          // Joined from run_tags table
 }
 
 export interface Metric {
@@ -175,10 +180,11 @@ export interface MetricInput {
   valueJson?: string;
 }
 
-export async function createRun(pipelineName: string, hyperparameters: object): Promise<string> {
+export async function createRun(pipelineName: string, hyperparameters: object, experimentId?: string): Promise<string> {
   return invoke<string>("create_run", {
     pipelineName,
     hyperparameters: JSON.stringify(hyperparameters),
+    experimentId,
   });
 }
 
@@ -200,8 +206,8 @@ export async function saveRunMetrics(runId: string, metrics: MetricInput[]): Pro
   return invoke("save_run_metrics", { runId, metrics: rustMetrics });
 }
 
-export async function listRuns(pipelineName?: string): Promise<RunMetadata[]> {
-  return invoke<RunMetadata[]>("list_runs", { pipelineName });
+export async function listRuns(pipelineName?: string, experimentId?: string): Promise<RunMetadata[]> {
+  return invoke<RunMetadata[]>("list_runs", { pipelineName, experimentId });
 }
 
 export async function getRunMetrics(runId: string): Promise<Metric[]> {
@@ -528,4 +534,91 @@ export async function listTuningTrials(sessionId: string): Promise<TuningTrial[]
 
 export async function getBestTrial(sessionId: string): Promise<TuningTrial | null> {
   return invoke<TuningTrial | null>("get_best_trial", { sessionId });
+}
+
+// Experiments
+
+export interface Experiment {
+  id: string;
+  name: string;
+  description?: string;
+  status: 'active' | 'completed' | 'archived';
+  created_at: string;
+  updated_at: string;
+  run_count?: number; // Computed in query
+}
+
+export async function createExperiment(name: string, description?: string): Promise<string> {
+  return invoke<string>("create_experiment", { name, description });
+}
+
+export async function updateExperiment(
+  id: string,
+  name?: string,
+  description?: string,
+  status?: 'active' | 'completed' | 'archived'
+): Promise<void> {
+  return invoke("update_experiment", { id, name, description, status });
+}
+
+export async function listExperiments(includeArchived: boolean = false): Promise<Experiment[]> {
+  return invoke<Experiment[]>("list_experiments", { includeArchived });
+}
+
+export async function getExperiment(id: string): Promise<Experiment | null> {
+  return invoke<Experiment | null>("get_experiment", { id });
+}
+
+export async function deleteExperiment(id: string): Promise<void> {
+  return invoke("delete_experiment", { id });
+}
+
+// Run Annotations
+
+export async function updateRunDisplayName(id: string, displayName?: string): Promise<void> {
+  return invoke("update_run_display_name", { id, displayName });
+}
+
+export async function setRunExperiment(id: string, experimentId?: string): Promise<void> {
+  return invoke("set_run_experiment", { id, experimentId });
+}
+
+export async function setRunNote(runId: string, content: string): Promise<void> {
+  return invoke("set_run_note", { runId, content });
+}
+
+export async function getRunNote(runId: string): Promise<string | null> {
+  return invoke<string | null>("get_run_note", { runId });
+}
+
+export async function deleteRunNote(runId: string): Promise<void> {
+  return invoke("delete_run_note", { runId });
+}
+
+export async function addRunTag(runId: string, tag: string): Promise<void> {
+  return invoke("add_run_tag", { runId, tag });
+}
+
+export async function removeRunTag(runId: string, tag: string): Promise<void> {
+  return invoke("remove_run_tag", { runId, tag });
+}
+
+export async function getRunTags(runId: string): Promise<string[]> {
+  return invoke<string[]>("get_run_tags", { runId });
+}
+
+export async function listAllTags(): Promise<string[]> {
+  return invoke<string[]>("list_all_tags");
+}
+
+// Run Comparison
+
+export interface RunComparison {
+  run_ids: string[];
+  metrics: Record<string, Record<string, number | null>>; // runId -> metricName -> value
+  hyperparameters: Record<string, Record<string, unknown>>; // runId -> paramName -> value
+}
+
+export async function getRunsForComparison(runIds: string[]): Promise<RunComparison> {
+  return invoke<RunComparison>("get_runs_for_comparison", { runIds });
 }
