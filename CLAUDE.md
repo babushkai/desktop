@@ -33,10 +33,21 @@ Tauri 2.0 desktop app for visual ML pipeline building, inspired by [Dify](https:
 - Classification metrics: Accuracy, Precision, Recall, F1, Confusion Matrix
 - Regression metrics: R2, MSE, RMSE, MAE
 
+### v6 - COMPLETED
+- Hyperparameter tuning with Optuna integration
+- Grid/Random/TPE search strategies
+- Trials panel with real-time progress
+
+### v7 - COMPLETED
+- Model explainability (feature importance, SHAP, partial dependence plots)
+- Per-run explain data with persistence
+- Interactive ECharts visualizations
+- Human-readable summary interpretations
+
 ### Future Versions
-- **v2 - Experiment Tracking:** Experiment/run management, metrics logging, artifact storage
-- **v3 - Model Registry:** Model versioning, staging (None → Staging → Production), ONNX/CoreML export
-- **v4 - Model Serving:** Local inference server, interactive playground
+- **v8 - Experiment Tracking:** Experiment/run management, metrics logging, artifact storage
+- **v9 - Model Registry:** Model versioning, staging (None → Staging → Production), ONNX/CoreML export
+- **v10 - Model Serving:** Local inference server, interactive playground
 
 ### Long-term Vision
 - Bundled Python runtime (no user setup required)
@@ -199,6 +210,50 @@ function toPythonValue(value: unknown): string {
 Always test generated scripts manually before assuming they work:
 ```bash
 python3 /path/to/generated/script.py
+```
+
+## TypeScript Type Narrowing with Closures
+
+**Problem:** When variables are captured in closures and modified asynchronously (e.g., in event handlers), TypeScript's control flow analysis can't track the types properly. Type guards may narrow to `never`.
+
+```typescript
+// BAD - TypeScript narrows shapData to 'never' after closure modification
+let shapData: ShapDataA | ShapDataB | null = null;
+
+const handleEvent = (event: Event) => {
+  if (event.type === "shapData") {
+    shapData = event.data; // Modified in closure
+  }
+};
+
+await runScript(handleEvent);
+
+// Later: TypeScript thinks shapData is still null or narrows incorrectly
+if (shapData && isTypeA(shapData)) {
+  shapData.fieldA; // Error: Property 'fieldA' does not exist on type 'never'
+}
+```
+
+**Solution:** Cast the variable before using type guards to reset TypeScript's narrowing:
+
+```typescript
+// GOOD - Cast to reset type narrowing
+const currentShapData = shapData as ShapDataA | ShapDataB | null;
+
+if (currentShapData && isTypeA(currentShapData)) {
+  currentShapData.fieldA; // Works correctly
+}
+```
+
+**Alternative:** Extract values before conditional branches:
+
+```typescript
+// GOOD - Extract before branching
+const fieldValue = shapData && isTypeA(shapData) ? shapData.fieldA : undefined;
+
+if (isClassifier) {
+  const classNames = fieldValue || []; // Use extracted value
+}
 ```
 
 ## Database Migration Debugging

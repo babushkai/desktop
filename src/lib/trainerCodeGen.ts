@@ -30,6 +30,7 @@ export const generateTrainerCode = (nodeData: NodeData, inputPath: string): stri
 
   return `import sys
 import os
+import json
 import pandas as pd
 import joblib
 from sklearn.model_selection import train_test_split
@@ -51,6 +52,18 @@ try:
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=${testSplit}, random_state=42
     )
+
+    # Persist split indices for explainability
+    split_info = {
+        "train_indices": X_train.index.tolist(),
+        "test_indices": X_test.index.tolist(),
+        "source_file": "${safePath}",
+        "split_ratio": ${testSplit},
+        "target_column": target_col
+    }
+    with open("${SPLIT_INDICES_FILE}", "w") as f:
+        json.dump(split_info, f, indent=2)
+    print(f"Split indices saved to ${SPLIT_INDICES_FILE}")
 
     model = ${config.class}()
     model.fit(X_train, y_train)
@@ -117,6 +130,11 @@ try:
 
     print(f"Model: ${nodeData.modelType || "linear_regression"}")
     print(f"Training samples: {len(train_idx)}")
+
+    # Update split_info with target_column for explainability
+    split_info["target_column"] = target_col
+    with open("${SPLIT_INDICES_FILE}", "w") as f:
+        json.dump(split_info, f, indent=2)
 
     joblib.dump(model, "${MODEL_FILE}")
     print(f"Model saved to ${MODEL_FILE}")

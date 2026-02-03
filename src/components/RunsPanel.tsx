@@ -1,6 +1,6 @@
 import { useState, useEffect, Fragment } from "react";
 import { Dialog, Transition } from "@headlessui/react";
-import { RiDeleteBinLine, RiLoader4Line, RiBox3Line } from "@remixicon/react";
+import { RiDeleteBinLine, RiLoader4Line, RiBox3Line, RiLightbulbLine } from "@remixicon/react";
 import { usePipelineStore } from "@/stores/pipelineStore";
 import { deleteRun, getRunMetrics, RunMetadata } from "@/lib/tauri";
 import { cn } from "@/lib/utils";
@@ -26,9 +26,15 @@ function formatDuration(ms?: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
-export function RunsPanel() {
+interface RunsPanelProps {
+  onExplainRun?: (runId: string) => void;
+  canExplain?: boolean;
+}
+
+export function RunsPanel({ onExplainRun, canExplain = true }: RunsPanelProps) {
   const loadRunHistory = usePipelineStore((s) => s.loadRunHistory);
   const runHistory = usePipelineStore((s) => s.runHistory);
+  const explainRunId = usePipelineStore((s) => s.explainRunId);
   const [runMetricsCache, setRunMetricsCache] = useState<Record<string, string>>({});
   const [loadingMetrics, setLoadingMetrics] = useState<Set<string>>(new Set());
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
@@ -118,6 +124,24 @@ export function RunsPanel() {
                 </td>
                 <td className="px-3 py-2">
                   <div className="flex items-center gap-1">
+                    {run.status === "completed" && onExplainRun && (
+                      <button
+                        onClick={() => onExplainRun(run.id)}
+                        disabled={!canExplain || explainRunId === run.id}
+                        className={cn(
+                          "p-1 rounded",
+                          canExplain && explainRunId !== run.id
+                            ? "hover:bg-accent/20 text-text-muted hover:text-accent"
+                            : "text-text-muted/50 cursor-not-allowed"
+                        )}
+                        title={explainRunId === run.id ? "Explaining..." : "Explain Model"}
+                      >
+                        <RiLightbulbLine className={cn(
+                          "w-4 h-4",
+                          explainRunId === run.id && "animate-pulse text-accent"
+                        )} />
+                      </button>
+                    )}
                     {run.status === "completed" && (
                       <button
                         onClick={() => setRegisterModelRun(run)}
