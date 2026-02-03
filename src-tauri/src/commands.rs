@@ -444,9 +444,9 @@ pub struct MetricInput {
 }
 
 #[tauri::command]
-pub fn create_run(pipeline_name: String, hyperparameters: String) -> Result<String, String> {
+pub fn create_run(pipeline_name: String, hyperparameters: String, experiment_id: Option<String>) -> Result<String, String> {
     let run_id = uuid::Uuid::new_v4().to_string();
-    db::create_run(&run_id, &pipeline_name, &hyperparameters).map_err(|e| e.to_string())?;
+    db::create_run(&run_id, &pipeline_name, &hyperparameters, experiment_id.as_deref()).map_err(|e| e.to_string())?;
     Ok(run_id)
 }
 
@@ -474,8 +474,8 @@ pub fn save_run_metrics(run_id: String, metrics: Vec<MetricInput>) -> Result<(),
 }
 
 #[tauri::command]
-pub fn list_runs(pipeline_name: Option<String>) -> Result<Vec<db::RunMetadata>, String> {
-    db::list_runs(pipeline_name.as_deref()).map_err(|e| e.to_string())
+pub fn list_runs(pipeline_name: Option<String>, experiment_id: Option<String>) -> Result<Vec<db::RunMetadata>, String> {
+    db::list_runs(pipeline_name.as_deref(), experiment_id.as_deref()).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -486,6 +486,93 @@ pub fn get_run_metrics(run_id: String) -> Result<Vec<db::Metric>, String> {
 #[tauri::command]
 pub fn delete_run(id: String) -> Result<(), String> {
     db::delete_run(&id).map_err(|e| e.to_string())
+}
+
+// Experiment commands
+
+#[tauri::command]
+pub fn create_experiment(name: String, description: Option<String>) -> Result<String, String> {
+    let id = uuid::Uuid::new_v4().to_string();
+    db::create_experiment(&id, &name, description.as_deref()).map_err(|e| e.to_string())?;
+    Ok(id)
+}
+
+#[tauri::command]
+pub fn update_experiment(
+    id: String,
+    name: Option<String>,
+    description: Option<String>,
+    status: Option<String>,
+) -> Result<(), String> {
+    db::update_experiment(&id, name.as_deref(), description.as_deref(), status.as_deref())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_experiments(include_archived: bool) -> Result<Vec<db::Experiment>, String> {
+    db::list_experiments(include_archived).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_experiment(id: String) -> Result<Option<db::Experiment>, String> {
+    db::get_experiment(&id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_experiment(id: String) -> Result<(), String> {
+    db::delete_experiment(&id).map_err(|e| e.to_string())
+}
+
+// Run Annotation commands
+
+#[tauri::command]
+pub fn update_run_display_name(id: String, display_name: Option<String>) -> Result<(), String> {
+    db::update_run_display_name(&id, display_name.as_deref()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn set_run_experiment(id: String, experiment_id: Option<String>) -> Result<(), String> {
+    db::set_run_experiment(&id, experiment_id.as_deref()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn set_run_note(run_id: String, content: String) -> Result<(), String> {
+    db::set_run_note(&run_id, &content).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_run_note(run_id: String) -> Result<Option<String>, String> {
+    db::get_run_note(&run_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_run_note(run_id: String) -> Result<(), String> {
+    db::delete_run_note(&run_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn add_run_tag(run_id: String, tag: String) -> Result<(), String> {
+    db::add_run_tag(&run_id, &tag).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn remove_run_tag(run_id: String, tag: String) -> Result<(), String> {
+    db::remove_run_tag(&run_id, &tag).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_run_tags(run_id: String) -> Result<Vec<String>, String> {
+    db::get_run_tags(&run_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_all_tags() -> Result<Vec<String>, String> {
+    db::list_all_tags().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_runs_for_comparison(run_ids: Vec<String>) -> Result<db::RunComparisonData, String> {
+    db::get_runs_for_comparison(&run_ids).map_err(|e| e.to_string())
 }
 
 // Example data commands

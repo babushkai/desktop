@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Mutex;
 
-const DB_VERSION: i32 = 5; // v1 = settings+pipelines, v2 = +runs+metrics, v3 = +models+model_versions, v4 = +feature_names, v5 = +tuning_sessions+tuning_trials
+const DB_VERSION: i32 = 6; // v1 = settings+pipelines, v2 = +runs+metrics, v3 = +models+model_versions, v4 = +feature_names, v5 = +tuning_sessions+tuning_trials, v6 = +experiments+run_annotations
 
 #[derive(Serialize, Deserialize)]
 pub struct PipelineMetadata {
@@ -23,6 +23,22 @@ pub struct RunMetadata {
     pub duration_ms: Option<i64>,
     pub hyperparameters: Option<String>,
     pub error_message: Option<String>,
+    pub experiment_id: Option<String>,
+    pub experiment_name: Option<String>, // Joined from experiments table
+    pub display_name: Option<String>,
+    pub notes: Option<String>,           // Joined from run_notes table
+    pub tags: Option<Vec<String>>,       // Joined from run_tags table
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Experiment {
+    pub id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub status: String, // 'active' | 'completed' | 'archived'
+    pub created_at: String,
+    pub updated_at: String,
+    pub run_count: Option<i64>, // Computed in query
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -263,6 +279,64 @@ pub fn init_db(app_data_dir: &Path) -> Result<()> {
         )?;
     }
 
+    // v6 tables (experiments, run annotations)
+    if version < 6 {
+        // Experiments table (top-level, not per-pipeline)
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS experiments (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                description TEXT,
+                status TEXT DEFAULT 'active' CHECK (status IN ('active', 'completed', 'archived')),
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )",
+            [],
+        )?;
+
+        // Add experiment_id and display_name to runs table
+        conn.execute(
+            "ALTER TABLE runs ADD COLUMN experiment_id TEXT REFERENCES experiments(id) ON DELETE SET NULL",
+            [],
+        )?;
+
+        conn.execute(
+            "ALTER TABLE runs ADD COLUMN display_name TEXT",
+            [],
+        )?;
+
+        // Run notes table (one per run)
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS run_notes (
+                run_id TEXT PRIMARY KEY REFERENCES runs(id) ON DELETE CASCADE,
+                content TEXT NOT NULL,
+                updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )",
+            [],
+        )?;
+
+        // Run tags table (many per run, case-insensitive)
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS run_tags (
+                run_id TEXT NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+                tag TEXT NOT NULL COLLATE NOCASE,
+                PRIMARY KEY (run_id, tag)
+            )",
+            [],
+        )?;
+
+        // Indexes for experiment queries
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_runs_experiment ON runs(experiment_id)",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_run_tags_tag ON run_tags(tag)",
+            [],
+        )?;
+    }
+
     // Update version
     conn.pragma_update(None, "user_version", DB_VERSION)?;
 
@@ -360,15 +434,15 @@ pub fn delete_pipeline(id: &str) -> Result<()> {
 
 // Run CRUD operations
 
-pub fn create_run(id: &str, pipeline_name: &str, hyperparameters: &str) -> Result<()> {
+pub fn create_run(id: &str, pipeline_name: &str, hyperparameters: &str, experiment_id: Option<&str>) -> Result<()> {
     let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
         rusqlite::Error::InvalidQuery
     })?;
     let now = chrono::Utc::now().to_rfc3339();
     conn.execute(
-        "INSERT INTO runs (id, pipeline_name, status, started_at, hyperparameters)
-         VALUES (?1, ?2, 'running', ?3, ?4)",
-        [id, pipeline_name, &now, hyperparameters],
+        "INSERT INTO runs (id, pipeline_name, status, started_at, hyperparameters, experiment_id)
+         VALUES (?1, ?2, 'running', ?3, ?4, ?5)",
+        rusqlite::params![id, pipeline_name, now, hyperparameters, experiment_id],
     )?;
     Ok(())
 }
@@ -399,26 +473,60 @@ pub fn save_run_metrics(run_id: &str, metrics: &[Metric]) -> Result<()> {
     Ok(())
 }
 
-pub fn list_runs(pipeline_name: Option<&str>) -> Result<Vec<RunMetadata>> {
+pub fn list_runs(pipeline_name: Option<&str>, experiment_id: Option<&str>) -> Result<Vec<RunMetadata>> {
     let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
         rusqlite::Error::InvalidQuery
     })?;
 
-    let query = match pipeline_name {
-        Some(_) => "SELECT id, pipeline_name, status, started_at, completed_at, duration_ms, hyperparameters, error_message
-                    FROM runs WHERE pipeline_name = ?1 ORDER BY started_at DESC",
-        None => "SELECT id, pipeline_name, status, started_at, completed_at, duration_ms, hyperparameters, error_message
-                 FROM runs ORDER BY started_at DESC",
+    // Build query with LEFT JOINs to include experiment name and notes
+    let base_query = "SELECT r.id, r.pipeline_name, r.status, r.started_at, r.completed_at,
+                             r.duration_ms, r.hyperparameters, r.error_message,
+                             r.experiment_id, e.name as experiment_name, r.display_name,
+                             rn.content as notes
+                      FROM runs r
+                      LEFT JOIN experiments e ON r.experiment_id = e.id
+                      LEFT JOIN run_notes rn ON r.id = rn.run_id";
+
+    let (query, params): (String, Vec<&str>) = match (pipeline_name, experiment_id) {
+        (Some(pn), Some(eid)) => (
+            format!("{} WHERE r.pipeline_name = ?1 AND r.experiment_id = ?2 ORDER BY r.started_at DESC", base_query),
+            vec![pn, eid],
+        ),
+        (Some(pn), None) => (
+            format!("{} WHERE r.pipeline_name = ?1 ORDER BY r.started_at DESC", base_query),
+            vec![pn],
+        ),
+        (None, Some(eid)) => (
+            format!("{} WHERE r.experiment_id = ?1 ORDER BY r.started_at DESC", base_query),
+            vec![eid],
+        ),
+        (None, None) => (
+            format!("{} ORDER BY r.started_at DESC", base_query),
+            vec![],
+        ),
     };
 
-    let mut stmt = conn.prepare(query)?;
+    let mut stmt = conn.prepare(&query)?;
 
-    let rows = if let Some(name) = pipeline_name {
-        stmt.query_map([name], map_run_row)?
-    } else {
-        stmt.query_map([], map_run_row)?
+    // Collect runs first without tags
+    let mut runs: Vec<RunMetadata> = match params.len() {
+        0 => stmt.query_map([], map_run_row)?.collect::<Result<Vec<_>>>()?,
+        1 => stmt.query_map([params[0]], map_run_row)?.collect::<Result<Vec<_>>>()?,
+        2 => stmt.query_map([params[0], params[1]], map_run_row)?.collect::<Result<Vec<_>>>()?,
+        _ => vec![],
     };
 
+    // Fetch tags for each run
+    for run in &mut runs {
+        run.tags = Some(get_run_tags_internal(&conn, &run.id)?);
+    }
+
+    Ok(runs)
+}
+
+fn get_run_tags_internal(conn: &Connection, run_id: &str) -> Result<Vec<String>> {
+    let mut stmt = conn.prepare("SELECT tag FROM run_tags WHERE run_id = ?1 ORDER BY tag")?;
+    let rows = stmt.query_map([run_id], |row| row.get(0))?;
     rows.collect()
 }
 
@@ -432,6 +540,11 @@ fn map_run_row(row: &rusqlite::Row) -> Result<RunMetadata> {
         duration_ms: row.get(5)?,
         hyperparameters: row.get(6)?,
         error_message: row.get(7)?,
+        experiment_id: row.get(8)?,
+        experiment_name: row.get(9)?,
+        display_name: row.get(10)?,
+        notes: row.get(11)?,
+        tags: None, // Populated separately
     })
 }
 
@@ -467,6 +580,300 @@ pub fn delete_run(id: &str) -> Result<()> {
     }
 
     Ok(())
+}
+
+// Experiment CRUD operations
+
+pub fn create_experiment(id: &str, name: &str, description: Option<&str>) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    conn.execute(
+        "INSERT INTO experiments (id, name, description, status, created_at, updated_at)
+         VALUES (?1, ?2, ?3, 'active', datetime('now'), datetime('now'))",
+        rusqlite::params![id, name, description],
+    )?;
+    Ok(())
+}
+
+pub fn update_experiment(id: &str, name: Option<&str>, description: Option<&str>, status: Option<&str>) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+
+    // Use separate queries based on what fields are provided
+    // This avoids the complexity of dynamic param binding
+    match (name, description, status) {
+        (Some(n), Some(d), Some(s)) => {
+            conn.execute(
+                "UPDATE experiments SET name = ?2, description = ?3, status = ?4, updated_at = datetime('now') WHERE id = ?1",
+                rusqlite::params![id, n, d, s],
+            )?;
+        }
+        (Some(n), Some(d), None) => {
+            conn.execute(
+                "UPDATE experiments SET name = ?2, description = ?3, updated_at = datetime('now') WHERE id = ?1",
+                rusqlite::params![id, n, d],
+            )?;
+        }
+        (Some(n), None, Some(s)) => {
+            conn.execute(
+                "UPDATE experiments SET name = ?2, status = ?3, updated_at = datetime('now') WHERE id = ?1",
+                rusqlite::params![id, n, s],
+            )?;
+        }
+        (None, Some(d), Some(s)) => {
+            conn.execute(
+                "UPDATE experiments SET description = ?2, status = ?3, updated_at = datetime('now') WHERE id = ?1",
+                rusqlite::params![id, d, s],
+            )?;
+        }
+        (Some(n), None, None) => {
+            conn.execute(
+                "UPDATE experiments SET name = ?2, updated_at = datetime('now') WHERE id = ?1",
+                rusqlite::params![id, n],
+            )?;
+        }
+        (None, Some(d), None) => {
+            conn.execute(
+                "UPDATE experiments SET description = ?2, updated_at = datetime('now') WHERE id = ?1",
+                rusqlite::params![id, d],
+            )?;
+        }
+        (None, None, Some(s)) => {
+            conn.execute(
+                "UPDATE experiments SET status = ?2, updated_at = datetime('now') WHERE id = ?1",
+                rusqlite::params![id, s],
+            )?;
+        }
+        (None, None, None) => {
+            conn.execute(
+                "UPDATE experiments SET updated_at = datetime('now') WHERE id = ?1",
+                [id],
+            )?;
+        }
+    }
+    Ok(())
+}
+
+pub fn list_experiments(include_archived: bool) -> Result<Vec<Experiment>> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+
+    let query = if include_archived {
+        "SELECT e.id, e.name, e.description, e.status, e.created_at, e.updated_at,
+                (SELECT COUNT(*) FROM runs WHERE experiment_id = e.id) as run_count
+         FROM experiments e
+         ORDER BY e.updated_at DESC"
+    } else {
+        "SELECT e.id, e.name, e.description, e.status, e.created_at, e.updated_at,
+                (SELECT COUNT(*) FROM runs WHERE experiment_id = e.id) as run_count
+         FROM experiments e
+         WHERE e.status != 'archived'
+         ORDER BY e.updated_at DESC"
+    };
+
+    let mut stmt = conn.prepare(query)?;
+    let rows = stmt.query_map([], |row| {
+        Ok(Experiment {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            description: row.get(2)?,
+            status: row.get(3)?,
+            created_at: row.get(4)?,
+            updated_at: row.get(5)?,
+            run_count: row.get(6)?,
+        })
+    })?;
+    rows.collect()
+}
+
+pub fn get_experiment(id: &str) -> Result<Option<Experiment>> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    let result = conn.query_row(
+        "SELECT e.id, e.name, e.description, e.status, e.created_at, e.updated_at,
+                (SELECT COUNT(*) FROM runs WHERE experiment_id = e.id) as run_count
+         FROM experiments e WHERE e.id = ?1",
+        [id],
+        |row| {
+            Ok(Experiment {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                description: row.get(2)?,
+                status: row.get(3)?,
+                created_at: row.get(4)?,
+                updated_at: row.get(5)?,
+                run_count: row.get(6)?,
+            })
+        },
+    );
+    match result {
+        Ok(exp) => Ok(Some(exp)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+pub fn delete_experiment(id: &str) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    // ON DELETE SET NULL will orphan runs when experiment is deleted
+    conn.execute("DELETE FROM experiments WHERE id = ?1", [id])?;
+    Ok(())
+}
+
+// Run Annotation operations
+
+pub fn update_run_display_name(id: &str, display_name: Option<&str>) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    conn.execute(
+        "UPDATE runs SET display_name = ?2 WHERE id = ?1",
+        rusqlite::params![id, display_name],
+    )?;
+    Ok(())
+}
+
+pub fn set_run_experiment(id: &str, experiment_id: Option<&str>) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    conn.execute(
+        "UPDATE runs SET experiment_id = ?2 WHERE id = ?1",
+        rusqlite::params![id, experiment_id],
+    )?;
+    Ok(())
+}
+
+pub fn set_run_note(run_id: &str, content: &str) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    conn.execute(
+        "INSERT OR REPLACE INTO run_notes (run_id, content, updated_at)
+         VALUES (?1, ?2, datetime('now'))",
+        [run_id, content],
+    )?;
+    Ok(())
+}
+
+pub fn get_run_note(run_id: &str) -> Result<Option<String>> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    let result = conn.query_row(
+        "SELECT content FROM run_notes WHERE run_id = ?1",
+        [run_id],
+        |row| row.get(0),
+    );
+    match result {
+        Ok(content) => Ok(Some(content)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+pub fn delete_run_note(run_id: &str) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    conn.execute("DELETE FROM run_notes WHERE run_id = ?1", [run_id])?;
+    Ok(())
+}
+
+pub fn add_run_tag(run_id: &str, tag: &str) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    conn.execute(
+        "INSERT OR IGNORE INTO run_tags (run_id, tag) VALUES (?1, ?2)",
+        [run_id, tag],
+    )?;
+    Ok(())
+}
+
+pub fn remove_run_tag(run_id: &str, tag: &str) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    conn.execute(
+        "DELETE FROM run_tags WHERE run_id = ?1 AND tag = ?2 COLLATE NOCASE",
+        [run_id, tag],
+    )?;
+    Ok(())
+}
+
+pub fn get_run_tags(run_id: &str) -> Result<Vec<String>> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    get_run_tags_internal(&conn, run_id)
+}
+
+pub fn list_all_tags() -> Result<Vec<String>> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    let mut stmt = conn.prepare("SELECT DISTINCT tag FROM run_tags ORDER BY tag")?;
+    let rows = stmt.query_map([], |row| row.get(0))?;
+    rows.collect()
+}
+
+// Run Comparison operations
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct RunComparisonData {
+    pub run_ids: Vec<String>,
+    pub metrics: std::collections::HashMap<String, std::collections::HashMap<String, Option<f64>>>,
+    pub hyperparameters: std::collections::HashMap<String, std::collections::HashMap<String, serde_json::Value>>,
+}
+
+pub fn get_runs_for_comparison(run_ids: &[String]) -> Result<RunComparisonData> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+
+    let mut metrics: std::collections::HashMap<String, std::collections::HashMap<String, Option<f64>>> =
+        std::collections::HashMap::new();
+    let mut hyperparameters: std::collections::HashMap<String, std::collections::HashMap<String, serde_json::Value>> =
+        std::collections::HashMap::new();
+
+    for run_id in run_ids {
+        // Get metrics for this run
+        let mut run_metrics: std::collections::HashMap<String, Option<f64>> = std::collections::HashMap::new();
+        let mut stmt = conn.prepare("SELECT name, value FROM run_metrics WHERE run_id = ?1")?;
+        let rows = stmt.query_map([run_id], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, Option<f64>>(1)?))
+        })?;
+        for row in rows {
+            let (name, value) = row?;
+            run_metrics.insert(name, value);
+        }
+        metrics.insert(run_id.clone(), run_metrics);
+
+        // Get hyperparameters for this run
+        let hp_json: Option<String> = conn.query_row(
+            "SELECT hyperparameters FROM runs WHERE id = ?1",
+            [run_id],
+            |row| row.get(0),
+        ).unwrap_or(None);
+
+        let run_hp: std::collections::HashMap<String, serde_json::Value> = hp_json
+            .and_then(|s| serde_json::from_str(&s).ok())
+            .unwrap_or_default();
+        hyperparameters.insert(run_id.clone(), run_hp);
+    }
+
+    Ok(RunComparisonData {
+        run_ids: run_ids.to_vec(),
+        metrics,
+        hyperparameters,
+    })
 }
 
 // Model Registry CRUD operations
