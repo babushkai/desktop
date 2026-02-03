@@ -1070,3 +1070,74 @@ pub fn list_tuning_trials(session_id: String) -> Result<Vec<db::TuningTrial>, St
 pub fn get_best_trial(session_id: String) -> Result<Option<db::TuningTrial>, String> {
     db::get_best_trial(&session_id).map_err(|e| e.to_string())
 }
+
+// Model Metadata & Tags commands (v9)
+
+#[tauri::command]
+pub fn update_model_version_metadata(
+    version_id: String,
+    description: Option<String>,
+    notes: Option<String>,
+) -> Result<(), String> {
+    db::update_model_version_metadata(&version_id, description.as_deref(), notes.as_deref())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn update_model_version_training_info(
+    version_id: String,
+    n_features: Option<i64>,
+    feature_names: Option<String>,
+) -> Result<(), String> {
+    db::update_model_version_training_info(&version_id, n_features, feature_names.as_deref())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn update_model_version_export_path(
+    version_id: String,
+    onnx_path: Option<String>,
+    coreml_path: Option<String>,
+) -> Result<(), String> {
+    db::update_model_version_export_path(&version_id, onnx_path.as_deref(), coreml_path.as_deref())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn add_model_tag(version_id: String, tag: String) -> Result<(), String> {
+    db::add_model_tag(&version_id, &tag).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn remove_model_tag(version_id: String, tag: String) -> Result<(), String> {
+    db::remove_model_tag(&version_id, &tag).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_model_tags(version_id: String) -> Result<Vec<String>, String> {
+    db::get_model_tags(&version_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_all_model_tags() -> Result<Vec<String>, String> {
+    db::list_all_model_tags().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_all_model_versions_filtered(
+    filters: Option<db::ModelVersionFilters>,
+) -> Result<Vec<db::ModelVersion>, String> {
+    db::list_all_model_versions_filtered(filters).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_model_versions_for_comparison(
+    version_ids: Vec<String>,
+) -> Result<db::ModelVersionComparison, String> {
+    db::get_model_versions_for_comparison(&version_ids).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_comparable_versions(model_id: String) -> Result<Vec<db::ModelVersion>, String> {
+    db::get_comparable_versions(&model_id).map_err(|e| e.to_string())
+}

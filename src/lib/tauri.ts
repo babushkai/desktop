@@ -239,11 +239,18 @@ export interface ModelVersion {
   file_path: string;
   file_size?: number;
   format: string;
-  stage: string; // "none" | "staging" | "production"
+  stage: string; // "none" | "staging" | "production" | "archived"
   metrics_snapshot?: string;
   feature_names?: string; // JSON array of feature names
   created_at: string;
   promoted_at?: string;
+  // v9: Enhanced model metadata
+  description?: string;
+  notes?: string;
+  onnx_path?: string;
+  coreml_path?: string;
+  n_features?: number;
+  tags?: string[];
 }
 
 export interface RegisterVersionResult {
@@ -621,4 +628,84 @@ export interface RunComparison {
 
 export async function getRunsForComparison(runIds: string[]): Promise<RunComparison> {
   return invoke<RunComparison>("get_runs_for_comparison", { runIds });
+}
+
+// Model Metadata & Tags (v9)
+
+export interface ModelVersionFilters {
+  search?: string;
+  stage?: string; // 'none' | 'staging' | 'production' | 'archived' | 'all'
+  model_type?: string;
+  tags?: string[];
+}
+
+export interface ModelVersionComparisonItem {
+  version_id: string;
+  model_name: string;
+  version: number;
+  run_id?: string;
+  stage: string;
+  created_at: string;
+  metrics: Record<string, number | null>;
+  hyperparameters: Record<string, unknown>;
+}
+
+export interface ModelVersionComparison {
+  versions: ModelVersionComparisonItem[];
+}
+
+export async function updateModelVersionMetadata(
+  versionId: string,
+  description?: string,
+  notes?: string
+): Promise<void> {
+  return invoke("update_model_version_metadata", { versionId, description, notes });
+}
+
+export async function updateModelVersionTrainingInfo(
+  versionId: string,
+  nFeatures?: number,
+  featureNames?: string
+): Promise<void> {
+  return invoke("update_model_version_training_info", { versionId, nFeatures, featureNames });
+}
+
+export async function updateModelVersionExportPath(
+  versionId: string,
+  onnxPath?: string,
+  coremlPath?: string
+): Promise<void> {
+  return invoke("update_model_version_export_path", { versionId, onnxPath, coremlPath });
+}
+
+export async function addModelTag(versionId: string, tag: string): Promise<void> {
+  return invoke("add_model_tag", { versionId, tag });
+}
+
+export async function removeModelTag(versionId: string, tag: string): Promise<void> {
+  return invoke("remove_model_tag", { versionId, tag });
+}
+
+export async function getModelTags(versionId: string): Promise<string[]> {
+  return invoke<string[]>("get_model_tags", { versionId });
+}
+
+export async function listAllModelTags(): Promise<string[]> {
+  return invoke<string[]>("list_all_model_tags");
+}
+
+export async function listAllModelVersionsFiltered(
+  filters?: ModelVersionFilters
+): Promise<ModelVersion[]> {
+  return invoke<ModelVersion[]>("list_all_model_versions_filtered", { filters });
+}
+
+export async function getModelVersionsForComparison(
+  versionIds: string[]
+): Promise<ModelVersionComparison> {
+  return invoke<ModelVersionComparison>("get_model_versions_for_comparison", { versionIds });
+}
+
+export async function getComparableVersions(modelId: string): Promise<ModelVersion[]> {
+  return invoke<ModelVersion[]>("get_comparable_versions", { modelId });
 }
