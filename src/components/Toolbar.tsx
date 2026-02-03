@@ -594,13 +594,13 @@ export function Toolbar({
         <RiTestTubeLine className="w-4 h-4 text-text-muted" />
         <Listbox value={selectedExperimentId} onChange={setSelectedExperimentId}>
           <div className="relative">
-            <Listbox.Button className="btn-secondary min-w-[140px] justify-between">
-              <span className={cn(!selectedExperimentId && "text-text-muted")}>
+            <Listbox.Button className="btn-secondary min-w-[140px] justify-between whitespace-nowrap">
+              <span className={cn("truncate max-w-[120px]", !selectedExperimentId && "text-text-muted")}>
                 {selectedExperimentId
                   ? experiments.find((e) => e.id === selectedExperimentId)?.name || "Unknown"
                   : "No Experiment"}
               </span>
-              <RiArrowDownSLine className="w-4 h-4 ml-1" />
+              <RiArrowDownSLine className="w-4 h-4 ml-1 flex-shrink-0" />
             </Listbox.Button>
             <Transition
               as={Fragment}
