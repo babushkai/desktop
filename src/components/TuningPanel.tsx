@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState, useEffect } from "react";
+import { useCallback, useMemo, useState, useEffect, Fragment } from "react";
+import { Listbox, Transition } from "@headlessui/react";
 import {
   RiSettings3Line,
   RiCloseLine,
@@ -6,6 +7,8 @@ import {
   RiAlertLine,
   RiLoader4Line,
   RiRefreshLine,
+  RiArrowDownSLine,
+  RiCheckLine,
 } from "@remixicon/react";
 import { checkPythonPackage } from "@/lib/tauri";
 import { usePipelineStore } from "@/stores/pipelineStore";
@@ -123,10 +126,6 @@ export function TuningPanel({ nodeId, onStartTuning, onClose }: TuningPanelProps
 
   const handleFoldsChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setConfig((prev) => ({ ...prev, cvFolds: parseInt(e.target.value) || 3 }));
-  }, []);
-
-  const handleMetricChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    setConfig((prev) => ({ ...prev, scoringMetric: e.target.value }));
   }, []);
 
   const handleSearchSpaceChange = useCallback(
@@ -286,24 +285,69 @@ export function TuningPanel({ nodeId, onStartTuning, onClose }: TuningPanelProps
           <label className="text-xs font-medium text-text-secondary block mb-1.5">
             Scoring Metric
           </label>
-          <select
+          <Listbox
             value={config.scoringMetric}
-            onChange={handleMetricChange}
+            onChange={(value) => setConfig((prev) => ({ ...prev, scoringMetric: value }))}
             disabled={isDisabled}
-            style={{ backgroundColor: '#1a1a2e', color: '#e4e4e7' }}
-            className={cn(
-              "w-full h-8 px-3 text-sm rounded-md cursor-pointer",
-              "border border-white/10",
-              "focus:outline-none focus:ring-1 focus:ring-accent",
-              "disabled:opacity-50 disabled:cursor-not-allowed"
-            )}
           >
-            {validMetrics.map((m) => (
-              <option key={m.value} value={m.value} style={{ backgroundColor: '#1a1a2e', color: '#e4e4e7' }}>
-                {m.label}
-              </option>
-            ))}
-          </select>
+            <div className="relative">
+              <Listbox.Button
+                className={cn(
+                  "relative w-full h-8 pl-3 pr-8 text-sm text-left rounded-md cursor-pointer",
+                  "bg-background border border-white/10",
+                  "text-text-primary",
+                  "focus:outline-none focus:ring-1 focus:ring-accent",
+                  "disabled:opacity-50 disabled:cursor-not-allowed"
+                )}
+              >
+                <span className="block truncate">
+                  {validMetrics.find((m) => m.value === config.scoringMetric)?.label || config.scoringMetric}
+                </span>
+                <span className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                  <RiArrowDownSLine className="w-4 h-4 text-text-muted" />
+                </span>
+              </Listbox.Button>
+              <Transition
+                as={Fragment}
+                leave="transition ease-in duration-100"
+                leaveFrom="opacity-100"
+                leaveTo="opacity-0"
+              >
+                <Listbox.Options
+                  className={cn(
+                    "absolute z-20 w-full mt-1 py-1 overflow-auto rounded-md shadow-lg",
+                    "bg-background-surface border border-white/10",
+                    "max-h-48 focus:outline-none"
+                  )}
+                >
+                  {validMetrics.map((m) => (
+                    <Listbox.Option
+                      key={m.value}
+                      value={m.value}
+                      className={({ active, selected }) =>
+                        cn(
+                          "relative cursor-pointer select-none py-2 pl-3 pr-9 text-sm",
+                          active ? "bg-accent/20 text-accent" : "text-text-primary",
+                          selected && "font-medium"
+                        )
+                      }
+                    >
+                      {({ selected }) => (
+                        <>
+                          <span className="block truncate">{m.label}</span>
+                          {selected && (
+                            <span className="absolute inset-y-0 right-0 flex items-center pr-3 text-accent">
+                              <RiCheckLine className="w-4 h-4" />
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </Listbox.Option>
+                  ))}
+                </Listbox.Options>
+              </Transition>
+            </div>
+          </Listbox>
         </div>
 
         {/* Grid warning */}
