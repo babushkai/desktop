@@ -29,8 +29,9 @@ const sanitizePath = (p: string): string =>
 // Generate suggest call for a parameter
 function generateSuggestCall(name: string, spec: ParamSpec): string {
   if (spec.type === "categorical") {
-    const values = JSON.stringify(spec.values);
-    return `trial.suggest_categorical("${name}", ${values})`;
+    // Convert values to Python literals (null -> None)
+    const pyValues = spec.values!.map(toPythonValue).join(", ");
+    return `trial.suggest_categorical("${name}", [${pyValues}])`;
   } else if (spec.type === "int") {
     if (spec.step !== undefined && spec.step > 1) {
       return `trial.suggest_int("${name}", ${spec.min}, ${spec.max}, step=${spec.step})`;
@@ -45,26 +46,36 @@ function generateSuggestCall(name: string, spec: ParamSpec): string {
   }
 }
 
+// Convert JSON value to Python literal (handles null -> None)
+function toPythonValue(value: unknown): string {
+  if (value === null) return "None";
+  if (typeof value === "string") return `"${value}"`;
+  if (typeof value === "boolean") return value ? "True" : "False";
+  return String(value);
+}
+
 // Generate GridSampler search space dict (explicit enumeration)
 function generateGridSearchSpaceDict(searchSpace: Record<string, ParamSpec>): string {
   const entries: string[] = [];
 
   for (const [name, spec] of Object.entries(searchSpace)) {
     if (spec.type === "categorical") {
-      entries.push(`"${name}": ${JSON.stringify(spec.values)}`);
+      // Convert each value to Python literal
+      const pyValues = spec.values!.map(toPythonValue).join(", ");
+      entries.push(`"${name}": [${pyValues}]`);
     } else if (spec.type === "int" && spec.step !== undefined) {
       const values: number[] = [];
       for (let v = spec.min!; v <= spec.max!; v += spec.step) {
         values.push(v);
       }
-      entries.push(`"${name}": ${JSON.stringify(values)}`);
+      entries.push(`"${name}": [${values.join(", ")}]`);
     } else if (spec.type === "float" && spec.step !== undefined) {
       // Float with step can also be enumerated
       const values: number[] = [];
       for (let v = spec.min!; v <= spec.max!; v += spec.step) {
         values.push(Math.round(v * 10000) / 10000); // Avoid floating point issues
       }
-      entries.push(`"${name}": ${JSON.stringify(values)}`);
+      entries.push(`"${name}": [${values.join(", ")}]`);
     }
     // Note: Continuous ranges without step should have been caught by validation
   }
