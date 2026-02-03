@@ -4,8 +4,10 @@ import { Dialog, Transition } from "@headlessui/react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { usePipelineStore, NodeData, TrainerMode } from "../stores/pipelineStore";
 import { BaseNode, NodeLabel, NodeInput, NodeSlider, NodeSelectGrouped, NodeButton, NodeText } from "./BaseNode";
-import { RiBrainLine, RiFileLine, RiAlertLine } from "@remixicon/react";
+import { RiBrainLine, RiFileLine, RiAlertLine, RiSettings3Line, RiLoader4Line, RiRefreshLine } from "@remixicon/react";
+import { checkPythonPackage } from "@/lib/tauri";
 import { cn } from "@/lib/utils";
+import { canTune } from "@/lib/tuningValidation";
 
 const modelGroups = [
   {
@@ -36,9 +38,17 @@ export function TrainerNode({ id, data, selected }: NodeProps) {
   const nodeData = data as NodeData;
   const updateNodeData = usePipelineStore((s) => s.updateNodeData);
   const executionStatus = usePipelineStore((s) => s.executionStatus);
+  const tuningNodeId = usePipelineStore((s) => s.tuningNodeId);
+  const tuningStatus = usePipelineStore((s) => s.tuningStatus);
+  const optunaInstalled = usePipelineStore((s) => s.optunaInstalled);
+  const setOptunaInstalled = usePipelineStore((s) => s.setOptunaInstalled);
+  const openProperties = usePipelineStore((s) => s.openProperties);
   const [showSecurityWarning, setShowSecurityWarning] = useState(false);
+  const [checkingOptuna, setCheckingOptuna] = useState(false);
 
   const trainerMode = nodeData.trainerMode || "train";
+  const isTuning = tuningNodeId === id;
+  const { valid: canTuneValid, reason: cannotTuneReason } = canTune(nodeData);
 
   const handleModeChange = useCallback(
     (mode: TrainerMode) => {
@@ -91,6 +101,16 @@ export function TrainerNode({ id, data, selected }: NodeProps) {
 
   const modelFileName = nodeData.modelFilePath?.split("/").pop();
 
+  const handleCheckOptuna = useCallback(async () => {
+    setCheckingOptuna(true);
+    try {
+      const installed = await checkPythonPackage("optuna");
+      setOptunaInstalled(installed);
+    } finally {
+      setCheckingOptuna(false);
+    }
+  }, [setOptunaInstalled]);
+
   return (
     <>
       <BaseNode
@@ -126,6 +146,20 @@ export function TrainerNode({ id, data, selected }: NodeProps) {
             )}
           >
             Load
+          </button>
+          <button
+            onClick={() => handleModeChange("tune")}
+            disabled={!canTuneValid}
+            title={cannotTuneReason || "Hyperparameter Tuning"}
+            className={cn(
+              "nodrag flex-1 px-2 py-1 text-xs rounded transition-colors",
+              trainerMode === "tune"
+                ? "bg-accent/20 text-accent"
+                : "text-text-muted hover:text-text-secondary",
+              !canTuneValid && "opacity-50 cursor-not-allowed"
+            )}
+          >
+            Tune
           </button>
         </div>
 
@@ -179,6 +213,70 @@ export function TrainerNode({ id, data, selected }: NodeProps) {
             <NodeText className="text-amber-400/80 text-[10px]">
               Supports .joblib, .pkl files
             </NodeText>
+          </>
+        )}
+
+        {trainerMode === "tune" && (
+          <>
+            <div>
+              <NodeLabel>Model</NodeLabel>
+              <NodeSelectGrouped
+                groups={modelGroups}
+                value={nodeData.modelType || "random_forest"}
+                onChange={handleModelTypeChange}
+              />
+            </div>
+
+            <div>
+              <NodeLabel>Target Column</NodeLabel>
+              <NodeInput
+                type="text"
+                placeholder="e.g. price"
+                value={nodeData.targetColumn || ""}
+                onChange={handleTargetColumnChange}
+              />
+            </div>
+
+            {isTuning ? (
+              <div className="flex items-center gap-2 p-2 bg-accent/10 rounded-lg">
+                <RiLoader4Line className="w-4 h-4 text-accent animate-spin" />
+                <span className="text-xs text-accent">
+                  {tuningStatus === "running" ? "Tuning in progress..." : "Preparing..."}
+                </span>
+              </div>
+            ) : (
+              <NodeButton
+                onClick={() => openProperties(id)}
+                className="flex items-center gap-2"
+                disabled={!optunaInstalled && false}
+              >
+                <RiSettings3Line className="w-3.5 h-3.5" />
+                Configure Tuning
+              </NodeButton>
+            )}
+
+            {!optunaInstalled && (
+              <div className="flex items-center gap-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                <RiAlertLine className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <div className="flex-1">
+                  <p className="text-[10px] text-amber-400">
+                    Optuna required. Run: pip install optuna
+                  </p>
+                </div>
+                <button
+                  onClick={handleCheckOptuna}
+                  disabled={checkingOptuna}
+                  className="nodrag p-1 rounded hover:bg-amber-500/20 text-amber-400 transition-colors disabled:opacity-50"
+                  title="Check again"
+                >
+                  {checkingOptuna ? (
+                    <RiLoader4Line className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <RiRefreshLine className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              </div>
+            )}
           </>
         )}
       </BaseNode>

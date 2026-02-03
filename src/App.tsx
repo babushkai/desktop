@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { ReactFlowProvider } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { Canvas } from "./components/Canvas";
@@ -6,6 +6,7 @@ import { NodePalette } from "./components/NodePalette";
 import { OutputPanel } from "./components/OutputPanel";
 import { PropertiesPanel } from "./components/PropertiesPanel";
 import { PlaygroundPanel } from "./components/PlaygroundPanel";
+import { TuningPanel } from "./components/TuningPanel";
 import { Toolbar } from "./components/Toolbar";
 import { usePipelineStore } from "./stores/pipelineStore";
 import { cn } from "./lib/utils";
@@ -13,15 +14,267 @@ import {
   RiLayoutLeftLine,
   RiTerminalBoxLine,
 } from "@remixicon/react";
-import { useState } from "react";
+import {
+  checkPythonPackage,
+  runScriptAndWait,
+  ScriptEvent,
+  createRun,
+  completeRun,
+  failRun,
+  saveRunMetrics,
+  MetricInput,
+  createTuningSession,
+  completeTuningSession,
+  saveTuningTrial,
+} from "./lib/tauri";
+import { generateTuningCode, generateTuningCodeWithSplit } from "./lib/tunerCodeGen";
+import { generateDataSplitCode } from "./lib/dataSplitCodeGen";
+import { TuningConfig } from "./lib/tuningTypes";
 
 function App() {
   const [showNodePalette, setShowNodePalette] = useState(true);
   const [showOutputPanel, setShowOutputPanel] = useState(true);
+  const [showTuningPanel, setShowTuningPanel] = useState(false);
+  const [tuningPanelNodeId, setTuningPanelNodeId] = useState<string | null>(null);
 
   const playgroundOpen = usePipelineStore((s) => s.playgroundOpen);
   const openPlayground = usePipelineStore((s) => s.openPlayground);
   const closePlayground = usePipelineStore((s) => s.closePlayground);
+
+  const nodes = usePipelineStore((s) => s.nodes);
+  const edges = usePipelineStore((s) => s.edges);
+  const selectedNodeId = usePipelineStore((s) => s.selectedNodeId);
+  const currentPipelineName = usePipelineStore((s) => s.currentPipelineName);
+  const executionStatus = usePipelineStore((s) => s.executionStatus);
+  const profilingNodeId = usePipelineStore((s) => s.profilingNodeId);
+  const setOptunaInstalled = usePipelineStore((s) => s.setOptunaInstalled);
+  const setTuningNodeId = usePipelineStore((s) => s.setTuningNodeId);
+  const setTuningStatus = usePipelineStore((s) => s.setTuningStatus);
+  const addTuningTrial = usePipelineStore((s) => s.addTuningTrial);
+  const clearTuningTrials = usePipelineStore((s) => s.clearTuningTrials);
+  const setTuningSessionId = usePipelineStore((s) => s.setTuningSessionId);
+  const setExecutionStatus = usePipelineStore((s) => s.setExecutionStatus);
+  const appendLog = usePipelineStore((s) => s.appendLog);
+  const clearLogs = usePipelineStore((s) => s.clearLogs);
+  const loadRunHistory = usePipelineStore((s) => s.loadRunHistory);
+
+  // Check for Optuna installation on mount
+  useEffect(() => {
+    checkPythonPackage("optuna").then(setOptunaInstalled);
+  }, [setOptunaInstalled]);
+
+  // Show TuningPanel when a trainer node in tune mode is selected
+  useEffect(() => {
+    if (selectedNodeId) {
+      const selectedNode = nodes.find((n) => n.id === selectedNodeId);
+      if (selectedNode?.type === "trainer" && selectedNode.data.trainerMode === "tune") {
+        setShowTuningPanel(true);
+        setTuningPanelNodeId(selectedNodeId);
+        return;
+      }
+    }
+    // Close tuning panel if not a trainer in tune mode
+    if (showTuningPanel && tuningPanelNodeId) {
+      const tuningNode = nodes.find((n) => n.id === tuningPanelNodeId);
+      if (!tuningNode || tuningNode.type !== "trainer" || tuningNode.data.trainerMode !== "tune") {
+        setShowTuningPanel(false);
+        setTuningPanelNodeId(null);
+      }
+    }
+  }, [selectedNodeId, nodes, showTuningPanel, tuningPanelNodeId]);
+
+  const handleStartTuning = useCallback(
+    async (config: TuningConfig) => {
+      if (!tuningPanelNodeId) return;
+
+      const trainerNode = nodes.find((n) => n.id === tuningPanelNodeId);
+      if (!trainerNode) return;
+
+      // Find input path
+      const dataSplitNode = nodes.find((n) => n.type === "dataSplit");
+      const useDataSplit =
+        dataSplitNode &&
+        edges.some((e) => e.source === dataSplitNode.id && e.target === trainerNode.id);
+
+      let inputPath: string | undefined;
+
+      if (useDataSplit && dataSplitNode) {
+        const dsEdge = edges.find((e) => e.target === dataSplitNode.id);
+        const dataLoaderNode = nodes.find((n) => n.id === dsEdge?.source);
+        inputPath = dataLoaderNode?.data.filePath;
+      } else {
+        const edge = edges.find((e) => e.target === trainerNode.id);
+        const dataLoaderNode = nodes.find((n) => n.id === edge?.source);
+        inputPath = dataLoaderNode?.data.filePath;
+      }
+
+      if (!inputPath) {
+        appendLog("ERROR: No input file selected");
+        return;
+      }
+
+      // Clear previous state
+      clearLogs();
+      clearTuningTrials();
+      setTuningNodeId(tuningPanelNodeId);
+      setTuningStatus("running");
+      setExecutionStatus("running");
+
+      const pipelineName = currentPipelineName || "Untitled";
+      const startTime = Date.now();
+      let runId: string | null = null;
+      let sessionId: string | null = null;
+
+      try {
+        // Create run record
+        runId = await createRun(pipelineName, {
+          tuning: true,
+          sampler: config.sampler,
+          nTrials: config.nTrials,
+          cvFolds: config.cvFolds,
+          scoringMetric: config.scoringMetric,
+          modelType: trainerNode.data.modelType,
+        });
+
+        // Create tuning session
+        sessionId = await createTuningSession(
+          runId,
+          config.sampler,
+          JSON.stringify(config.searchSpace),
+          config.sampler === "grid" ? null : config.nTrials,
+          config.cvFolds,
+          config.scoringMetric
+        );
+        setTuningSessionId(sessionId);
+
+        const collectedMetrics: MetricInput[] = [];
+
+        const handleOutput = async (event: ScriptEvent) => {
+          if (event.type === "log") {
+            appendLog(event.message);
+          } else if (event.type === "error") {
+            appendLog(`ERROR: ${event.message}`);
+          } else if (event.type === "trial") {
+            // Add trial to UI
+            addTuningTrial({
+              trialNumber: event.trialNumber,
+              params: event.params,
+              score: event.score,
+              durationMs: event.durationMs,
+              status: "completed",
+            });
+
+            // Save to database
+            if (sessionId) {
+              await saveTuningTrial(
+                sessionId,
+                event.trialNumber,
+                JSON.stringify(event.params),
+                event.score,
+                event.durationMs
+              );
+            }
+          } else if (event.type === "tuningComplete") {
+            collectedMetrics.push({
+              name: "best_params",
+              valueJson: JSON.stringify(event.bestParams),
+            });
+            collectedMetrics.push({
+              name: "best_score",
+              value: event.bestScore,
+            });
+            collectedMetrics.push({
+              name: "total_trials",
+              value: event.totalTrials,
+            });
+          }
+        };
+
+        // Run data split if needed
+        if (useDataSplit && dataSplitNode) {
+          appendLog("--- Running Data Split ---");
+          appendLog(`Split ratio: ${((dataSplitNode.data.splitRatio || 0.2) * 100).toFixed(0)}%`);
+          appendLog("");
+
+          const splitCode = generateDataSplitCode(dataSplitNode.data, inputPath);
+          await runScriptAndWait(splitCode, inputPath, handleOutput);
+        }
+
+        // Run tuning
+        appendLog("");
+        appendLog("--- Running Hyperparameter Tuning ---");
+        appendLog(`Model: ${trainerNode.data.modelType || "random_forest"}`);
+        appendLog(`Target: ${trainerNode.data.targetColumn || "target"}`);
+        appendLog(`Sampler: ${config.sampler}`);
+        appendLog(`Metric: ${config.scoringMetric}`);
+        appendLog("");
+
+        let tuningCode;
+        if (useDataSplit) {
+          tuningCode = generateTuningCodeWithSplit(trainerNode.data, inputPath, config);
+        } else {
+          tuningCode = generateTuningCode(trainerNode.data, inputPath, config);
+        }
+
+        await runScriptAndWait(tuningCode, inputPath, handleOutput);
+
+        // Complete session and run
+        const duration = Date.now() - startTime;
+
+        if (sessionId) {
+          await completeTuningSession(sessionId);
+        }
+
+        if (runId && collectedMetrics.length > 0) {
+          await saveRunMetrics(runId, collectedMetrics);
+        }
+
+        if (runId) {
+          await completeRun(runId, duration);
+        }
+
+        setTuningStatus("completed");
+        setExecutionStatus("success");
+
+        appendLog("");
+        appendLog(`Tuning completed in ${(duration / 1000).toFixed(1)}s`);
+      } catch (error) {
+        appendLog(`ERROR: ${String(error)}`);
+        setTuningStatus("error");
+        setExecutionStatus("error");
+
+        if (runId) {
+          await failRun(runId, String(error));
+        }
+      } finally {
+        setTuningNodeId(null);
+        await loadRunHistory(pipelineName);
+      }
+    },
+    [
+      tuningPanelNodeId,
+      nodes,
+      edges,
+      currentPipelineName,
+      appendLog,
+      clearLogs,
+      clearTuningTrials,
+      setTuningNodeId,
+      setTuningStatus,
+      addTuningTrial,
+      setTuningSessionId,
+      setExecutionStatus,
+      loadRunHistory,
+    ]
+  );
+
+  const handleCloseTuningPanel = useCallback(() => {
+    setShowTuningPanel(false);
+    setTuningPanelNodeId(null);
+  }, []);
+
+  // Check if tuning can start (mutual exclusion)
+  const canStartTuning = executionStatus !== "running" && !profilingNodeId;
 
   // Keyboard shortcuts for panel toggles
   useEffect(() => {
@@ -123,6 +376,15 @@ function App() {
 
           <PropertiesPanel />
           <PlaygroundPanel />
+
+          {/* Tuning Panel - shows when trainer in tune mode is selected */}
+          {showTuningPanel && tuningPanelNodeId && canStartTuning && (
+            <TuningPanel
+              nodeId={tuningPanelNodeId}
+              onStartTuning={handleStartTuning}
+              onClose={handleCloseTuningPanel}
+            />
+          )}
         </div>
 
         {/* Output Panel - collapsible */}

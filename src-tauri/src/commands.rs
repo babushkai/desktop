@@ -106,6 +106,26 @@ pub enum ScriptEvent {
     Complete,
     #[serde(rename = "exit")]
     Exit { code: i32 },
+    #[serde(rename = "trial")]
+    Trial {
+        #[serde(rename = "trialNumber")]
+        trial_number: u32,
+        params: serde_json::Value,
+        score: f64,
+        #[serde(rename = "durationMs")]
+        duration_ms: Option<u64>,
+    },
+    #[serde(rename = "tuningComplete")]
+    TuningComplete {
+        #[serde(rename = "bestParams")]
+        best_params: serde_json::Value,
+        #[serde(rename = "bestScore")]
+        best_score: f64,
+        #[serde(rename = "totalTrials")]
+        total_trials: u32,
+        #[serde(rename = "durationMs")]
+        duration_ms: Option<u64>,
+    },
 }
 
 #[derive(Deserialize)]
@@ -120,11 +140,39 @@ struct JsonOutput {
     #[serde(rename = "nodeId")]
     node_id: Option<String>,
     data: Option<serde_json::Value>,
+    // Tuning event fields
+    #[serde(rename = "trialNumber")]
+    trial_number: Option<u32>,
+    params: Option<serde_json::Value>,
+    score: Option<f64>,
+    #[serde(rename = "durationMs")]
+    duration_ms: Option<u64>,
+    #[serde(rename = "bestParams")]
+    best_params: Option<serde_json::Value>,
+    #[serde(rename = "bestScore")]
+    best_score: Option<f64>,
+    #[serde(rename = "totalTrials")]
+    total_trials: Option<u32>,
 }
 
 #[tauri::command]
 pub fn get_python_path() -> Option<String> {
     db::get_setting("python_path")
+}
+
+#[tauri::command]
+pub fn check_python_package(package: String) -> bool {
+    let python_path = match python::find_python() {
+        Some(p) => p,
+        None => return false,
+    };
+    Command::new(&python_path)
+        .args(["-c", &format!("import {}", package)])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
 }
 
 #[tauri::command]
@@ -303,6 +351,30 @@ fn parse_output_line(line: &str) -> ScriptEvent {
             "dataProfile" => {
                 if let (Some(node_id), Some(data)) = (json.node_id, json.data) {
                     return ScriptEvent::DataProfile { node_id, data };
+                }
+            }
+            "trial" => {
+                if let (Some(trial_number), Some(params), Some(score)) =
+                    (json.trial_number, json.params, json.score)
+                {
+                    return ScriptEvent::Trial {
+                        trial_number,
+                        params,
+                        score,
+                        duration_ms: json.duration_ms,
+                    };
+                }
+            }
+            "tuningComplete" => {
+                if let (Some(best_params), Some(best_score), Some(total_trials)) =
+                    (json.best_params, json.best_score, json.total_trials)
+                {
+                    return ScriptEvent::TuningComplete {
+                        best_params,
+                        best_score,
+                        total_trials,
+                        duration_ms: json.duration_ms,
+                    };
                 }
             }
             _ => {}
@@ -782,4 +854,85 @@ pub fn run_inference(
             Err("Inference server disconnected".to_string())
         }
     }
+}
+
+// Tuning commands
+
+#[tauri::command]
+pub fn create_tuning_session(
+    run_id: String,
+    sampler: String,
+    search_space: String,
+    n_trials: Option<i32>,
+    cv_folds: i32,
+    scoring_metric: String,
+) -> Result<String, String> {
+    let session_id = uuid::Uuid::new_v4().to_string();
+    db::create_tuning_session(
+        &session_id,
+        &run_id,
+        &sampler,
+        &search_space,
+        n_trials,
+        cv_folds,
+        &scoring_metric,
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(session_id)
+}
+
+#[tauri::command]
+pub fn complete_tuning_session(
+    session_id: String,
+    best_trial_id: Option<String>,
+) -> Result<(), String> {
+    db::update_tuning_session(&session_id, "completed", best_trial_id.as_deref())
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn cancel_tuning_session(session_id: String) -> Result<(), String> {
+    db::update_tuning_session(&session_id, "cancelled", None).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_tuning_session(session_id: String) -> Result<Option<db::TuningSession>, String> {
+    db::get_tuning_session(&session_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_tuning_session_by_run(run_id: String) -> Result<Option<db::TuningSession>, String> {
+    db::get_tuning_session_by_run(&run_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn save_tuning_trial(
+    session_id: String,
+    trial_number: i32,
+    hyperparameters: String,
+    score: Option<f64>,
+    duration_ms: Option<i64>,
+) -> Result<String, String> {
+    let trial_id = uuid::Uuid::new_v4().to_string();
+    db::create_tuning_trial(
+        &trial_id,
+        &session_id,
+        trial_number,
+        &hyperparameters,
+        score,
+        duration_ms,
+        "completed",
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(trial_id)
+}
+
+#[tauri::command]
+pub fn list_tuning_trials(session_id: String) -> Result<Vec<db::TuningTrial>, String> {
+    db::list_tuning_trials(&session_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_best_trial(session_id: String) -> Result<Option<db::TuningTrial>, String> {
+    db::get_best_trial(&session_id).map_err(|e| e.to_string())
 }

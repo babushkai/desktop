@@ -24,8 +24,9 @@ import {
 } from "../lib/exampleWorkflows";
 import { AlignType, alignNodes, distributeNodes } from "@/lib/alignment";
 import { DataProfile, ProfilingStatus } from "@/lib/dataProfileTypes";
+import { TuningConfig, TuningStatus, TrialResult } from "@/lib/tuningTypes";
 
-export type TrainerMode = "train" | "load";
+export type TrainerMode = "train" | "load" | "tune";
 
 export type NodeData = {
   label: string;
@@ -45,6 +46,8 @@ export type NodeData = {
   // ModelExporter fields
   exportFormat?: string; // "joblib" | "pickle" | "onnx"
   outputFileName?: string;
+  // Tuning fields
+  tuningConfig?: TuningConfig;
 };
 
 // Single source of truth for valid connections
@@ -128,6 +131,19 @@ interface PipelineState {
   setProfilingNodeId: (nodeId: string | null) => void;
   clearDataProfile: (nodeId: string) => void;
 
+  // Tuning
+  tuningNodeId: string | null;
+  tuningStatus: TuningStatus;
+  tuningTrials: TrialResult[];
+  tuningSessionId: string | null;
+  optunaInstalled: boolean;
+  setTuningNodeId: (nodeId: string | null) => void;
+  setTuningStatus: (status: TuningStatus) => void;
+  addTuningTrial: (trial: TrialResult) => void;
+  clearTuningTrials: () => void;
+  setTuningSessionId: (sessionId: string | null) => void;
+  setOptunaInstalled: (installed: boolean) => void;
+
   // Node operations
   addNode: (type: "dataLoader" | "script" | "trainer" | "evaluator" | "modelExporter" | "dataSplit", position: { x: number; y: number }) => void;
   deleteNodes: (nodeIds: string[]) => void;
@@ -191,6 +207,11 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   dataProfiles: {},
   profilingStatus: {},
   profilingNodeId: null,
+  tuningNodeId: null,
+  tuningStatus: "idle",
+  tuningTrials: [],
+  tuningSessionId: null,
+  optunaInstalled: false,
 
   setSelectedNodeId: (id) => set({ selectedNodeId: id }),
 
@@ -234,6 +255,22 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
         Object.entries(state.profilingStatus).filter(([id]) => id !== nodeId)
       ),
     })),
+
+  // Tuning actions
+  setTuningNodeId: (nodeId) => set({ tuningNodeId: nodeId }),
+
+  setTuningStatus: (status) => set({ tuningStatus: status }),
+
+  addTuningTrial: (trial) =>
+    set((state) => ({
+      tuningTrials: [...state.tuningTrials, trial],
+    })),
+
+  clearTuningTrials: () => set({ tuningTrials: [] }),
+
+  setTuningSessionId: (sessionId) => set({ tuningSessionId: sessionId }),
+
+  setOptunaInstalled: (installed) => set({ optunaInstalled: installed }),
 
   addNode: (type, position) => {
     const id = `${type}-${++nodeIdCounter}`;
