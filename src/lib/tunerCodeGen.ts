@@ -101,7 +101,7 @@ function generateParamExtraction(searchSpace: Record<string, ParamSpec>): string
 
   for (const [name, spec] of Object.entries(searchSpace)) {
     const suggestCall = generateSuggestCall(name, spec);
-    lines.push(`    ${name} = ${suggestCall}`);
+    lines.push(`        ${name} = ${suggestCall}`);
   }
 
   return lines.join("\n");
