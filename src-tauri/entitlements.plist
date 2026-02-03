@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+        These entitlements are required for the bundled Python runtime:
+
+        - allow-jit: Required for Python's JIT compilation (ctypes, cffi, numba)
+        - allow-unsigned-executable-memory: Required for NumPy, SciPy, and other
+          scientific computing libraries that use native code
+        - disable-library-validation: Required to load Python .so extensions
+          from the app bundle without requiring each one to be signed
+
+        SECURITY NOTE: These entitlements weaken the hardened runtime but are
+        unavoidable for Python scientific computing. The app bundle is still
+        signed and notarized, providing integrity guarantees against tampering.
+        The bundled Python is read-only and all packages are pre-verified.
+    -->
+
+    <!-- Allow JIT compilation (required for Python) -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+
+    <!-- Allow unsigned executable memory (required for NumPy/SciPy) -->
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+
+    <!-- Disable library validation (required for Python extensions) -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+</dict>
+</plist>

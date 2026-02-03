@@ -27,6 +27,16 @@
     "active": true,
     "targets": "all",
     "icon": [],
-    "resources": ["resources/examples/*"]
+    "resources": [
+      "resources/examples/*",
+      {
+        "path": "python",
+        "target": "python"
+      }
+    ],
+    "macOS": {
+      "entitlements": "entitlements.plist",
+      "signingIdentity": null
+    }
   }
 }
