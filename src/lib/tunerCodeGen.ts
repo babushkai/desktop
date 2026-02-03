@@ -2,7 +2,7 @@
 
 import { NodeData } from "../stores/pipelineStore";
 import { TuningConfig, ParamSpec } from "./tuningTypes";
-import { WORK_DIR, MODEL_FILE } from "./constants";
+import { WORK_DIR, MODEL_FILE, MODEL_INFO_FILE } from "./constants";
 
 // Model configuration mapping (same as trainerCodeGen.ts)
 const MODEL_CONFIG: Record<string, { module: string; class: string }> = {
@@ -288,6 +288,19 @@ ${paramExtraction}
     joblib.dump(final_model, "${MODEL_FILE}")
     emit("log", message=f"Model saved to ${MODEL_FILE}")
 
+    # Save model info for ONNX export (n_features, feature_names)
+    model_info = {
+        "n_features": X.shape[1],
+        "feature_names": X.columns.tolist() if hasattr(X, 'columns') else [f"feature_{i}" for i in range(X.shape[1])],
+        "model_class": type(final_model).__name__,
+        "model_type": "${modelType}",
+        "best_params": study.best_params,
+        "best_score": float(study.best_value)
+    }
+    with open("${MODEL_INFO_FILE}", "w") as f:
+        json.dump(model_info, f, indent=2)
+    emit("log", message=f"Model info saved to ${MODEL_INFO_FILE}")
+
     # Emit completion event
     emit("tuningComplete",
         bestParams=study.best_params,
@@ -449,6 +462,19 @@ ${paramExtraction}
     # Save model
     joblib.dump(final_model, "${MODEL_FILE}")
     emit("log", message=f"Model saved to ${MODEL_FILE}")
+
+    # Save model info for ONNX export (n_features, feature_names)
+    model_info = {
+        "n_features": X_train.shape[1],
+        "feature_names": X_train.columns.tolist() if hasattr(X_train, 'columns') else [f"feature_{i}" for i in range(X_train.shape[1])],
+        "model_class": type(final_model).__name__,
+        "model_type": "${modelType}",
+        "best_params": study.best_params,
+        "best_score": float(study.best_value)
+    }
+    with open("${MODEL_INFO_FILE}", "w") as f:
+        json.dump(model_info, f, indent=2)
+    emit("log", message=f"Model info saved to ${MODEL_INFO_FILE}")
 
     # Emit completion event
     emit("tuningComplete",

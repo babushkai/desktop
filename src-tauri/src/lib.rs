@@ -83,6 +83,17 @@ pub fn run() {
             commands::get_run_tags,
             commands::list_all_tags,
             commands::get_runs_for_comparison,
+            // Model Metadata & Tags (v9)
+            commands::update_model_version_metadata,
+            commands::update_model_version_training_info,
+            commands::update_model_version_export_path,
+            commands::add_model_tag,
+            commands::remove_model_tag,
+            commands::get_model_tags,
+            commands::list_all_model_tags,
+            commands::list_all_model_versions_filtered,
+            commands::get_model_versions_for_comparison,
+            commands::get_comparable_versions,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,5 +1,5 @@
 import { NodeData } from "../stores/pipelineStore";
-import { WORK_DIR, SPLIT_INDICES_FILE, MODEL_FILE } from "./constants";
+import { WORK_DIR, SPLIT_INDICES_FILE, MODEL_FILE, MODEL_INFO_FILE } from "./constants";
 
 const MODEL_CONFIG: Record<string, { module: string; class: string }> = {
   // Regressors
@@ -77,6 +77,17 @@ try:
     joblib.dump(model, "${MODEL_FILE}")
     print(f"Model saved to ${MODEL_FILE}")
 
+    # Save model info for ONNX export (n_features, feature_names)
+    model_info = {
+        "n_features": X_train.shape[1],
+        "feature_names": X_train.columns.tolist() if hasattr(X_train, 'columns') else [f"feature_{i}" for i in range(X_train.shape[1])],
+        "model_class": type(model).__name__,
+        "model_type": "${nodeData.modelType || "linear_regression"}"
+    }
+    with open("${MODEL_INFO_FILE}", "w") as f:
+        json.dump(model_info, f, indent=2)
+    print(f"Model info saved to ${MODEL_INFO_FILE}")
+
 except Exception as e:
     print(f"ERROR: {e}")
     sys.exit(1)
@@ -138,6 +149,17 @@ try:
 
     joblib.dump(model, "${MODEL_FILE}")
     print(f"Model saved to ${MODEL_FILE}")
+
+    # Save model info for ONNX export (n_features, feature_names)
+    model_info = {
+        "n_features": X_train.shape[1],
+        "feature_names": X_train.columns.tolist() if hasattr(X_train, 'columns') else [f"feature_{i}" for i in range(X_train.shape[1])],
+        "model_class": type(model).__name__,
+        "model_type": "${nodeData.modelType || "linear_regression"}"
+    }
+    with open("${MODEL_INFO_FILE}", "w") as f:
+        json.dump(model_info, f, indent=2)
+    print(f"Model info saved to ${MODEL_INFO_FILE}")
 
 except Exception as e:
     print(f"ERROR: {e}")

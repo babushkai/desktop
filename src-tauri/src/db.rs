@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Mutex;
 
-const DB_VERSION: i32 = 6; // v1 = settings+pipelines, v2 = +runs+metrics, v3 = +models+model_versions, v4 = +feature_names, v5 = +tuning_sessions+tuning_trials, v6 = +experiments+run_annotations
+const DB_VERSION: i32 = 7; // v1 = settings+pipelines, v2 = +runs+metrics, v3 = +models+model_versions, v4 = +feature_names, v5 = +tuning_sessions+tuning_trials, v6 = +experiments+run_annotations, v7 = +model_metadata+model_tags+export_paths
 
 #[derive(Serialize, Deserialize)]
 pub struct PipelineMetadata {
@@ -74,6 +74,13 @@ pub struct ModelVersion {
     pub feature_names: Option<String>, // JSON array of feature names
     pub created_at: String,
     pub promoted_at: Option<String>,
+    // v9: Enhanced model metadata
+    pub description: Option<String>,
+    pub notes: Option<String>,
+    pub onnx_path: Option<String>,
+    pub coreml_path: Option<String>,
+    pub n_features: Option<i64>,
+    pub tags: Option<Vec<String>>, // Populated separately from model_tags table
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -333,6 +340,47 @@ pub fn init_db(app_data_dir: &Path) -> Result<()> {
 
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_run_tags_tag ON run_tags(tag)",
+            [],
+        )?;
+    }
+
+    // v7 migration (model metadata, tags, export paths)
+    if version < 7 {
+        // Add metadata columns to model_versions
+        conn.execute(
+            "ALTER TABLE model_versions ADD COLUMN description TEXT",
+            [],
+        )?;
+        conn.execute(
+            "ALTER TABLE model_versions ADD COLUMN notes TEXT",
+            [],
+        )?;
+        conn.execute(
+            "ALTER TABLE model_versions ADD COLUMN onnx_path TEXT",
+            [],
+        )?;
+        conn.execute(
+            "ALTER TABLE model_versions ADD COLUMN coreml_path TEXT",
+            [],
+        )?;
+        // Add training metadata for ONNX export (required for input shape)
+        conn.execute(
+            "ALTER TABLE model_versions ADD COLUMN n_features INTEGER",
+            [],
+        )?;
+        // Model tags table (many per version, case-insensitive)
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS model_tags (
+                version_id TEXT NOT NULL REFERENCES model_versions(id) ON DELETE CASCADE,
+                tag TEXT NOT NULL COLLATE NOCASE,
+                PRIMARY KEY (version_id, tag)
+            )",
+            [],
+        )?;
+
+        // Indexes for model queries
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_model_tags_tag ON model_tags(tag)",
             [],
         )?;
     }
@@ -1063,11 +1111,17 @@ pub fn list_model_versions(model_id: &str) -> Result<Vec<ModelVersion>> {
         rusqlite::Error::InvalidQuery
     })?;
     let mut stmt = conn.prepare(
-        "SELECT id, model_id, version, run_id, file_path, file_size, format, stage, metrics_snapshot, feature_names, created_at, promoted_at
+        "SELECT id, model_id, version, run_id, file_path, file_size, format, stage, metrics_snapshot, feature_names, created_at, promoted_at, description, notes, onnx_path, coreml_path, n_features
          FROM model_versions WHERE model_id = ?1 ORDER BY version DESC"
     )?;
-    let rows = stmt.query_map([model_id], map_model_version_row)?;
-    rows.collect()
+    let mut versions: Vec<ModelVersion> = stmt.query_map([model_id], map_model_version_row)?.collect::<Result<Vec<_>>>()?;
+
+    // Fetch tags for each version
+    for version in &mut versions {
+        version.tags = Some(get_model_tags_internal(&conn, &version.id)?);
+    }
+
+    Ok(versions)
 }
 
 fn map_model_version_row(row: &rusqlite::Row) -> Result<ModelVersion> {
@@ -1084,6 +1138,12 @@ fn map_model_version_row(row: &rusqlite::Row) -> Result<ModelVersion> {
         feature_names: row.get(9)?,
         created_at: row.get(10)?,
         promoted_at: row.get(11)?,
+        description: row.get(12)?,
+        notes: row.get(13)?,
+        onnx_path: row.get(14)?,
+        coreml_path: row.get(15)?,
+        n_features: row.get(16)?,
+        tags: None, // Populated separately
     })
 }
 
@@ -1175,13 +1235,16 @@ pub fn get_model_version(version_id: &str) -> Result<Option<ModelVersion>> {
         rusqlite::Error::InvalidQuery
     })?;
     let result = conn.query_row(
-        "SELECT id, model_id, version, run_id, file_path, file_size, format, stage, metrics_snapshot, feature_names, created_at, promoted_at
+        "SELECT id, model_id, version, run_id, file_path, file_size, format, stage, metrics_snapshot, feature_names, created_at, promoted_at, description, notes, onnx_path, coreml_path, n_features
          FROM model_versions WHERE id = ?1",
         [version_id],
         map_model_version_row,
     );
     match result {
-        Ok(version) => Ok(Some(version)),
+        Ok(mut version) => {
+            version.tags = Some(get_model_tags_internal(&conn, &version.id)?);
+            Ok(Some(version))
+        }
         Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
         Err(e) => Err(e),
     }
@@ -1360,6 +1423,284 @@ pub fn get_best_trial(session_id: &str) -> Result<Option<TuningTrial>> {
         Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
         Err(e) => Err(e),
     }
+}
+
+// Model Metadata & Tags operations (v9)
+
+fn get_model_tags_internal(conn: &Connection, version_id: &str) -> Result<Vec<String>> {
+    let mut stmt = conn.prepare("SELECT tag FROM model_tags WHERE version_id = ?1 ORDER BY tag")?;
+    let rows = stmt.query_map([version_id], |row| row.get(0))?;
+    rows.collect()
+}
+
+pub fn update_model_version_metadata(
+    version_id: &str,
+    description: Option<&str>,
+    notes: Option<&str>,
+) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    conn.execute(
+        "UPDATE model_versions SET description = ?2, notes = ?3 WHERE id = ?1",
+        rusqlite::params![version_id, description, notes],
+    )?;
+    Ok(())
+}
+
+pub fn update_model_version_training_info(
+    version_id: &str,
+    n_features: Option<i64>,
+    feature_names: Option<&str>,
+) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    conn.execute(
+        "UPDATE model_versions SET n_features = ?2, feature_names = ?3 WHERE id = ?1",
+        rusqlite::params![version_id, n_features, feature_names],
+    )?;
+    Ok(())
+}
+
+pub fn update_model_version_export_path(
+    version_id: &str,
+    onnx_path: Option<&str>,
+    coreml_path: Option<&str>,
+) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    conn.execute(
+        "UPDATE model_versions SET onnx_path = ?2, coreml_path = ?3 WHERE id = ?1",
+        rusqlite::params![version_id, onnx_path, coreml_path],
+    )?;
+    Ok(())
+}
+
+pub fn add_model_tag(version_id: &str, tag: &str) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    conn.execute(
+        "INSERT OR IGNORE INTO model_tags (version_id, tag) VALUES (?1, ?2)",
+        [version_id, tag],
+    )?;
+    Ok(())
+}
+
+pub fn remove_model_tag(version_id: &str, tag: &str) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    conn.execute(
+        "DELETE FROM model_tags WHERE version_id = ?1 AND tag = ?2 COLLATE NOCASE",
+        [version_id, tag],
+    )?;
+    Ok(())
+}
+
+pub fn get_model_tags(version_id: &str) -> Result<Vec<String>> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    get_model_tags_internal(&conn, version_id)
+}
+
+pub fn list_all_model_tags() -> Result<Vec<String>> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    let mut stmt = conn.prepare("SELECT DISTINCT tag FROM model_tags ORDER BY tag")?;
+    let rows = stmt.query_map([], |row| row.get(0))?;
+    rows.collect()
+}
+
+// Model filtering/search for v9
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ModelVersionFilters {
+    pub search: Option<String>,
+    pub stage: Option<String>,     // 'none' | 'staging' | 'production' | 'archived' | 'all'
+    pub model_type: Option<String>, // from format field or metrics_snapshot
+    pub tags: Option<Vec<String>>,
+}
+
+pub fn list_all_model_versions_filtered(filters: Option<ModelVersionFilters>) -> Result<Vec<ModelVersion>> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+
+    // Base query with all columns
+    let base_query = "SELECT mv.id, mv.model_id, mv.version, mv.run_id, mv.file_path, mv.file_size, mv.format, mv.stage, mv.metrics_snapshot, mv.feature_names, mv.created_at, mv.promoted_at, mv.description, mv.notes, mv.onnx_path, mv.coreml_path, mv.n_features, m.name as model_name
+         FROM model_versions mv
+         JOIN models m ON mv.model_id = m.id";
+
+    let mut conditions: Vec<String> = Vec::new();
+    let mut params: Vec<String> = Vec::new();
+
+    if let Some(ref f) = filters {
+        // Search filter (model name or description)
+        if let Some(ref search) = f.search {
+            if !search.is_empty() {
+                conditions.push(format!("(m.name LIKE '%{}%' OR mv.description LIKE '%{}%')", search.replace('\'', "''"), search.replace('\'', "''")));
+            }
+        }
+
+        // Stage filter
+        if let Some(ref stage) = f.stage {
+            if stage != "all" {
+                params.push(stage.clone());
+                conditions.push(format!("mv.stage = '{}'", stage.replace('\'', "''")));
+            }
+        }
+
+        // Tags filter - match versions that have ALL specified tags
+        if let Some(ref tags) = f.tags {
+            if !tags.is_empty() {
+                for tag in tags {
+                    conditions.push(format!(
+                        "EXISTS (SELECT 1 FROM model_tags mt WHERE mt.version_id = mv.id AND mt.tag = '{}' COLLATE NOCASE)",
+                        tag.replace('\'', "''")
+                    ));
+                }
+            }
+        }
+    }
+
+    let query = if conditions.is_empty() {
+        format!("{} ORDER BY mv.created_at DESC", base_query)
+    } else {
+        format!("{} WHERE {} ORDER BY mv.created_at DESC", base_query, conditions.join(" AND "))
+    };
+
+    let mut stmt = conn.prepare(&query)?;
+    let mut versions: Vec<ModelVersion> = stmt.query_map([], |row| {
+        Ok(ModelVersion {
+            id: row.get(0)?,
+            model_id: row.get(1)?,
+            version: row.get(2)?,
+            run_id: row.get(3)?,
+            file_path: row.get(4)?,
+            file_size: row.get(5)?,
+            format: row.get(6)?,
+            stage: row.get(7)?,
+            metrics_snapshot: row.get(8)?,
+            feature_names: row.get(9)?,
+            created_at: row.get(10)?,
+            promoted_at: row.get(11)?,
+            description: row.get(12)?,
+            notes: row.get(13)?,
+            onnx_path: row.get(14)?,
+            coreml_path: row.get(15)?,
+            n_features: row.get(16)?,
+            tags: None,
+        })
+    })?.collect::<Result<Vec<_>>>()?;
+
+    // Fetch tags for each version
+    for version in &mut versions {
+        version.tags = Some(get_model_tags_internal(&conn, &version.id)?);
+    }
+
+    Ok(versions)
+}
+
+// Version comparison for v9
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ModelVersionComparison {
+    pub versions: Vec<ModelVersionComparisonItem>,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ModelVersionComparisonItem {
+    pub version_id: String,
+    pub model_name: String,
+    pub version: i64,
+    pub run_id: Option<String>,
+    pub stage: String,
+    pub created_at: String,
+    pub metrics: std::collections::HashMap<String, Option<f64>>,
+    pub hyperparameters: std::collections::HashMap<String, serde_json::Value>,
+}
+
+pub fn get_model_versions_for_comparison(version_ids: &[String]) -> Result<ModelVersionComparison> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+
+    let mut items: Vec<ModelVersionComparisonItem> = Vec::new();
+
+    for version_id in version_ids {
+        // Get version with model name
+        let version_result = conn.query_row(
+            "SELECT mv.id, mv.version, mv.run_id, mv.stage, mv.created_at, mv.metrics_snapshot, m.name
+             FROM model_versions mv
+             JOIN models m ON mv.model_id = m.id
+             WHERE mv.id = ?1",
+            [version_id],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, i64>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                    row.get::<_, String>(3)?,
+                    row.get::<_, String>(4)?,
+                    row.get::<_, Option<String>>(5)?,
+                    row.get::<_, String>(6)?,
+                ))
+            },
+        );
+
+        if let Ok((id, version, run_id, stage, created_at, metrics_snapshot, model_name)) = version_result {
+            // Parse metrics from metrics_snapshot JSON
+            let metrics: std::collections::HashMap<String, Option<f64>> = metrics_snapshot
+                .and_then(|s| serde_json::from_str::<std::collections::HashMap<String, serde_json::Value>>(&s).ok())
+                .map(|m| {
+                    m.into_iter()
+                        .filter_map(|(k, v)| {
+                            let value = v.as_f64();
+                            Some((k, value))
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+
+            // Get hyperparameters from associated run if exists
+            let hyperparameters: std::collections::HashMap<String, serde_json::Value> = if let Some(ref rid) = run_id {
+                let hp_json: Option<String> = conn.query_row(
+                    "SELECT hyperparameters FROM runs WHERE id = ?1",
+                    [rid],
+                    |row| row.get(0),
+                ).unwrap_or(None);
+
+                hp_json
+                    .and_then(|s| serde_json::from_str(&s).ok())
+                    .unwrap_or_default()
+            } else {
+                std::collections::HashMap::new()
+            };
+
+            items.push(ModelVersionComparisonItem {
+                version_id: id,
+                model_name,
+                version,
+                run_id,
+                stage,
+                created_at,
+                metrics,
+                hyperparameters,
+            });
+        }
+    }
+
+    Ok(ModelVersionComparison { versions: items })
+}
+
+// Get versions that can be compared (same model_id for grouping)
+pub fn get_comparable_versions(model_id: &str) -> Result<Vec<ModelVersion>> {
+    list_model_versions(model_id)
 }
 
 #[cfg(test)]
