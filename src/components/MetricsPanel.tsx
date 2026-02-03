@@ -3,8 +3,10 @@ import { Menu, Transition } from "@headlessui/react";
 import { RiBarChartBoxLine, RiArrowDownSLine, RiTimeLine } from "@remixicon/react";
 import { usePipelineStore } from "@/stores/pipelineStore";
 import { MetricsBarChart, ConfusionMatrixChart } from "./charts";
+import { ExplainSection } from "./ExplainSection";
 import { getRunMetrics, MetricsData, Metric, RunMetadata } from "@/lib/tauri";
 import { cn } from "@/lib/utils";
+import { ExplainData } from "@/lib/explainTypes";
 
 function formatRelativeTime(dateStr: string): string {
   const date = new Date(dateStr);
@@ -138,7 +140,12 @@ function RunSelector({ runHistory, selectedRunId, currentRunId, onSelect }: RunS
   );
 }
 
-export function MetricsPanel() {
+interface MetricsPanelProps {
+  onExplainRun?: (runId: string) => void;
+  canExplain?: boolean;
+}
+
+export function MetricsPanel({ onExplainRun, canExplain = true }: MetricsPanelProps) {
   const metrics = usePipelineStore((s) => s.metrics);
   const runHistory = usePipelineStore((s) => s.runHistory);
   const currentRunId = usePipelineStore((s) => s.currentRunId);
@@ -146,27 +153,99 @@ export function MetricsPanel() {
   const setSelectedRunId = usePipelineStore((s) => s.setSelectedRunId);
   const currentPipelineName = usePipelineStore((s) => s.currentPipelineName);
   const loadRunHistory = usePipelineStore((s) => s.loadRunHistory);
+  const explainDataByRun = usePipelineStore((s) => s.explainDataByRun);
+  const explainStatus = usePipelineStore((s) => s.explainStatus);
+  const explainProgress = usePipelineStore((s) => s.explainProgress);
 
   const [historicalMetrics, setHistoricalMetrics] = useState<MetricsData | null>(null);
+  const [historicalExplainData, setHistoricalExplainData] = useState<ExplainData | null>(null);
 
   // Load run history when pipeline name changes
   useEffect(() => {
     loadRunHistory(currentPipelineName || undefined);
   }, [currentPipelineName, loadRunHistory]);
 
-  // Load metrics when selected run changes
+  // Load metrics and explain data when selected run changes
   useEffect(() => {
     if (selectedRunId && selectedRunId !== currentRunId) {
       getRunMetrics(selectedRunId).then((m) => {
         setHistoricalMetrics(metricsToData(m));
+
+        // Try to load persisted explain data from metrics
+        const explainFeatureImp = m.find((x) => x.name === "explain_feature_importance");
+        const explainShap = m.find((x) => x.name === "explain_shap");
+        const explainPdp = m.find((x) => x.name === "explain_pdp");
+        const explainMeta = m.find((x) => x.name === "explain_metadata");
+
+        if (explainFeatureImp?.value_json || explainShap?.value_json || explainPdp?.value_json) {
+          try {
+            const featureImportance = explainFeatureImp?.value_json
+              ? JSON.parse(explainFeatureImp.value_json)
+              : undefined;
+            const shap = explainShap?.value_json ? JSON.parse(explainShap.value_json) : undefined;
+            const pdp = explainPdp?.value_json ? JSON.parse(explainPdp.value_json) : undefined;
+            const metadata = explainMeta?.value_json ? JSON.parse(explainMeta.value_json) : {};
+
+            const isClassifier = metadata.isClassifier ?? (shap?.classNames !== undefined);
+            const explainData: ExplainData = isClassifier
+              ? {
+                  type: "classification",
+                  modelType: metadata.modelType || "unknown",
+                  classNames: metadata.classNames || shap?.classNames || [],
+                  featureImportance,
+                  shap,
+                  pdp,
+                  metadata: {
+                    runId: selectedRunId,
+                    timestamp: new Date().toISOString(),
+                    nSamples: metadata.nSamples || 0,
+                    nFeatures: metadata.nFeatures || 0,
+                  },
+                }
+              : {
+                  type: "regression",
+                  modelType: metadata.modelType || "unknown",
+                  featureImportance,
+                  shap,
+                  pdp,
+                  metadata: {
+                    runId: selectedRunId,
+                    timestamp: new Date().toISOString(),
+                    nSamples: metadata.nSamples || 0,
+                    nFeatures: metadata.nFeatures || 0,
+                  },
+                };
+            setHistoricalExplainData(explainData);
+          } catch {
+            setHistoricalExplainData(null);
+          }
+        } else {
+          setHistoricalExplainData(null);
+        }
       });
     } else {
       setHistoricalMetrics(null);
+      setHistoricalExplainData(null);
     }
   }, [selectedRunId, currentRunId]);
 
   // Use historical metrics if viewing a past run, otherwise use current metrics
   const displayMetrics = selectedRunId && selectedRunId !== currentRunId ? historicalMetrics : metrics;
+
+  // Get explain data for the selected run
+  const activeRunId = selectedRunId || currentRunId;
+  const displayExplainData =
+    selectedRunId && selectedRunId !== currentRunId
+      ? historicalExplainData
+      : activeRunId
+      ? explainDataByRun[activeRunId] || null
+      : null;
+
+  const handleExplain = () => {
+    if (activeRunId && onExplainRun) {
+      onExplainRun(activeRunId);
+    }
+  };
 
   const renderHeader = () => {
     if (runHistory.length === 0) return null;
@@ -206,9 +285,9 @@ export function MetricsPanel() {
     ];
 
     return (
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full overflow-y-auto">
         {renderHeader()}
-        <div className="flex gap-4 flex-1 p-2 min-h-0">
+        <div className="flex gap-4 p-2 min-h-[200px]">
           <div className="flex-1 min-w-0">
             <MetricsBarChart
               labels={labels}
@@ -225,6 +304,15 @@ export function MetricsPanel() {
             </div>
           )}
         </div>
+        {onExplainRun && (
+          <ExplainSection
+            explainData={displayExplainData}
+            explainStatus={explainStatus}
+            explainProgress={explainProgress}
+            onExplain={handleExplain}
+            canExplain={canExplain && !!activeRunId}
+          />
+        )}
       </div>
     );
   }
@@ -239,9 +327,9 @@ export function MetricsPanel() {
     ];
 
     return (
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full overflow-y-auto">
         {renderHeader()}
-        <div className="flex gap-4 flex-1 p-2 min-h-0">
+        <div className="flex gap-4 p-2 min-h-[200px]">
           <div className="flex-1 min-w-0">
             <MetricsBarChart
               labels={labels}
@@ -250,6 +338,15 @@ export function MetricsPanel() {
             />
           </div>
         </div>
+        {onExplainRun && (
+          <ExplainSection
+            explainData={displayExplainData}
+            explainStatus={explainStatus}
+            explainProgress={explainProgress}
+            onExplain={handleExplain}
+            canExplain={canExplain && !!activeRunId}
+          />
+        )}
       </div>
     );
   }

@@ -1,6 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { DataProfile } from "./dataProfileTypes";
+import {
+  FeatureImportanceData,
+  RegressionShapData,
+  ClassificationShapData,
+  RegressionPDPData,
+  ClassificationPDPData,
+  ExplainProgressData,
+} from "./explainTypes";
 
 export interface MetricsData {
   modelType: "classifier" | "regressor";
@@ -17,6 +25,16 @@ export interface MetricsData {
   mae?: number;
 }
 
+// Explain metadata event data
+export interface ExplainMetadataData {
+  modelType: string;
+  isClassifier: boolean;
+  nSamples: number;
+  nFeatures: number;
+  classNames: string[];
+  shapExplainer?: string;
+}
+
 export type ScriptEvent =
   | { type: "log"; message: string }
   | { type: "progress"; current: number; total: number }
@@ -26,7 +44,14 @@ export type ScriptEvent =
   | { type: "complete" }
   | { type: "exit"; code: number }
   | { type: "trial"; trialNumber: number; params: Record<string, unknown>; score: number; durationMs?: number }
-  | { type: "tuningComplete"; bestParams: Record<string, unknown>; bestScore: number; totalTrials: number; durationMs?: number };
+  | { type: "tuningComplete"; bestParams: Record<string, unknown>; bestScore: number; totalTrials: number; durationMs?: number }
+  // Explain events
+  | { type: "explainProgress"; data: ExplainProgressData }
+  | { type: "featureImportance"; data: FeatureImportanceData }
+  | { type: "shapData"; data: RegressionShapData | ClassificationShapData }
+  | { type: "partialDependence"; data: RegressionPDPData | ClassificationPDPData }
+  | { type: "explainMetadata"; data: ExplainMetadataData }
+  | { type: "explainComplete"; durationMs: number };
 
 export async function getPythonPath(): Promise<string | null> {
   return invoke<string | null>("get_python_path");

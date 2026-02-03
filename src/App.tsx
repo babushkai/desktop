@@ -30,6 +30,17 @@ import {
 import { generateTuningCode, generateTuningCodeWithSplit } from "./lib/tunerCodeGen";
 import { generateDataSplitCode } from "./lib/dataSplitCodeGen";
 import { TuningConfig } from "./lib/tuningTypes";
+import { generateExplainerCode } from "./lib/explainerCodeGen";
+import {
+  ExplainData,
+  FeatureImportanceData,
+  RegressionShapData,
+  ClassificationShapData,
+  RegressionPDPData,
+  ClassificationPDPData,
+  isClassificationShapData,
+} from "./lib/explainTypes";
+import { ExplainMetadataData } from "./lib/tauri";
 
 function App() {
   const [showNodePalette, setShowNodePalette] = useState(true);
@@ -57,6 +68,11 @@ function App() {
   const appendLog = usePipelineStore((s) => s.appendLog);
   const clearLogs = usePipelineStore((s) => s.clearLogs);
   const loadRunHistory = usePipelineStore((s) => s.loadRunHistory);
+  const setExplainData = usePipelineStore((s) => s.setExplainData);
+  const setExplainRunId = usePipelineStore((s) => s.setExplainRunId);
+  const setExplainStatus = usePipelineStore((s) => s.setExplainStatus);
+  const setExplainProgress = usePipelineStore((s) => s.setExplainProgress);
+  const explainRunId = usePipelineStore((s) => s.explainRunId);
 
   // Check for Optuna installation on mount
   useEffect(() => {
@@ -273,8 +289,161 @@ function App() {
     setTuningPanelNodeId(null);
   }, []);
 
+  // Handle explain run
+  const handleExplainRun = useCallback(
+    async (runId: string) => {
+      // Clear previous explain state and set up new run
+      setExplainRunId(runId);
+      setExplainStatus("running");
+      setExplainProgress(null);
+
+      // Initialize empty explain data structure - we'll determine type when we get metadata
+      let explainMetadata: ExplainMetadataData | null = null;
+      let featureImportance: FeatureImportanceData | null = null;
+      let shapData: RegressionShapData | ClassificationShapData | null = null;
+      const pdpData: (RegressionPDPData | ClassificationPDPData)[] = [];
+
+      const collectedMetrics: MetricInput[] = [];
+
+      appendLog("");
+      appendLog("--- Running Model Explainability Analysis ---");
+      appendLog(`Run ID: ${runId}`);
+      appendLog("");
+
+      try {
+        const explainerCode = generateExplainerCode();
+
+        const handleOutput = (event: ScriptEvent) => {
+          if (event.type === "log") {
+            appendLog(event.message);
+          } else if (event.type === "error") {
+            appendLog(`ERROR: ${event.message}`);
+          } else if (event.type === "explainProgress") {
+            setExplainProgress(event.data);
+          } else if (event.type === "featureImportance") {
+            featureImportance = event.data;
+            collectedMetrics.push({
+              name: "explain_feature_importance",
+              valueJson: JSON.stringify(event.data),
+            });
+          } else if (event.type === "shapData") {
+            shapData = event.data;
+            collectedMetrics.push({
+              name: "explain_shap",
+              valueJson: JSON.stringify(event.data),
+            });
+          } else if (event.type === "partialDependence") {
+            pdpData.push(event.data);
+          } else if (event.type === "explainMetadata") {
+            explainMetadata = event.data;
+            collectedMetrics.push({
+              name: "explain_metadata",
+              valueJson: JSON.stringify(event.data),
+            });
+          } else if (event.type === "explainComplete") {
+            appendLog("");
+            appendLog(`Explainability analysis completed in ${(event.durationMs / 1000).toFixed(1)}s`);
+          }
+        };
+
+        await runScriptAndWait(explainerCode, "", handleOutput);
+
+        // Save PDP data
+        if (pdpData.length > 0) {
+          collectedMetrics.push({
+            name: "explain_pdp",
+            valueJson: JSON.stringify(pdpData),
+          });
+        }
+
+        // Save metrics to database
+        if (collectedMetrics.length > 0) {
+          await saveRunMetrics(runId, collectedMetrics);
+        }
+
+        // Build and set explain data
+        if (featureImportance) {
+          const meta = explainMetadata as ExplainMetadataData | null;
+          const isClassifier = meta?.isClassifier ?? (shapData ? isClassificationShapData(shapData) : false);
+          const modelType = meta?.modelType || "unknown";
+          const nSamples = meta?.nSamples || 0;
+          const nFeatures = meta?.nFeatures || 0;
+          const shapExplainerUsed = meta?.shapExplainer;
+          const metaClassNames = meta?.classNames;
+
+          // Cast shapData to avoid closure-related type narrowing issues
+          const currentShapData = shapData as RegressionShapData | ClassificationShapData | null;
+
+          // Extract classNames from shapData if it's classification type
+          const shapClassNames = currentShapData && isClassificationShapData(currentShapData)
+            ? currentShapData.classNames
+            : undefined;
+
+          let explainData: ExplainData;
+          if (isClassifier) {
+            const classShapData: ClassificationShapData | undefined =
+              currentShapData && isClassificationShapData(currentShapData) ? currentShapData : undefined;
+            const classNames = metaClassNames || shapClassNames || [];
+            explainData = {
+              type: "classification",
+              modelType,
+              classNames,
+              featureImportance,
+              shap: classShapData,
+              pdp: pdpData.length > 0 ? pdpData as ClassificationPDPData[] : undefined,
+              metadata: {
+                runId,
+                timestamp: new Date().toISOString(),
+                nSamples,
+                nFeatures,
+                shapExplainer: shapExplainerUsed,
+              },
+            };
+          } else {
+            const regShapData: RegressionShapData | undefined =
+              currentShapData && !isClassificationShapData(currentShapData) ? currentShapData : undefined;
+            explainData = {
+              type: "regression",
+              modelType,
+              featureImportance,
+              shap: regShapData,
+              pdp: pdpData.length > 0 ? pdpData as RegressionPDPData[] : undefined,
+              metadata: {
+                runId,
+                timestamp: new Date().toISOString(),
+                nSamples,
+                nFeatures,
+                shapExplainer: shapExplainerUsed,
+              },
+            };
+          }
+
+          setExplainData(runId, explainData);
+        }
+
+        setExplainStatus("completed");
+      } catch (error) {
+        appendLog(`ERROR: ${String(error)}`);
+        setExplainStatus("error");
+      } finally {
+        setExplainRunId(null);
+        setExplainProgress(null);
+      }
+    },
+    [
+      appendLog,
+      setExplainRunId,
+      setExplainStatus,
+      setExplainProgress,
+      setExplainData,
+    ]
+  );
+
   // Check if tuning can start (mutual exclusion)
-  const canStartTuning = executionStatus !== "running" && !profilingNodeId;
+  const canStartTuning = executionStatus !== "running" && !profilingNodeId && !explainRunId;
+
+  // Check if explain can start (mutual exclusion)
+  const canExplain = executionStatus !== "running" && !profilingNodeId && !explainRunId;
 
   // Keyboard shortcuts for panel toggles
   useEffect(() => {
@@ -388,7 +557,13 @@ function App() {
         </div>
 
         {/* Output Panel - collapsible */}
-        {showOutputPanel && <OutputPanel onCollapse={toggleOutputPanel} />}
+        {showOutputPanel && (
+          <OutputPanel
+            onCollapse={toggleOutputPanel}
+            onExplainRun={handleExplainRun}
+            canExplain={canExplain}
+          />
+        )}
 
         {/* Collapsed tab for OutputPanel */}
         {!showOutputPanel && (

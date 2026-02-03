@@ -126,6 +126,22 @@ pub enum ScriptEvent {
         #[serde(rename = "durationMs")]
         duration_ms: Option<u64>,
     },
+    // Explain events
+    #[serde(rename = "explainProgress")]
+    ExplainProgress { data: serde_json::Value },
+    #[serde(rename = "featureImportance")]
+    FeatureImportance { data: serde_json::Value },
+    #[serde(rename = "shapData")]
+    ShapData { data: serde_json::Value },
+    #[serde(rename = "partialDependence")]
+    PartialDependence { data: serde_json::Value },
+    #[serde(rename = "explainMetadata")]
+    ExplainMetadata { data: serde_json::Value },
+    #[serde(rename = "explainComplete")]
+    ExplainComplete {
+        #[serde(rename = "durationMs")]
+        duration_ms: u64,
+    },
 }
 
 #[derive(Deserialize)]
@@ -375,6 +391,37 @@ fn parse_output_line(line: &str) -> ScriptEvent {
                         total_trials,
                         duration_ms: json.duration_ms,
                     };
+                }
+            }
+            // Explain events
+            "explainProgress" => {
+                if let Some(data) = json.data {
+                    return ScriptEvent::ExplainProgress { data };
+                }
+            }
+            "featureImportance" => {
+                if let Some(data) = json.data {
+                    return ScriptEvent::FeatureImportance { data };
+                }
+            }
+            "shapData" => {
+                if let Some(data) = json.data {
+                    return ScriptEvent::ShapData { data };
+                }
+            }
+            "partialDependence" => {
+                if let Some(data) = json.data {
+                    return ScriptEvent::PartialDependence { data };
+                }
+            }
+            "explainMetadata" => {
+                if let Some(data) = json.data {
+                    return ScriptEvent::ExplainMetadata { data };
+                }
+            }
+            "explainComplete" => {
+                if let Some(duration_ms) = json.duration_ms {
+                    return ScriptEvent::ExplainComplete { duration_ms };
                 }
             }
             _ => {}

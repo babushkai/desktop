@@ -25,6 +25,11 @@ import {
 import { AlignType, alignNodes, distributeNodes } from "@/lib/alignment";
 import { DataProfile, ProfilingStatus } from "@/lib/dataProfileTypes";
 import { TuningConfig, TuningStatus, TrialResult } from "@/lib/tuningTypes";
+import {
+  ExplainStatus,
+  ExplainData,
+  ExplainProgressData,
+} from "@/lib/explainTypes";
 
 export type TrainerMode = "train" | "load" | "tune";
 
@@ -144,6 +149,18 @@ interface PipelineState {
   setTuningSessionId: (sessionId: string | null) => void;
   setOptunaInstalled: (installed: boolean) => void;
 
+  // Explainability
+  explainDataByRun: Record<string, ExplainData>;
+  explainRunId: string | null;
+  explainStatus: ExplainStatus;
+  explainProgress: ExplainProgressData | null;
+  setExplainData: (runId: string, data: ExplainData) => void;
+  setExplainRunId: (runId: string | null) => void;
+  setExplainStatus: (status: ExplainStatus) => void;
+  setExplainProgress: (progress: ExplainProgressData | null) => void;
+  clearExplainData: (runId: string) => void;
+  getExplainData: (runId: string) => ExplainData | null;
+
   // Node operations
   addNode: (type: "dataLoader" | "script" | "trainer" | "evaluator" | "modelExporter" | "dataSplit", position: { x: number; y: number }) => void;
   deleteNodes: (nodeIds: string[]) => void;
@@ -212,6 +229,10 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   tuningTrials: [],
   tuningSessionId: null,
   optunaInstalled: false,
+  explainDataByRun: {},
+  explainRunId: null,
+  explainStatus: "idle",
+  explainProgress: null,
 
   setSelectedNodeId: (id) => set({ selectedNodeId: id }),
 
@@ -271,6 +292,30 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   setTuningSessionId: (sessionId) => set({ tuningSessionId: sessionId }),
 
   setOptunaInstalled: (installed) => set({ optunaInstalled: installed }),
+
+  // Explainability actions
+  setExplainData: (runId, data) =>
+    set((state) => ({
+      explainDataByRun: { ...state.explainDataByRun, [runId]: data },
+    })),
+
+  setExplainRunId: (runId) => set({ explainRunId: runId }),
+
+  setExplainStatus: (status) => set({ explainStatus: status }),
+
+  setExplainProgress: (progress) => set({ explainProgress: progress }),
+
+  clearExplainData: (runId) =>
+    set((state) => ({
+      explainDataByRun: Object.fromEntries(
+        Object.entries(state.explainDataByRun).filter(([id]) => id !== runId)
+      ),
+    })),
+
+  getExplainData: (runId) => {
+    const state = get();
+    return state.explainDataByRun[runId] || null;
+  },
 
   addNode: (type, position) => {
     const id = `${type}-${++nodeIdCounter}`;

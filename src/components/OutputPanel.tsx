@@ -99,13 +99,15 @@ function getLogClass(log: string): string {
 
 interface OutputPanelProps {
   onCollapse?: () => void;
+  onExplainRun?: (runId: string) => void;
+  canExplain?: boolean;
 }
 
 const DEFAULT_HEIGHT = 240;
 const MIN_HEIGHT = 150;
 const MAX_HEIGHT = 600;
 
-export function OutputPanel({ onCollapse }: OutputPanelProps) {
+export function OutputPanel({ onCollapse, onExplainRun, canExplain = true }: OutputPanelProps) {
   const outputLogs = usePipelineStore((s) => s.outputLogs);
   const executionStatus = usePipelineStore((s) => s.executionStatus);
   const metrics = usePipelineStore((s) => s.metrics);
@@ -427,12 +429,12 @@ export function OutputPanel({ onCollapse }: OutputPanelProps) {
 
           {/* Metrics Panel */}
           <Tab.Panel className="h-full">
-            <MetricsPanel />
+            <MetricsPanel onExplainRun={onExplainRun} canExplain={canExplain} />
           </Tab.Panel>
 
           {/* Runs Panel */}
           <Tab.Panel className="h-full">
-            <RunsPanel />
+            <RunsPanel onExplainRun={onExplainRun} canExplain={canExplain} />
           </Tab.Panel>
 
           {/* Models Panel */}
