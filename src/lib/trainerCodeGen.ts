@@ -22,6 +22,54 @@ const MODEL_CONFIG: Record<string, { module: string; class: string }> = {
 const sanitizePath = (p: string): string =>
   p.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 
+// Preprocessing code for handling categorical features
+const PREPROCESSING_CODE = `
+def preprocess_features(df, target_col):
+    """Preprocess features: handle missing values and encode categorical columns."""
+    import warnings
+    warnings.filterwarnings('ignore', category=FutureWarning)
+
+    X = df.drop(target_col, axis=1)
+
+    # Drop columns that are typically not useful for ML
+    cols_to_drop = []
+    for col in X.columns:
+        # Drop ID-like columns
+        if col.lower() in ['id', 'index', 'passengerid', 'ticket', 'cabin', 'name']:
+            cols_to_drop.append(col)
+        # Drop columns with too many unique values (likely IDs or free text)
+        elif X[col].dtype == 'object' and X[col].nunique() > 50:
+            cols_to_drop.append(col)
+
+    if cols_to_drop:
+        print(f"Dropping columns: {cols_to_drop}")
+        X = X.drop(cols_to_drop, axis=1)
+
+    # Identify categorical columns (include 'string' for pandas 2.0+)
+    cat_cols = X.select_dtypes(include=['object', 'category', 'string']).columns.tolist()
+    num_cols = X.select_dtypes(include=['number']).columns.tolist()
+
+    # Fill missing values
+    for col in num_cols:
+        if X[col].isnull().any():
+            X[col] = X[col].fillna(X[col].median())
+
+    for col in cat_cols:
+        if X[col].isnull().any():
+            X[col] = X[col].fillna(X[col].mode()[0] if len(X[col].mode()) > 0 else 'Unknown')
+
+    # Encode categorical columns using Label Encoding
+    from sklearn.preprocessing import LabelEncoder
+    encoders = {}
+    for col in cat_cols:
+        le = LabelEncoder()
+        X[col] = le.fit_transform(X[col].astype(str))
+        encoders[col] = le
+        print(f"Encoded '{col}': {list(le.classes_)}")
+
+    return X, encoders
+`;
+
 export const generateTrainerCode = (nodeData: NodeData, inputPath: string): string => {
   const config = MODEL_CONFIG[nodeData.modelType || "linear_regression"];
   const targetCol = nodeData.targetColumn?.replace(/"/g, '\\"') || "target";
@@ -36,7 +84,7 @@ import joblib
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 from ${config.module} import ${config.class}
-
+${PREPROCESSING_CODE}
 try:
     os.makedirs("${WORK_DIR}", exist_ok=True)
     df = pd.read_csv("${safePath}")
@@ -46,7 +94,8 @@ try:
         print(f"ERROR: Column '{target_col}' not found. Available: {list(df.columns)}")
         sys.exit(1)
 
-    X = df.drop(target_col, axis=1)
+    # Preprocess features (handle categorical columns and missing values)
+    X, encoders = preprocess_features(df, target_col)
     y = df[target_col]
 
     X_train, X_test, y_train, y_test = train_test_split(
@@ -82,7 +131,8 @@ try:
         "n_features": X_train.shape[1],
         "feature_names": X_train.columns.tolist() if hasattr(X_train, 'columns') else [f"feature_{i}" for i in range(X_train.shape[1])],
         "model_class": type(model).__name__,
-        "model_type": "${nodeData.modelType || "linear_regression"}"
+        "model_type": "${nodeData.modelType || "linear_regression"}",
+        "encoders": {col: list(le.classes_) for col, le in encoders.items()} if encoders else {}
     }
     with open("${MODEL_INFO_FILE}", "w") as f:
         json.dump(model_info, f, indent=2)
@@ -108,7 +158,7 @@ import json
 import pandas as pd
 import joblib
 from ${config.module} import ${config.class}
-
+${PREPROCESSING_CODE}
 try:
     os.makedirs("${WORK_DIR}", exist_ok=True)
 
@@ -129,7 +179,8 @@ try:
         print(f"ERROR: Column '{target_col}' not found. Available: {list(df.columns)}")
         sys.exit(1)
 
-    X = df.drop(target_col, axis=1)
+    # Preprocess features (handle categorical columns and missing values)
+    X, encoders = preprocess_features(df, target_col)
     y = df[target_col]
 
     # Use pre-computed indices from DataSplit
@@ -155,7 +206,8 @@ try:
         "n_features": X_train.shape[1],
         "feature_names": X_train.columns.tolist() if hasattr(X_train, 'columns') else [f"feature_{i}" for i in range(X_train.shape[1])],
         "model_class": type(model).__name__,
-        "model_type": "${nodeData.modelType || "linear_regression"}"
+        "model_type": "${nodeData.modelType || "linear_regression"}",
+        "encoders": {col: list(le.classes_) for col, le in encoders.items()} if encoders else {}
     }
     with open("${MODEL_INFO_FILE}", "w") as f:
         json.dump(model_info, f, indent=2)

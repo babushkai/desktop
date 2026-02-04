@@ -8,6 +8,21 @@ interface FeatureImportanceChartProps {
   maxFeatures?: number;
 }
 
+// Generate gradient for horizontal bars
+function getBarGradient(color: string, isPositive: boolean) {
+  return {
+    type: "linear",
+    x: isPositive ? 0 : 1,
+    y: 0,
+    x2: isPositive ? 1 : 0,
+    y2: 0,
+    colorStops: [
+      { offset: 0, color: `${color}99` }, // 60% opacity at start
+      { offset: 1, color: color },
+    ],
+  };
+}
+
 export function FeatureImportanceChart({
   data,
   title,
@@ -33,94 +48,119 @@ export function FeatureImportanceChart({
   const importanceValues = topFeatures.map((f) => f.importance);
   const errorBars = topFeatures.map((f) => f.std);
 
-  // Determine color based on positive/negative
-  const barColors = importanceValues.map((v) =>
-    v >= 0 ? colors.accent : colors.error
-  );
-
   const option = {
     backgroundColor: "transparent",
     title: title
       ? {
           text: title,
           left: "center",
-          top: 0,
+          top: 4,
           textStyle: {
             color: colors.textPrimary,
-            fontSize: 14,
-            fontWeight: 500,
+            fontSize: 13,
+            fontWeight: 600,
           },
         }
       : undefined,
     tooltip: {
       trigger: "axis",
-      axisPointer: { type: "shadow" },
+      axisPointer: {
+        type: "shadow",
+        shadowStyle: {
+          color: "rgba(88, 166, 255, 0.08)",
+        },
+      },
       backgroundColor: colors.surface,
-      borderColor: "rgba(255, 255, 255, 0.1)",
+      borderColor: colors.border,
       borderWidth: 1,
       textStyle: {
         color: colors.textPrimary,
+        fontSize: 12,
       },
+      extraCssText: "border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);",
       formatter: (params: { name: string; value: number; dataIndex: number }[]) => {
         const p = params[0];
         const std = errorBars[p.dataIndex];
+        const valueColor = p.value >= 0 ? colors.accent : colors.error;
         return `<strong>${p.name}</strong><br/>
-                Importance: ${p.value.toFixed(4)}<br/>
-                Std Dev: ${std.toFixed(4)}`;
+                <span style="color:${colors.textSecondary}">Importance:</span> <span style="color:${valueColor}">${p.value.toFixed(4)}</span><br/>
+                <span style="color:${colors.textSecondary}">Std Dev:</span> <span style="color:${colors.textMuted}">±${std.toFixed(4)}</span>`;
       },
     },
     grid: {
-      left: "25%",
-      right: "10%",
+      left: "3%",
+      right: "8%",
       bottom: "10%",
-      top: title ? 40 : 20,
+      top: title ? 45 : 25,
       containLabel: true,
     },
     xAxis: {
       type: "value",
       name: "Permutation Importance",
       nameLocation: "middle",
-      nameGap: 25,
+      nameGap: 28,
       nameTextStyle: {
         color: colors.textSecondary,
         fontSize: 11,
+        fontWeight: 500,
       },
       axisLine: {
-        lineStyle: { color: colors.textMuted },
+        show: false,
+      },
+      axisTick: {
+        show: false,
       },
       axisLabel: {
-        color: colors.textSecondary,
+        color: colors.textMuted,
         fontSize: 10,
         formatter: (v: number) => v.toFixed(2),
       },
       splitLine: {
-        lineStyle: { color: "rgba(255, 255, 255, 0.05)" },
+        lineStyle: {
+          color: colors.border,
+          opacity: 0.4,
+          type: "dashed",
+        },
       },
     },
     yAxis: {
       type: "category",
       data: featureNames,
       axisLine: {
-        lineStyle: { color: colors.textMuted },
+        lineStyle: { color: colors.border },
+      },
+      axisTick: {
+        show: false,
       },
       axisLabel: {
         color: colors.textSecondary,
         fontSize: 10,
-        width: 120,
+        width: 100,
         overflow: "truncate",
       },
     },
     series: [
       {
         type: "bar",
-        data: importanceValues.map((value, index) => ({
-          value,
-          itemStyle: {
-            color: barColors[index],
-            borderRadius: value >= 0 ? [0, 4, 4, 0] : [4, 0, 0, 4],
-          },
-        })),
-        barWidth: "60%",
+        data: importanceValues.map((value) => {
+          const isPositive = value >= 0;
+          const color = isPositive ? colors.accent : colors.error;
+          return {
+            value,
+            itemStyle: {
+              color: getBarGradient(color, isPositive),
+              borderRadius: isPositive ? [0, 4, 4, 0] : [4, 0, 0, 4],
+            },
+            emphasis: {
+              itemStyle: {
+                color: color,
+                shadowBlur: 12,
+                shadowColor: `${color}40`,
+              },
+            },
+          };
+        }),
+        barWidth: "55%",
         label: {
           show: false,
         },
@@ -131,18 +171,21 @@ export function FeatureImportanceChart({
           lineStyle: {
             color: colors.textMuted,
             width: 1,
+            opacity: 0.6,
           },
-          data: importanceValues.map((value, index) => [
+          data: importanceValues.map((value, idx) => [
             {
-              xAxis: value - errorBars[index],
-              yAxis: index,
+              xAxis: value - errorBars[idx],
+              yAxis: idx,
             },
             {
-              xAxis: value + errorBars[index],
-              yAxis: index,
+              xAxis: value + errorBars[idx],
+              yAxis: idx,
             },
           ]),
         },
+        animationDuration: 600,
+        animationEasing: "cubicOut",
       },
     ],
   };

@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState } from "react";
+import { useMemo, useCallback, useState, useEffect } from "react";
 import {
   ReactFlow,
   Background,
@@ -7,6 +7,7 @@ import {
   NodeTypes,
   BackgroundVariant,
   Node,
+  useReactFlow,
 } from "@xyflow/react";
 import { usePipelineStore, VALID_CONNECTIONS } from "../stores/pipelineStore";
 import { DataLoaderNode } from "./DataLoaderNode";
@@ -34,13 +35,14 @@ const nodeTypes: NodeTypes = {
   modelExporter: ModelExporterNode,
 };
 
+// GitHub-inspired node colors for minimap
 const nodeColorMap: Record<string, string> = {
-  dataLoader: "#34d399",
-  script: "#38bdf8",
-  dataSplit: "#e879f9",
-  trainer: "#a78bfa",
-  evaluator: "#fb923c",
-  modelExporter: "#2dd4bf",
+  dataLoader: "#3fb950",   // GitHub green
+  script: "#58a6ff",       // GitHub blue
+  dataSplit: "#a371f7",    // GitHub purple
+  trainer: "#db61a2",      // GitHub pink
+  evaluator: "#f0883e",    // GitHub orange
+  modelExporter: "#79c0ff", // GitHub light blue
 };
 
 export function Canvas() {
@@ -58,6 +60,20 @@ export function Canvas() {
   const alignSelectedNodes = usePipelineStore((s) => s.alignSelectedNodes);
   const distributeSelectedNodes = usePipelineStore((s) => s.distributeSelectedNodes);
   const getSelectedNodes = usePipelineStore((s) => s.getSelectedNodes);
+  const fitViewTrigger = usePipelineStore((s) => s.fitViewTrigger);
+
+  const { fitView } = useReactFlow();
+
+  // Fit view when triggered (e.g., after template load)
+  useEffect(() => {
+    if (fitViewTrigger > 0) {
+      // Small delay to ensure nodes are rendered
+      const timer = setTimeout(() => {
+        fitView({ padding: 0.2, duration: 300 });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [fitViewTrigger, fitView]);
 
   const [canvasMode, setCanvasMode] = useState<CanvasMode>("pointer");
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
@@ -200,7 +216,14 @@ export function Canvas() {
       <ZoomControls />
       <AlignmentGuides guides={guides} />
       {!showEmptyPrompt && (
-        <MiniMap nodeColor={getNodeColor} maskColor="rgba(10, 10, 15, 0.8)" />
+        <MiniMap
+          nodeColor={getNodeColor}
+          maskColor="rgba(13, 17, 23, 0.85)"
+          style={{
+            backgroundColor: "#161b22",
+            border: "1px solid #30363d",
+          }}
+        />
       )}
       {contextMenu && selectedNodes.length >= 2 && (
         <SelectionContextMenu
@@ -212,12 +235,13 @@ export function Canvas() {
           onClose={closeContextMenu}
         />
       )}
-      {showEmptyPrompt && (
-        <EmptyCanvasPrompt
-          onBrowseTemplates={() => setShowTemplateGallery(true)}
-        />
-      )}
     </ReactFlow>
+
+    {showEmptyPrompt && (
+      <EmptyCanvasPrompt
+        onBrowseTemplates={() => setShowTemplateGallery(true)}
+      />
+    )}
 
     <TemplateGallery
       isOpen={showTemplateGallery}

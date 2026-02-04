@@ -21,11 +21,12 @@
 
   /* Log panel colors (GitHub dark theme) */
   --log-bg: #0d1117;
-  --log-text: #c9d1d9;
-  --log-muted: #8b949e;
+  --log-text: #e6edf3;
+  --log-muted: #7d8590;
   --log-error: #f85149;
+  --log-warning: #d29922;
   --log-success: #3fb950;
-  --log-info: #58a6ff;
+  --log-info: #79c0ff;
 }
 
 @layer base {
@@ -183,19 +184,24 @@
   }
 }
 
-/* ReactFlow overrides for dark theme */
+/* ReactFlow overrides for GitHub Dark theme */
 .react-flow__background {
   background: radial-gradient(
     ellipse at center,
-    var(--surface-0) 0%,
-    hsl(var(--navy-h), var(--navy-s), 3%) 100%
+    hsl(222, 47%, 11%) 0%,
+    hsl(222, 47%, 6%) 100%
   ) !important;
 }
 
 .react-flow__minimap {
-  background-color: theme("colors.background.surface") !important;
+  background-color: #161b22 !important;
   border-radius: theme("borderRadius.lg") !important;
-  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid #30363d !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+.react-flow__minimap-mask {
+  fill: rgba(13, 17, 23, 0.85) !important;
 }
 
 .react-flow__controls {
@@ -205,48 +211,95 @@
 }
 
 .react-flow__controls-button {
-  background: theme("colors.background.surface") !important;
-  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  background: #161b22 !important;
+  border: 1px solid #30363d !important;
   border-radius: theme("borderRadius.sm") !important;
-  color: theme("colors.text.secondary") !important;
+  color: #8b949e !important;
   transition: all 150ms ease-out !important;
 }
 
 .react-flow__controls-button:hover {
-  background: theme("colors.background.elevated") !important;
-  color: theme("colors.text.primary") !important;
+  background: #21262d !important;
+  color: #e6edf3 !important;
+  border-color: #58a6ff !important;
 }
 
 .react-flow__controls-button svg {
   fill: currentColor !important;
 }
 
+/* Edge styling */
 .react-flow__edge-path {
-  stroke: theme("colors.text.muted") !important;
+  stroke: #6e7681 !important;
   stroke-width: 2 !important;
 }
 
 .react-flow__edge.selected .react-flow__edge-path {
-  stroke: theme("colors.accent.DEFAULT") !important;
+  stroke: #58a6ff !important;
+  stroke-width: 2.5 !important;
 }
 
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: #8b949e !important;
+}
+
+/* Animated edge for running state */
+.react-flow__edge.animated .react-flow__edge-path {
+  stroke-dasharray: 5 !important;
+  animation: edge-flow 0.5s linear infinite !important;
+}
+
+@keyframes edge-flow {
+  to {
+    stroke-dashoffset: -10;
+  }
+}
+
+/* Connection line when dragging */
+.react-flow__connection-line {
+  stroke: #58a6ff !important;
+  stroke-width: 2 !important;
+  stroke-dasharray: 5 5 !important;
+}
+
+/* Handle styling */
 .react-flow__handle {
   width: 12px !important;
   height: 12px !important;
-  background: theme("colors.background.elevated") !important;
-  border: 2px solid theme("colors.text.muted") !important;
+  background: #21262d !important;
+  border: 2px solid #6e7681 !important;
   transition: all 150ms ease-out !important;
 }
 
 .react-flow__handle:hover {
-  border-color: theme("colors.accent.DEFAULT") !important;
+  border-color: #58a6ff !important;
+  background: #30363d !important;
   transform: scale(1.2);
 }
 
 .react-flow__handle-connecting {
-  background: theme("colors.accent.DEFAULT") !important;
+  background: #58a6ff !important;
+  border-color: #58a6ff !important;
 }
 
 .react-flow__handle-valid {
-  background: theme("colors.state.success") !important;
+  background: #3fb950 !important;
+  border-color: #3fb950 !important;
+}
+
+/* Selection box */
+.react-flow__selection {
+  background: rgba(88, 166, 255, 0.08) !important;
+  border: 1px dashed #58a6ff !important;
+  border-radius: 4px !important;
+}
+
+/* Node selection styling */
+.react-flow__node.selected {
+  box-shadow: 0 0 0 2px #58a6ff, 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Panel styling (for any floating panels) */
+.react-flow__panel {
+  background: transparent !important;
 }

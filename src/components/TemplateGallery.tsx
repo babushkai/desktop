@@ -1,5 +1,5 @@
 import { Fragment, useState, useCallback, useEffect, useRef } from "react";
-import { Dialog, Transition, Tab } from "@headlessui/react";
+import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild, Tab, TabGroup, TabList } from "@headlessui/react";
 import { RiCloseLine } from "@remixicon/react";
 import { usePipelineStore } from "@/stores/pipelineStore";
 import {
@@ -127,7 +127,7 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
           onClose={onClose}
           onKeyDown={handleKeyDown}
         >
-          <Transition.Child
+          <TransitionChild
             as={Fragment}
             enter="ease-out duration-200"
             enterFrom="opacity-0"
@@ -137,11 +137,11 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
             leaveTo="opacity-0"
           >
             <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
-          </Transition.Child>
+          </TransitionChild>
 
           <div className="fixed inset-0 overflow-y-auto">
             <div className="flex min-h-full items-center justify-center p-4">
-              <Transition.Child
+              <TransitionChild
                 as={Fragment}
                 enter="ease-out duration-200"
                 enterFrom="opacity-0 scale-95"
@@ -150,12 +150,12 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
                 leaveFrom="opacity-100 scale-100"
                 leaveTo="opacity-0 scale-95"
               >
-                <Dialog.Panel className="w-full max-w-3xl rounded-xl bg-background-surface border border-white/10 shadow-xl overflow-hidden">
+                <DialogPanel className="w-full max-w-3xl rounded-xl bg-background-surface border border-white/10 shadow-xl overflow-hidden">
                   {/* Header */}
                   <div className="flex items-center justify-between px-6 py-4 border-b border-white/5">
-                    <Dialog.Title className="text-lg font-semibold text-text-primary">
+                    <DialogTitle className="text-lg font-semibold text-text-primary">
                       Pipeline Templates
-                    </Dialog.Title>
+                    </DialogTitle>
                     <button
                       onClick={onClose}
                       className="btn-ghost h-8 w-8 p-0"
@@ -165,7 +165,7 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
                   </div>
 
                   {/* Category tabs */}
-                  <Tab.Group
+                  <TabGroup
                     selectedIndex={CATEGORIES.findIndex(
                       (c) => c.value === selectedCategory
                     )}
@@ -173,7 +173,7 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
                       setSelectedCategory(CATEGORIES[index].value)
                     }
                   >
-                    <Tab.List className="flex gap-1 px-6 py-3 border-b border-white/5">
+                    <TabList className="flex gap-1 px-6 py-3 border-b border-white/5">
                       {CATEGORIES.map((category, index) => (
                         <Tab
                           key={category.value}
@@ -193,8 +193,8 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
                           </span>
                         </Tab>
                       ))}
-                    </Tab.List>
-                  </Tab.Group>
+                    </TabList>
+                  </TabGroup>
 
                   {/* Template grid */}
                   <div
@@ -224,8 +224,8 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
                     Use arrow keys to navigate, Enter to select, 1-4 to switch
                     categories
                   </div>
-                </Dialog.Panel>
-              </Transition.Child>
+                </DialogPanel>
+              </TransitionChild>
             </div>
           </div>
         </Dialog>

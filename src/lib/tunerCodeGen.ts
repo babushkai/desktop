@@ -26,6 +26,58 @@ const MODEL_CONFIG: Record<string, { module: string; class: string }> = {
 const sanitizePath = (p: string): string =>
   p.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 
+// Preprocessing code for handling categorical features
+const PREPROCESSING_CODE = `
+def preprocess_features(df, target_col):
+    """Preprocess features: handle missing values and encode categorical columns."""
+    import numpy as np
+    import warnings
+    warnings.filterwarnings('ignore', category=FutureWarning)
+
+    X = df.drop(target_col, axis=1)
+
+    # Drop columns that are typically not useful for ML
+    cols_to_drop = []
+    for col in X.columns:
+        # Drop ID-like columns
+        if col.lower() in ['id', 'index', 'passengerid', 'ticket', 'cabin', 'name']:
+            cols_to_drop.append(col)
+        # Drop columns with too many unique values (likely IDs or free text)
+        elif X[col].dtype == 'object' and X[col].nunique() > 50:
+            cols_to_drop.append(col)
+
+    if cols_to_drop:
+        print(f"Dropping columns: {cols_to_drop}")
+        X = X.drop(cols_to_drop, axis=1)
+
+    # Identify categorical columns (include 'str' for pandas 2.0+)
+    cat_cols = X.select_dtypes(include=['object', 'category', 'string']).columns.tolist()
+    num_cols = X.select_dtypes(include=['number']).columns.tolist()
+
+    print(f"Categorical columns: {cat_cols}")
+    print(f"Numeric columns: {num_cols}")
+
+    # Fill missing values
+    for col in num_cols:
+        if X[col].isnull().any():
+            X[col] = X[col].fillna(X[col].median())
+
+    for col in cat_cols:
+        if X[col].isnull().any():
+            X[col] = X[col].fillna(X[col].mode()[0] if len(X[col].mode()) > 0 else 'Unknown')
+
+    # Encode categorical columns using Label Encoding
+    from sklearn.preprocessing import LabelEncoder
+    encoders = {}
+    for col in cat_cols:
+        le = LabelEncoder()
+        X[col] = le.fit_transform(X[col].astype(str))
+        encoders[col] = le
+        print(f"Encoded '{col}': {list(le.classes_)}")
+
+    return X, encoders
+`;
+
 // Generate suggest call for a parameter
 function generateSuggestCall(name: string, spec: ParamSpec): string {
   if (spec.type === "categorical") {
@@ -195,7 +247,7 @@ except ImportError:
 
 from sklearn.model_selection import cross_val_score
 from ${config.module} import ${config.class}
-
+${PREPROCESSING_CODE}
 def emit(event_type, **kwargs):
     print(json.dumps({"type": event_type, **kwargs}), flush=True)
 
@@ -210,7 +262,8 @@ try:
         emit("error", message=f"Column '{target_col}' not found. Available: {list(df.columns)}")
         sys.exit(1)
 
-    X = df.drop(target_col, axis=1)
+    # Preprocess features (handle categorical columns and missing values)
+    X, encoders = preprocess_features(df, target_col)
     y = df[target_col]
 
     emit("log", message=f"Starting hyperparameter tuning with {len(X)} samples...")
@@ -295,7 +348,8 @@ ${paramExtraction}
         "model_class": type(final_model).__name__,
         "model_type": "${modelType}",
         "best_params": study.best_params,
-        "best_score": float(study.best_value)
+        "best_score": float(study.best_value),
+        "encoders": {col: list(le.classes_) for col, le in encoders.items()} if encoders else {}
     }
     with open("${MODEL_INFO_FILE}", "w") as f:
         json.dump(model_info, f, indent=2)
@@ -355,7 +409,7 @@ except ImportError:
 
 from sklearn.model_selection import cross_val_score
 from ${config.module} import ${config.class}
-
+${PREPROCESSING_CODE}
 def emit(event_type, **kwargs):
     print(json.dumps({"type": event_type, **kwargs}), flush=True)
 
@@ -381,7 +435,8 @@ try:
 
     train_idx = split_info["train_indices"]
 
-    X = df.drop(target_col, axis=1)
+    # Preprocess features (handle categorical columns and missing values)
+    X, encoders = preprocess_features(df, target_col)
     y = df[target_col]
 
     # Use only training data for tuning
@@ -470,7 +525,8 @@ ${paramExtraction}
         "model_class": type(final_model).__name__,
         "model_type": "${modelType}",
         "best_params": study.best_params,
-        "best_score": float(study.best_value)
+        "best_score": float(study.best_value),
+        "encoders": {col: list(le.classes_) for col, le in encoders.items()} if encoders else {}
     }
     with open("${MODEL_INFO_FILE}", "w") as f:
         json.dump(model_info, f, indent=2)

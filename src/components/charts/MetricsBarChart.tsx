@@ -7,6 +7,21 @@ interface MetricsBarChartProps {
   title?: string;
 }
 
+// Generate gradient for each bar
+function getBarGradient(color: string) {
+  return {
+    type: "linear",
+    x: 0,
+    y: 0,
+    x2: 0,
+    y2: 1,
+    colorStops: [
+      { offset: 0, color: color },
+      { offset: 1, color: `${color}99` }, // 60% opacity at bottom
+    ],
+  };
+}
+
 export function MetricsBarChart({ labels, values, title }: MetricsBarChartProps) {
   const option = {
     backgroundColor: "transparent",
@@ -14,11 +29,11 @@ export function MetricsBarChart({ labels, values, title }: MetricsBarChartProps)
       ? {
           text: title,
           left: "center",
-          top: 0,
+          top: 4,
           textStyle: {
             color: colors.textPrimary,
-            fontSize: 14,
-            fontWeight: 500,
+            fontSize: 13,
+            fontWeight: 600,
           },
         }
       : undefined,
@@ -26,23 +41,29 @@ export function MetricsBarChart({ labels, values, title }: MetricsBarChartProps)
       trigger: "axis",
       axisPointer: {
         type: "shadow",
+        shadowStyle: {
+          color: "rgba(88, 166, 255, 0.08)",
+        },
       },
       backgroundColor: colors.surface,
-      borderColor: "rgba(255, 255, 255, 0.1)",
+      borderColor: colors.border,
       borderWidth: 1,
       textStyle: {
         color: colors.textPrimary,
+        fontSize: 12,
       },
-      formatter: (params: { name: string; value: number }[]) => {
+      extraCssText: "border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);",
+      formatter: (params: { name: string; value: number; color: string }[]) => {
         const data = params[0];
-        return `<strong>${data.name}</strong><br/>${data.value.toFixed(4)}`;
+        const dot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${data.color};margin-right:6px;"></span>`;
+        return `${dot}<strong>${data.name}</strong><br/><span style="color:${colors.textSecondary}">${data.value.toFixed(4)}</span>`;
       },
     },
     grid: {
       left: "3%",
       right: "4%",
-      bottom: "3%",
-      top: title ? 40 : 20,
+      bottom: "8%",
+      top: title ? 45 : 25,
       containLabel: true,
     },
     xAxis: {
@@ -50,12 +71,16 @@ export function MetricsBarChart({ labels, values, title }: MetricsBarChartProps)
       data: labels,
       axisLine: {
         lineStyle: {
-          color: colors.textMuted,
+          color: colors.border,
         },
+      },
+      axisTick: {
+        show: false,
       },
       axisLabel: {
         color: colors.textSecondary,
         fontSize: 11,
+        margin: 12,
         rotate: labels.length > 4 ? 30 : 0,
       },
     },
@@ -63,18 +88,17 @@ export function MetricsBarChart({ labels, values, title }: MetricsBarChartProps)
       type: "value",
       min: 0,
       max: (value: { max: number }) => {
-        // For metrics between 0-1 (like accuracy), cap at 1
-        // For larger metrics (like MSE), auto scale
         return value.max <= 1 ? 1 : undefined;
       },
       axisLine: {
-        lineStyle: {
-          color: colors.textMuted,
-        },
+        show: false,
+      },
+      axisTick: {
+        show: false,
       },
       axisLabel: {
-        color: colors.textSecondary,
-        fontSize: 11,
+        color: colors.textMuted,
+        fontSize: 10,
         formatter: (value: number) => {
           if (value >= 1000) return `${(value / 1000).toFixed(1)}k`;
           if (value >= 1) return value.toFixed(1);
@@ -83,33 +107,50 @@ export function MetricsBarChart({ labels, values, title }: MetricsBarChartProps)
       },
       splitLine: {
         lineStyle: {
-          color: "rgba(255, 255, 255, 0.05)",
+          color: colors.border,
+          opacity: 0.4,
+          type: "dashed",
         },
       },
     },
     series: [
       {
         type: "bar",
-        data: values.map((value, index) => ({
-          value,
-          itemStyle: {
-            color: chartColors[index % chartColors.length],
-            borderRadius: [4, 4, 0, 0],
-          },
-        })),
-        barWidth: "60%",
+        data: values.map((value, index) => {
+          const color = chartColors[index % chartColors.length];
+          return {
+            value,
+            itemStyle: {
+              color: getBarGradient(color),
+              borderRadius: [4, 4, 0, 0],
+            },
+            emphasis: {
+              itemStyle: {
+                color: color,
+                shadowBlur: 12,
+                shadowColor: `${color}40`,
+              },
+            },
+          };
+        }),
+        barWidth: "55%",
         label: {
           show: true,
           position: "top",
-          color: colors.textSecondary,
+          color: colors.textPrimary,
           fontSize: 11,
+          fontWeight: 500,
+          distance: 8,
           formatter: (params: { value: number }) => {
             const v = params.value;
             if (v >= 1000) return `${(v / 1000).toFixed(2)}k`;
             if (v >= 100) return v.toFixed(1);
-            return v.toFixed(4);
+            if (v >= 1) return v.toFixed(2);
+            return v.toFixed(3);
           },
         },
+        animationDuration: 600,
+        animationEasing: "cubicOut",
       },
     ],
   };

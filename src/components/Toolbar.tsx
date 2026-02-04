@@ -237,8 +237,19 @@ export function Toolbar({
 
       if (trainerNode) {
         const isLoadMode = trainerNode.data.trainerMode === "load";
+        const isTuneMode = trainerNode.data.trainerMode === "tune";
 
-        if (isLoadMode) {
+        if (isTuneMode) {
+          appendLog("");
+          appendLog("--- Trainer is in Tune Mode ---");
+          appendLog("To run hyperparameter tuning:");
+          appendLog("1. Select the Trainer node");
+          appendLog("2. Click 'Start Tuning' in the Tuning Panel on the right");
+          appendLog("");
+          appendLog("Or switch the Trainer to 'Train' mode to run with default parameters.");
+          setExecutionStatus("idle");
+          return;
+        } else if (isLoadMode) {
           appendLog("");
           appendLog("--- Loading Pre-trained Model ---");
           appendLog(`Model file: ${trainerNode.data.modelFilePath}`);

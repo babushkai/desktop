@@ -83,17 +83,35 @@ function formatTimestamp(date: Date): string {
 }
 
 function getLogClass(log: string): string {
+  const trimmed = log.trim();
+
   // Error lines
-  if (log.startsWith("ERROR") || log.includes("Traceback")) {
+  if (trimmed.startsWith("ERROR") || log.includes("Traceback") || log.includes("Exception")) {
     return "text-log-error";
   }
+  // Warning lines
+  if (trimmed.startsWith("WARNING") || trimmed.startsWith("WARN")) {
+    return "text-log-warning";
+  }
+  // Success lines (saved, complete, etc.)
+  if (trimmed.includes("saved to") || trimmed.includes("complete") || trimmed.includes("Complete")) {
+    return "text-log-success";
+  }
   // Section headers (--- text ---)
-  if (log.startsWith("---")) {
+  if (trimmed.startsWith("---")) {
+    return "text-log-info font-semibold";
+  }
+  // Section titles (all caps with colons like "EVALUATION RESULTS")
+  if (/^[A-Z\s]{3,}$/.test(trimmed) || /^[A-Z][A-Z\s]+:?$/.test(trimmed)) {
     return "text-log-info";
   }
   // Separators (only = or - chars, 3+ length)
-  if (/^[=\-]{3,}$/.test(log.trim())) {
+  if (/^[=\-]{3,}$/.test(trimmed)) {
     return "text-log-muted";
+  }
+  // Metrics/numbers lines (contains : followed by number)
+  if (/:\s+[\d.]+/.test(log)) {
+    return "text-log-text";
   }
   // Default
   return "text-log-text";

@@ -17,6 +17,7 @@ export default {
           text: "var(--log-text)",
           muted: "var(--log-muted)",
           error: "var(--log-error)",
+          warning: "var(--log-warning)",
           success: "var(--log-success)",
           info: "var(--log-info)",
         },

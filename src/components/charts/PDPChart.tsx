@@ -26,19 +26,38 @@ export function PDPChart({ data, title, showICE = true }: PDPChartProps) {
     const classNames = Object.keys(data.pdpByClass);
     classNames.forEach((className, idx) => {
       const pdpValues = data.pdpByClass[className];
+      const color = chartColors[idx % chartColors.length];
       series.push({
         name: className,
         type: "line",
         data: gridValues.map((x, i) => [x, pdpValues[i]]),
         smooth: true,
         lineStyle: {
-          width: 2,
-          color: chartColors[idx % chartColors.length],
+          width: 2.5,
+          color: color,
         },
         itemStyle: {
-          color: chartColors[idx % chartColors.length],
+          color: color,
         },
         showSymbol: false,
+        emphasis: {
+          lineStyle: {
+            width: 3.5,
+          },
+        },
+        areaStyle: {
+          color: {
+            type: "linear",
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [
+              { offset: 0, color: `${color}30` },
+              { offset: 1, color: `${color}05` },
+            ],
+          },
+        },
       });
     });
   } else {
@@ -56,7 +75,7 @@ export function PDPChart({ data, title, showICE = true }: PDPChartProps) {
           smooth: true,
           lineStyle: {
             width: 0.5,
-            color: "rgba(148, 163, 184, 0.2)", // text-secondary with opacity
+            color: `${colors.textMuted}30`, // GitHub muted with opacity
           },
           showSymbol: false,
           silent: true,
@@ -65,7 +84,7 @@ export function PDPChart({ data, title, showICE = true }: PDPChartProps) {
       });
     }
 
-    // Add main PDP line
+    // Add main PDP line with gradient area
     series.push({
       name: "PDP",
       type: "line",
@@ -80,6 +99,24 @@ export function PDPChart({ data, title, showICE = true }: PDPChartProps) {
       },
       showSymbol: false,
       z: 10,
+      emphasis: {
+        lineStyle: {
+          width: 4,
+        },
+      },
+      areaStyle: {
+        color: {
+          type: "linear",
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
+          colorStops: [
+            { offset: 0, color: `${colors.accent}30` },
+            { offset: 1, color: `${colors.accent}05` },
+          ],
+        },
+      },
     });
   }
 
@@ -89,23 +126,25 @@ export function PDPChart({ data, title, showICE = true }: PDPChartProps) {
       ? {
           text: title,
           left: "center",
-          top: 0,
+          top: 4,
           textStyle: {
             color: colors.textPrimary,
             fontSize: 13,
-            fontWeight: 500,
+            fontWeight: 600,
           },
         }
       : undefined,
     tooltip: {
       trigger: "axis",
       backgroundColor: colors.surface,
-      borderColor: "rgba(255, 255, 255, 0.1)",
+      borderColor: colors.border,
       borderWidth: 1,
       textStyle: {
         color: colors.textPrimary,
+        fontSize: 12,
       },
-      formatter: (params: { seriesName: string; data: number[] }[]) => {
+      extraCssText: "border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);",
+      formatter: (params: { seriesName: string; data: number[]; color: string }[]) => {
         // Filter out ICE lines
         const mainParams = params.filter(
           (p) => !p.seriesName.startsWith("ICE")
@@ -116,7 +155,8 @@ export function PDPChart({ data, title, showICE = true }: PDPChartProps) {
         let html = `<strong>${feature}</strong>: ${x.toFixed(3)}<br/>`;
 
         mainParams.forEach((p) => {
-          html += `${p.seriesName}: ${p.data[1].toFixed(4)}<br/>`;
+          const dot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${p.color};margin-right:6px;"></span>`;
+          html += `${dot}${p.seriesName}: <strong>${p.data[1].toFixed(4)}</strong><br/>`;
         });
 
         return html;
@@ -124,34 +164,41 @@ export function PDPChart({ data, title, showICE = true }: PDPChartProps) {
     },
     legend: isClassification
       ? {
-          top: title ? 25 : 5,
+          top: title ? 28 : 8,
           textStyle: {
             color: colors.textSecondary,
             fontSize: 10,
           },
+          itemWidth: 16,
+          itemHeight: 8,
+          itemGap: 16,
         }
       : undefined,
     grid: {
-      left: "10%",
-      right: "5%",
-      bottom: "15%",
-      top: isClassification ? 60 : title ? 40 : 20,
+      left: "3%",
+      right: "4%",
+      bottom: "12%",
+      top: isClassification ? 55 : title ? 45 : 25,
       containLabel: true,
     },
     xAxis: {
       type: "value",
       name: feature,
       nameLocation: "middle",
-      nameGap: 25,
+      nameGap: 28,
       nameTextStyle: {
         color: colors.textSecondary,
         fontSize: 11,
+        fontWeight: 500,
       },
       axisLine: {
-        lineStyle: { color: colors.textMuted },
+        lineStyle: { color: colors.border },
+      },
+      axisTick: {
+        show: false,
       },
       axisLabel: {
-        color: colors.textSecondary,
+        color: colors.textMuted,
         fontSize: 10,
         formatter: (v: number) => {
           if (Math.abs(v) >= 1000) return `${(v / 1000).toFixed(1)}k`;
@@ -160,7 +207,11 @@ export function PDPChart({ data, title, showICE = true }: PDPChartProps) {
         },
       },
       splitLine: {
-        lineStyle: { color: "rgba(255, 255, 255, 0.05)" },
+        lineStyle: {
+          color: colors.border,
+          opacity: 0.4,
+          type: "dashed",
+        },
       },
     },
     yAxis: {
@@ -171,17 +222,25 @@ export function PDPChart({ data, title, showICE = true }: PDPChartProps) {
       nameTextStyle: {
         color: colors.textSecondary,
         fontSize: 11,
+        fontWeight: 500,
       },
       axisLine: {
-        lineStyle: { color: colors.textMuted },
+        show: false,
+      },
+      axisTick: {
+        show: false,
       },
       axisLabel: {
-        color: colors.textSecondary,
+        color: colors.textMuted,
         fontSize: 10,
         formatter: (v: number) => v.toFixed(2),
       },
       splitLine: {
-        lineStyle: { color: "rgba(255, 255, 255, 0.05)" },
+        lineStyle: {
+          color: colors.border,
+          opacity: 0.4,
+          type: "dashed",
+        },
       },
     },
     series,

@@ -123,6 +123,10 @@ interface PipelineState {
   selectedNodeId: string | null;
   setSelectedNodeId: (id: string | null) => void;
 
+  // Canvas view control
+  fitViewTrigger: number;  // Increment to trigger fitView in Canvas
+  triggerFitView: () => void;
+
   // Playground
   playgroundOpen: boolean;
   inferenceHistory: InferenceRequest[];
@@ -237,6 +241,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   currentPipelineName: null,
   isDirty: false,
   selectedNodeId: null,
+  fitViewTrigger: 0,
   currentRunId: null,
   runHistory: [],
   selectedRunId: null,
@@ -264,6 +269,9 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
   servingPanelOpen: false,
 
   setSelectedNodeId: (id) => set({ selectedNodeId: id }),
+
+  // Canvas view control
+  triggerFitView: () => set((state) => ({ fitViewTrigger: state.fitViewTrigger + 1 })),
 
   // Playground (mutually exclusive with PropertiesPanel)
   openPlayground: () => set({ playgroundOpen: true, selectedNodeId: null }),
@@ -671,6 +679,9 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
           style: n.type === "script" ? { width: 320, height: 280 } : undefined,
         })),
       }));
+
+      // Trigger fitView to center nodes on canvas
+      get().triggerFitView();
     } catch (e) {
       console.error("Failed to load template:", e);
       throw e;

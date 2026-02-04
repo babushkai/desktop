@@ -79,57 +79,68 @@ export function BeeswarmChart({
       ? {
           text: title,
           left: "center",
-          top: 0,
+          top: 4,
           textStyle: {
             color: colors.textPrimary,
-            fontSize: 14,
-            fontWeight: 500,
+            fontSize: 13,
+            fontWeight: 600,
           },
         }
       : undefined,
     tooltip: {
       trigger: "item",
       backgroundColor: colors.surface,
-      borderColor: "rgba(255, 255, 255, 0.1)",
+      borderColor: colors.border,
       borderWidth: 1,
       textStyle: {
         color: colors.textPrimary,
+        fontSize: 12,
       },
+      extraCssText: "border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);",
       formatter: (params: { data: number[] }) => {
         const [shapValue, yPos, featValue] = params.data;
         const featureIdx = sortedIndices[Math.round(yPos)];
         const featureName = featureNames[featureIdx];
+        const shapColor = shapValue >= 0 ? colors.error : colors.accent;
         return `<strong>${featureName}</strong><br/>
-                SHAP: ${shapValue.toFixed(4)}<br/>
-                Value: ${featValue.toFixed(4)}`;
+                <span style="color:${colors.textSecondary}">SHAP:</span> <span style="color:${shapColor}">${shapValue.toFixed(4)}</span><br/>
+                <span style="color:${colors.textSecondary}">Value:</span> ${featValue.toFixed(4)}`;
       },
     },
     grid: {
-      left: "15%",
-      right: "12%",
+      left: "3%",
+      right: "14%",
       bottom: "10%",
-      top: title ? 50 : 30,
+      top: title ? 45 : 25,
       containLabel: true,
     },
     xAxis: {
       type: "value",
       name: "SHAP Value",
       nameLocation: "middle",
-      nameGap: 30,
+      nameGap: 28,
       nameTextStyle: {
         color: colors.textSecondary,
         fontSize: 11,
+        fontWeight: 500,
       },
       axisLine: {
-        lineStyle: { color: colors.textMuted },
+        show: false,
+      },
+      axisTick: {
+        show: false,
       },
       axisLabel: {
-        color: colors.textSecondary,
+        color: colors.textMuted,
         fontSize: 10,
         formatter: (v: number) => v.toFixed(2),
       },
       splitLine: {
-        lineStyle: { color: "rgba(255, 255, 255, 0.05)" },
+        lineStyle: {
+          color: colors.border,
+          opacity: 0.4,
+          type: "dashed",
+        },
       },
     },
     yAxis: {
@@ -137,7 +148,10 @@ export function BeeswarmChart({
       data: sortedIndices.map((idx) => featureNames[idx]),
       inverse: true,
       axisLine: {
-        lineStyle: { color: colors.textMuted },
+        lineStyle: { color: colors.border },
+      },
+      axisTick: {
+        show: false,
       },
       axisLabel: {
         color: colors.textSecondary,
@@ -152,33 +166,35 @@ export function BeeswarmChart({
       max: maxFeatValue,
       dimension: 2,
       inRange: {
-        color: ["#3b82f6", "#f8fafc", "#ef4444"], // Blue → White → Red
+        // GitHub-inspired color scale: Blue → neutral → Red
+        color: [colors.accent, colors.textMuted, colors.error],
       },
       text: ["High", "Low"],
       textStyle: {
-        color: colors.textSecondary,
+        color: colors.textMuted,
         fontSize: 10,
       },
-      right: 10,
+      right: 8,
       top: "center",
       calculable: false,
-      itemWidth: 10,
+      itemWidth: 12,
       itemHeight: 100,
     },
     series: [
       {
         type: "scatter",
         data: scatterData,
-        symbolSize: 4,
+        symbolSize: 5,
         itemStyle: {
-          opacity: 0.7,
+          opacity: 0.75,
         },
         emphasis: {
           itemStyle: {
             opacity: 1,
-            shadowBlur: 5,
-            shadowColor: "rgba(0, 0, 0, 0.3)",
+            shadowBlur: 8,
+            shadowColor: "rgba(0, 0, 0, 0.4)",
           },
+          scale: 1.5,
         },
       },
     ],

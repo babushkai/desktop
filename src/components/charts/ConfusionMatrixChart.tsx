@@ -1,5 +1,5 @@
 import ReactECharts from "echarts-for-react";
-import { colors } from "@/lib/echartsTheme";
+import { colors, heatmapColors } from "@/lib/echartsTheme";
 
 interface ConfusionMatrixChartProps {
   matrix: number[][];
@@ -27,32 +27,38 @@ export function ConfusionMatrixChart({ matrix, title }: ConfusionMatrixChartProp
       ? {
           text: title,
           left: "center",
-          top: 0,
+          top: 4,
           textStyle: {
             color: colors.textPrimary,
-            fontSize: 14,
-            fontWeight: 500,
+            fontSize: 13,
+            fontWeight: 600,
           },
         }
       : undefined,
     tooltip: {
       position: "top",
       backgroundColor: colors.surface,
-      borderColor: "rgba(255, 255, 255, 0.1)",
+      borderColor: colors.border,
       borderWidth: 1,
       textStyle: {
         color: colors.textPrimary,
+        fontSize: 12,
       },
+      extraCssText: "border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);",
       formatter: (params: { data: [number, number, number] }) => {
         const [x, y, value] = params.data;
         const actualY = matrix.length - 1 - y;
-        return `Predicted: ${x}<br/>Actual: ${actualY}<br/>Count: <strong>${value}</strong>`;
+        return `<div style="padding: 2px 0;">
+          <span style="color:${colors.textSecondary}">Predicted:</span> <strong>${x}</strong><br/>
+          <span style="color:${colors.textSecondary}">Actual:</span> <strong>${actualY}</strong><br/>
+          <span style="color:${colors.textSecondary}">Count:</span> <strong style="color:${colors.accent}">${value}</strong>
+        </div>`;
       },
     },
     grid: {
       left: "15%",
-      right: "10%",
-      top: title ? 50 : 30,
+      right: "12%",
+      top: title ? 45 : 25,
       bottom: "15%",
     },
     xAxis: {
@@ -63,10 +69,14 @@ export function ConfusionMatrixChart({ matrix, title }: ConfusionMatrixChartProp
       nameGap: 30,
       nameTextStyle: {
         color: colors.textSecondary,
-        fontSize: 12,
+        fontSize: 11,
+        fontWeight: 500,
       },
       splitArea: {
         show: true,
+        areaStyle: {
+          color: ["transparent", "rgba(255, 255, 255, 0.02)"],
+        },
       },
       axisLabel: {
         color: colors.textSecondary,
@@ -74,8 +84,11 @@ export function ConfusionMatrixChart({ matrix, title }: ConfusionMatrixChartProp
       },
       axisLine: {
         lineStyle: {
-          color: colors.textMuted,
+          color: colors.border,
         },
+      },
+      axisTick: {
+        show: false,
       },
     },
     yAxis: {
@@ -86,10 +99,14 @@ export function ConfusionMatrixChart({ matrix, title }: ConfusionMatrixChartProp
       nameGap: 40,
       nameTextStyle: {
         color: colors.textSecondary,
-        fontSize: 12,
+        fontSize: 11,
+        fontWeight: 500,
       },
       splitArea: {
         show: true,
+        areaStyle: {
+          color: ["transparent", "rgba(255, 255, 255, 0.02)"],
+        },
       },
       axisLabel: {
         color: colors.textSecondary,
@@ -97,8 +114,11 @@ export function ConfusionMatrixChart({ matrix, title }: ConfusionMatrixChartProp
       },
       axisLine: {
         lineStyle: {
-          color: colors.textMuted,
+          color: colors.border,
         },
+      },
+      axisTick: {
+        show: false,
       },
     },
     visualMap: {
@@ -109,12 +129,13 @@ export function ConfusionMatrixChart({ matrix, title }: ConfusionMatrixChartProp
       right: "2%",
       top: "center",
       itemHeight: 100,
+      itemWidth: 12,
       textStyle: {
-        color: colors.textSecondary,
+        color: colors.textMuted,
         fontSize: 10,
       },
       inRange: {
-        color: [colors.elevated, colors.accent, colors.success],
+        color: heatmapColors,
       },
     },
     series: [
@@ -124,14 +145,22 @@ export function ConfusionMatrixChart({ matrix, title }: ConfusionMatrixChartProp
         label: {
           show: true,
           color: colors.textPrimary,
-          fontSize: 12,
-          fontWeight: "bold",
+          fontSize: 13,
+          fontWeight: 600,
+          formatter: (params: { data: [number, number, number] }) => {
+            return params.data[2].toString();
+          },
         },
         emphasis: {
           itemStyle: {
-            shadowBlur: 10,
+            shadowBlur: 12,
             shadowColor: "rgba(0, 0, 0, 0.5)",
           },
+        },
+        itemStyle: {
+          borderColor: colors.background,
+          borderWidth: 2,
+          borderRadius: 4,
         },
       },
     ],

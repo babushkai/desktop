@@ -185,7 +185,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "dl-1",
         type: "dataLoader",
-        position: { x: 100, y: 200 },
+        position: { x: 50, y: 200 },
         data: {
           label: "Load Iris Data",
           datasetName: "iris.csv",
@@ -194,7 +194,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "tr-1",
         type: "trainer",
-        position: { x: 400, y: 200 },
+        position: { x: 320, y: 200 },
         data: {
           label: "Random Forest",
           modelType: "random_forest_classifier",
@@ -206,7 +206,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "ev-1",
         type: "evaluator",
-        position: { x: 700, y: 200 },
+        position: { x: 650, y: 200 },
         data: {
           label: "Evaluate Model",
         },
@@ -228,7 +228,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "dl-1",
         type: "dataLoader",
-        position: { x: 100, y: 200 },
+        position: { x: 50, y: 200 },
         data: {
           label: "Load Titanic Data",
           datasetName: "titanic.csv",
@@ -237,7 +237,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "ds-1",
         type: "dataSplit",
-        position: { x: 350, y: 200 },
+        position: { x: 320, y: 200 },
         data: {
           label: "Train/Test Split",
           splitRatio: 0.2,
@@ -249,7 +249,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "tr-1",
         type: "trainer",
-        position: { x: 600, y: 200 },
+        position: { x: 590, y: 200 },
         data: {
           label: "Logistic Regression",
           modelType: "logistic_regression",
@@ -260,7 +260,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "ev-1",
         type: "evaluator",
-        position: { x: 850, y: 200 },
+        position: { x: 920, y: 200 },
         data: {
           label: "Evaluate Model",
         },
@@ -283,7 +283,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "dl-1",
         type: "dataLoader",
-        position: { x: 100, y: 200 },
+        position: { x: 50, y: 200 },
         data: {
           label: "Load Iris Data",
           datasetName: "iris.csv",
@@ -292,7 +292,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "ds-1",
         type: "dataSplit",
-        position: { x: 350, y: 200 },
+        position: { x: 320, y: 200 },
         data: {
           label: "Train/Test Split",
           splitRatio: 0.2,
@@ -304,7 +304,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "tr-1",
         type: "trainer",
-        position: { x: 600, y: 200 },
+        position: { x: 590, y: 200 },
         data: {
           label: "Random Forest (Tuned)",
           modelType: "random_forest_classifier",
@@ -315,7 +315,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "ev-1",
         type: "evaluator",
-        position: { x: 850, y: 200 },
+        position: { x: 920, y: 200 },
         data: {
           label: "Evaluate Model",
         },
@@ -342,7 +342,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "dl-1",
         type: "dataLoader",
-        position: { x: 100, y: 200 },
+        position: { x: 50, y: 200 },
         data: {
           label: "Load Housing Data",
           datasetName: "california_housing.csv",
@@ -351,7 +351,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "tr-1",
         type: "trainer",
-        position: { x: 400, y: 200 },
+        position: { x: 320, y: 200 },
         data: {
           label: "Linear Regression",
           modelType: "linear_regression",
@@ -363,7 +363,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "ev-1",
         type: "evaluator",
-        position: { x: 700, y: 200 },
+        position: { x: 650, y: 200 },
         data: {
           label: "Evaluate Model",
         },
@@ -385,7 +385,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "dl-1",
         type: "dataLoader",
-        position: { x: 100, y: 200 },
+        position: { x: 50, y: 200 },
         data: {
           label: "Load Housing Data",
           datasetName: "california_housing.csv",
@@ -394,7 +394,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "ds-1",
         type: "dataSplit",
-        position: { x: 350, y: 200 },
+        position: { x: 320, y: 200 },
         data: {
           label: "Train/Test Split",
           splitRatio: 0.2,
@@ -404,10 +404,10 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "tr-1",
         type: "trainer",
-        position: { x: 600, y: 200 },
+        position: { x: 590, y: 200 },
         data: {
           label: "Random Forest",
-          modelType: "random_forest_regressor",
+          modelType: "random_forest",  // Regressor model type (not random_forest_regressor)
           targetColumn: "MedHouseVal",
           trainerMode: "train",
         },
@@ -415,7 +415,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "ev-1",
         type: "evaluator",
-        position: { x: 850, y: 200 },
+        position: { x: 920, y: 200 },
         data: {
           label: "Evaluate Model",
         },
@@ -438,7 +438,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "dl-1",
         type: "dataLoader",
-        position: { x: 100, y: 200 },
+        position: { x: 50, y: 200 },
         data: {
           label: "Load Wine Data",
           datasetName: "wine_quality.csv",
@@ -447,7 +447,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "ds-1",
         type: "dataSplit",
-        position: { x: 350, y: 200 },
+        position: { x: 320, y: 200 },
         data: {
           label: "Train/Test Split",
           splitRatio: 0.2,
@@ -457,10 +457,10 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "tr-1",
         type: "trainer",
-        position: { x: 600, y: 200 },
+        position: { x: 590, y: 200 },
         data: {
           label: "Gradient Boosting",
-          modelType: "gradient_boosting_regressor",
+          modelType: "gradient_boosting",  // Regressor model type
           targetColumn: "quality",
           trainerMode: "train",
         },
@@ -468,7 +468,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "ev-1",
         type: "evaluator",
-        position: { x: 850, y: 200 },
+        position: { x: 920, y: 200 },
         data: {
           label: "Evaluate Model",
         },
@@ -495,7 +495,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "dl-1",
         type: "dataLoader",
-        position: { x: 100, y: 200 },
+        position: { x: 50, y: 200 },
         data: {
           label: "Load Iris Data",
           datasetName: "iris.csv",
@@ -504,7 +504,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "ds-1",
         type: "dataSplit",
-        position: { x: 300, y: 200 },
+        position: { x: 320, y: 200 },
         data: {
           label: "Train/Test Split",
           splitRatio: 0.2,
@@ -516,7 +516,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "tr-1",
         type: "trainer",
-        position: { x: 500, y: 200 },
+        position: { x: 590, y: 200 },
         data: {
           label: "Random Forest",
           modelType: "random_forest_classifier",
@@ -527,7 +527,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "ev-1",
         type: "evaluator",
-        position: { x: 700, y: 200 },
+        position: { x: 920, y: 200 },
         data: {
           label: "Evaluate Model",
         },
@@ -535,7 +535,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "ex-1",
         type: "modelExporter",
-        position: { x: 900, y: 200 },
+        position: { x: 1190, y: 200 },
         data: {
           label: "Export Model",
           exportFormat: "joblib",
@@ -561,7 +561,7 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "dl-1",
         type: "dataLoader",
-        position: { x: 100, y: 200 },
+        position: { x: 50, y: 200 },
         data: {
           label: "Load Titanic Data",
           datasetName: "titanic.csv",
@@ -570,15 +570,24 @@ export const TEMPLATES: PipelineTemplate[] = [
       {
         id: "sc-1",
         type: "script",
-        position: { x: 350, y: 150 },
+        position: { x: 320, y: 120 },
         data: {
           label: "Preprocess Data",
           code: `# Custom preprocessing script
 import sys
+import os
+import json
 import pandas as pd
 import joblib
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
+
+# Standard output directory (must match app's MODEL_FILE path)
+WORK_DIR = "/tmp/mlops-desktop"
+MODEL_FILE = f"{WORK_DIR}/model.joblib"
+MODEL_INFO_FILE = f"{WORK_DIR}/model_info.json"
+
+os.makedirs(WORK_DIR, exist_ok=True)
 
 # Load data
 data_path = sys.argv[1]
@@ -600,15 +609,23 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_
 model = RandomForestClassifier(n_estimators=100, random_state=42)
 model.fit(X_train, y_train)
 
-# Save model and test data
-joblib.dump(model, '/tmp/model.joblib')
-X_test.to_csv('/tmp/X_test.csv', index=False)
-y_test.to_csv('/tmp/y_test.csv', index=False)
+# Save model
+joblib.dump(model, MODEL_FILE)
+print(f"Model saved to {MODEL_FILE}")
+
+# Save model info for Evaluator compatibility
+model_info = {
+    "n_features": X_train.shape[1],
+    "feature_names": X_train.columns.tolist(),
+    "model_class": "RandomForestClassifier",
+    "model_type": "random_forest_classifier"
+}
+with open(MODEL_INFO_FILE, "w") as f:
+    json.dump(model_info, f, indent=2)
 
 print(f"Preprocessed {len(df)} rows")
 print(f"Features: {list(X.columns)}")
 print(f"Training samples: {len(X_train)}, Test samples: {len(X_test)}")
-print("Model trained and saved to /tmp/model.joblib")
 `,
         },
       },
@@ -627,6 +644,9 @@ print("Model trained and saved to /tmp/model.joblib")
     ],
   },
 ];
+
+// Standard spacing between nodes (270px accounts for widest nodes ~250px + gap)
+// Node positions follow pattern: 50, 320, 590, 920, 1190
 
 /**
  * Get templates by category

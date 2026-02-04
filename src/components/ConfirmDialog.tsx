@@ -1,5 +1,5 @@
 import { Fragment } from "react";
-import { Dialog, Transition } from "@headlessui/react";
+import { Dialog, DialogPanel, DialogTitle, Transition, TransitionChild } from "@headlessui/react";
 import { RiAlertLine } from "@remixicon/react";
 
 interface ConfirmDialogProps {
@@ -26,7 +26,7 @@ export function ConfirmDialog({
   return (
     <Transition appear show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
-        <Transition.Child
+        <TransitionChild
           as={Fragment}
           enter="ease-out duration-200"
           enterFrom="opacity-0"
@@ -36,11 +36,11 @@ export function ConfirmDialog({
           leaveTo="opacity-0"
         >
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm" />
-        </Transition.Child>
+        </TransitionChild>
 
         <div className="fixed inset-0 overflow-y-auto">
           <div className="flex min-h-full items-center justify-center p-4">
-            <Transition.Child
+            <TransitionChild
               as={Fragment}
               enter="ease-out duration-200"
               enterFrom="opacity-0 scale-95"
@@ -49,15 +49,15 @@ export function ConfirmDialog({
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-md rounded-xl bg-background-surface border border-white/10 p-6 shadow-xl">
+              <DialogPanel className="w-full max-w-md rounded-xl bg-background-surface border border-white/10 p-6 shadow-xl">
                 <div className="flex items-start gap-4">
                   <div className="flex-shrink-0 w-10 h-10 rounded-full bg-state-warning/20 flex items-center justify-center">
                     <RiAlertLine className="w-5 h-5 text-state-warning" />
                   </div>
                   <div className="flex-1">
-                    <Dialog.Title className="text-lg font-semibold text-text-primary">
+                    <DialogTitle className="text-lg font-semibold text-text-primary">
                       {title}
-                    </Dialog.Title>
+                    </DialogTitle>
                     <p className="mt-2 text-sm text-text-secondary">{message}</p>
                   </div>
                 </div>
@@ -78,8 +78,8 @@ export function ConfirmDialog({
                     {confirmLabel}
                   </button>
                 </div>
-              </Dialog.Panel>
-            </Transition.Child>
+              </DialogPanel>
+            </TransitionChild>
           </div>
         </div>
       </Dialog>
