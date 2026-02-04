@@ -41,11 +41,15 @@ export function TemplateGallery({ isOpen, onClose }: TemplateGalleryProps) {
   }, [selectedCategory]);
 
   const handleTemplateSelect = useCallback(
-    (template: PipelineTemplate) => {
+    async (template: PipelineTemplate) => {
       if (isDirty) {
         setPendingTemplate(template);
       } else {
-        loadTemplateWithAnimation(template);
+        try {
+          await loadTemplateWithAnimation(template);
+        } catch (error) {
+          console.error("Failed to load template:", error);
+        }
         onClose();
       }
     },
