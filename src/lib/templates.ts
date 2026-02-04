@@ -103,11 +103,17 @@ export interface PipelineTemplate {
 
 /**
  * Resolve a bundled dataset path using the Tauri backend
+ * Returns undefined if resolution fails (e.g., file not found)
  */
-export async function resolveDatasetPath(datasetName: string): Promise<string> {
-  // Use the existing Tauri command that handles resource path resolution
-  // and copies to app data directory for consistent access
-  return await getExampleDataPath(datasetName);
+export async function resolveDatasetPath(datasetName: string): Promise<string | undefined> {
+  try {
+    // Use the existing Tauri command that handles resource path resolution
+    // and copies to app data directory for consistent access
+    return await getExampleDataPath(datasetName);
+  } catch (error) {
+    console.warn(`Failed to resolve dataset path for ${datasetName}:`, error);
+    return undefined;
+  }
 }
 
 /**
@@ -131,7 +137,10 @@ export async function instantiateTemplate(template: PipelineTemplate): Promise<{
 
       // Resolve bundled dataset paths for dataLoader nodes
       if (node.type === "dataLoader" && "datasetName" in node.data && node.data.datasetName) {
-        data.filePath = await resolveDatasetPath(node.data.datasetName);
+        const resolvedPath = await resolveDatasetPath(node.data.datasetName);
+        if (resolvedPath) {
+          data.filePath = resolvedPath;
+        }
         // Remove template-only field
         delete (data as Record<string, unknown>).datasetName;
       }
