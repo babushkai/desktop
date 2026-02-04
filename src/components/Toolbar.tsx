@@ -13,10 +13,9 @@ import {
   RiCloseLine,
   RiSideBarLine,
   RiTerminalBoxLine,
-  RiFlaskLine,
-  RiHome4Line,
   RiRocketLine,
   RiTestTubeLine,
+  RiLayoutGridLine,
 } from "@remixicon/react";
 import { usePipelineStore } from "../stores/pipelineStore";
 import {
@@ -36,6 +35,7 @@ import {
   MetricInput,
 } from "../lib/tauri";
 import { ExperimentDialog } from "./ExperimentDialog";
+import { TemplateGallery } from "./TemplateGallery";
 import { generateTrainerCode, generateTrainerCodeWithSplit } from "../lib/trainerCodeGen";
 import { generateEvaluatorCode, generateEvaluatorCodeWithSplit, generateAutoEvaluatorCode } from "../lib/evaluatorCodeGen";
 import { generateLoadModelCode } from "../lib/loadModelCodeGen";
@@ -76,7 +76,6 @@ export function Toolbar({
     isDirty,
     savePipeline,
     loadPipeline,
-    loadExampleWorkflow,
     newPipeline,
     setCurrentRunId,
     loadRunHistory,
@@ -98,6 +97,7 @@ export function Toolbar({
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveNameInput, setSaveNameInput] = useState("");
   const [showExperimentDialog, setShowExperimentDialog] = useState(false);
+  const [showTemplateGallery, setShowTemplateGallery] = useState(false);
 
   useEffect(() => {
     const loadPythonPath = async () => {
@@ -457,22 +457,6 @@ export function Toolbar({
     newPipeline();
   }, [isDirty, newPipeline]);
 
-  const handleLoadExample = useCallback(
-    async (type: "classification" | "regression") => {
-      if (isDirty) {
-        const confirmed = window.confirm("Discard unsaved changes?");
-        if (!confirmed) return;
-      }
-      try {
-        await loadExampleWorkflow(type);
-        appendLog(`Loaded example: ${type === "classification" ? "Iris Classification" : "California Housing"}`);
-      } catch (error) {
-        appendLog(`ERROR: Failed to load example: ${error}`);
-      }
-    },
-    [isDirty, loadExampleWorkflow, appendLog]
-  );
-
   const hasExecutableNode = nodes.some(
     (n) => n.type === "script" || n.type === "trainer" || n.type === "evaluator"
   );
@@ -555,41 +539,17 @@ export function Toolbar({
                   </Menu.Item>
                 ))
               )}
-              <div className="border-t border-white/5 my-1" />
-              <div className="px-3 py-2 text-xs font-semibold text-text-muted uppercase tracking-wider">
-                Example Workflows
-              </div>
-              <Menu.Item>
-                {({ active }) => (
-                  <button
-                    onClick={() => handleLoadExample("classification")}
-                    className={cn(
-                      "w-full flex items-center gap-2 px-3 py-2 text-sm",
-                      active && "bg-background-elevated"
-                    )}
-                  >
-                    <RiFlaskLine className="w-4 h-4 text-text-muted" />
-                    Iris Classification
-                  </button>
-                )}
-              </Menu.Item>
-              <Menu.Item>
-                {({ active }) => (
-                  <button
-                    onClick={() => handleLoadExample("regression")}
-                    className={cn(
-                      "w-full flex items-center gap-2 px-3 py-2 text-sm",
-                      active && "bg-background-elevated"
-                    )}
-                  >
-                    <RiHome4Line className="w-4 h-4 text-text-muted" />
-                    California Housing
-                  </button>
-                )}
-              </Menu.Item>
             </Menu.Items>
           </Transition>
         </Menu>
+
+        <button
+          onClick={() => setShowTemplateGallery(true)}
+          className="btn-secondary"
+        >
+          <RiLayoutGridLine className="w-4 h-4" />
+          Templates
+        </button>
       </div>
 
       {/* Experiment selector */}
@@ -847,6 +807,12 @@ export function Toolbar({
           </div>
         </Dialog>
       </Transition>
+
+      {/* Template Gallery */}
+      <TemplateGallery
+        isOpen={showTemplateGallery}
+        onClose={() => setShowTemplateGallery(false)}
+      />
     </div>
   );
 }

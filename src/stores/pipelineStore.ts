@@ -12,7 +12,6 @@ import {
 import {
   savePipeline as savePipelineApi,
   loadPipeline as loadPipelineApi,
-  getExampleDataPath,
   listRuns,
   listExperiments,
   MetricsData,
@@ -20,10 +19,9 @@ import {
   Experiment,
 } from "../lib/tauri";
 import {
-  createClassificationWorkflow,
-  createRegressionWorkflow,
-  ExampleWorkflow,
-} from "../lib/exampleWorkflows";
+  PipelineTemplate,
+  instantiateTemplate,
+} from "../lib/templates";
 import { AlignType, alignNodes, distributeNodes } from "@/lib/alignment";
 import { DataProfile, ProfilingStatus } from "@/lib/dataProfileTypes";
 import { TuningConfig, TuningStatus, TrialResult } from "@/lib/tuningTypes";
@@ -200,7 +198,7 @@ interface PipelineState {
   // Pipeline save/load
   savePipeline: (name: string) => Promise<string>;
   loadPipeline: (id: string) => Promise<void>;
-  loadExampleWorkflow: (type: "classification" | "regression") => Promise<void>;
+  loadTemplateWithAnimation: (template: PipelineTemplate) => Promise<void>;
   newPipeline: () => void;
 
   // Run history
@@ -609,30 +607,72 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
     }
   },
 
-  loadExampleWorkflow: async (type) => {
+  loadTemplateWithAnimation: async (template) => {
     try {
-      const dataset = type === "classification" ? "iris.csv" : "california_housing.csv";
-      const dataPath = await getExampleDataPath(dataset);
+      const { nodes, edges } = await instantiateTemplate(template);
 
-      let workflow: ExampleWorkflow;
-      if (type === "classification") {
-        workflow = createClassificationWorkflow(dataPath);
-      } else {
-        workflow = createRegressionWorkflow(dataPath);
-      }
-
+      // Clear canvas first
       set({
-        nodes: workflow.nodes,
-        edges: workflow.edges,
-        currentPipelineId: null,
-        currentPipelineName: workflow.name,
+        nodes: [],
+        edges: [],
         isDirty: false,
+        currentPipelineId: null,
+        currentPipelineName: template.name,
         outputLogs: [],
         metrics: null,
         executionStatus: "idle",
       });
+
+      // Animate nodes appearing one by one with staggered fade-in
+      for (let i = 0; i < nodes.length; i++) {
+        // Add node with opacity 0
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        set((state) => ({
+          nodes: [
+            ...state.nodes,
+            {
+              ...nodes[i],
+              style: {
+                ...nodes[i].style,
+                opacity: 0,
+                transition: "opacity 0.3s ease-in",
+              },
+            },
+          ],
+        }));
+
+        // Fade in the node
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        set((state) => ({
+          nodes: state.nodes.map((n) =>
+            n.id === nodes[i].id
+              ? {
+                  ...n,
+                  style: {
+                    ...n.style,
+                    opacity: 1,
+                    transition: "opacity 0.3s ease-in",
+                  },
+                }
+              : n
+          ),
+        }));
+      }
+
+      // Add edges after nodes are placed
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      set({ edges, isDirty: false });
+
+      // Clean up transition styles after animation
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      set((state) => ({
+        nodes: state.nodes.map((n) => ({
+          ...n,
+          style: n.type === "script" ? { width: 320, height: 280 } : undefined,
+        })),
+      }));
     } catch (e) {
-      console.error("Failed to load example workflow:", e);
+      console.error("Failed to load template:", e);
       throw e;
     }
   },

@@ -19,6 +19,8 @@ import { CanvasControls, CanvasMode } from "./CanvasControls";
 import { ZoomControls } from "./ZoomControls";
 import { SelectionContextMenu } from "./SelectionContextMenu";
 import { AlignmentGuides } from "./AlignmentGuides";
+import { EmptyCanvasPrompt } from "./EmptyCanvasPrompt";
+import { TemplateGallery } from "./TemplateGallery";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useAlignmentGuides } from "@/hooks/useAlignmentGuides";
 import { AlignType } from "@/lib/alignment";
@@ -59,6 +61,7 @@ export function Canvas() {
 
   const [canvasMode, setCanvasMode] = useState<CanvasMode>("pointer");
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
+  const [showTemplateGallery, setShowTemplateGallery] = useState(false);
 
   // Alignment guides for drag snapping
   const { guides, checkAlignment, clearGuides } = useAlignmentGuides();
@@ -162,7 +165,11 @@ export function Canvas() {
   // Get selected nodes for context menu
   const selectedNodes = getSelectedNodes();
 
+  // Show empty canvas prompt when there are no nodes
+  const showEmptyPrompt = nodes.length === 0;
+
   return (
+    <>
     <ReactFlow
       nodes={nodes}
       edges={edges}
@@ -203,6 +210,17 @@ export function Canvas() {
           onClose={closeContextMenu}
         />
       )}
+      {showEmptyPrompt && (
+        <EmptyCanvasPrompt
+          onBrowseTemplates={() => setShowTemplateGallery(true)}
+        />
+      )}
     </ReactFlow>
+
+    <TemplateGallery
+      isOpen={showTemplateGallery}
+      onClose={() => setShowTemplateGallery(false)}
+    />
+    </>
   );
 }

@@ -28,7 +28,8 @@
     "targets": "all",
     "icon": [],
     "resources": [
-      "resources/examples/*"
+      "resources/examples/*",
+      "resources/datasets/*"
     ],
     "macOS": {
       "entitlements": "entitlements.plist",
