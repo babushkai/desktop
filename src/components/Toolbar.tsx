@@ -464,10 +464,11 @@ export function Toolbar({
   const isRunnable = hasExecutableNode && hasDataLoaderWithFile;
 
   return (
-    <div className="flex items-center gap-4 px-4 py-3 panel-toolbar border-b border-white/5">
-      {/* Title */}
-      <h1 className="text-lg font-semibold text-text-primary">
-        MLOps Desktop
+    <div className="flex items-center gap-3 px-4 py-3 panel-toolbar border-b border-white/5 overflow-hidden min-w-0">
+      {/* Title - allow shrinking */}
+      <h1 className="text-lg font-semibold text-text-primary truncate flex-shrink min-w-0">
+        <span className="hidden sm:inline">MLOps Desktop</span>
+        <span className="sm:hidden">MLOps</span>
         {currentPipelineName && (
           <span className="font-normal text-text-muted ml-2">
             - {currentPipelineName}
@@ -482,7 +483,7 @@ export function Toolbar({
       </h1>
 
       {/* Pipeline buttons */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-shrink-0">
         <button onClick={handleNew} className="btn-secondary">
           <RiAddLine className="w-4 h-4" />
           New
@@ -553,7 +554,7 @@ export function Toolbar({
       </div>
 
       {/* Experiment selector */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-shrink-0">
         <RiTestTubeLine className="w-4 h-4 text-text-muted" />
         <Listbox value={selectedExperimentId} onChange={setSelectedExperimentId}>
           <div className="relative">
@@ -633,17 +634,17 @@ export function Toolbar({
       <div className="flex-1" />
 
       {/* Python path display/edit */}
-      <div className="flex items-center gap-2">
-        <RiSettings4Line className="w-4 h-4 text-text-muted" />
-        <span className="text-xs text-text-muted">Python:</span>
+      <div className="flex items-center gap-2 flex-shrink min-w-0">
+        <RiSettings4Line className="w-4 h-4 text-text-muted flex-shrink-0" />
+        <span className="text-xs text-text-muted flex-shrink-0">Python:</span>
 
         {isEditingPath ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <input
               type="text"
               value={pathInput}
               onChange={(e) => setPathInput(e.target.value)}
-              className="input w-72 h-7 text-xs font-mono"
+              className="input w-48 h-7 text-xs font-mono"
             />
             <button onClick={handleSavePythonPath} className="btn-ghost h-7 w-7 p-0">
               <RiCheckLine className="w-4 h-4 text-state-success" />
@@ -653,11 +654,11 @@ export function Toolbar({
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-text-primary font-mono">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-xs text-text-primary font-mono truncate max-w-[180px]">
               {pythonPath || "Not found"}
             </span>
-            <button onClick={() => setIsEditingPath(true)} className="btn-ghost text-xs">
+            <button onClick={() => setIsEditingPath(true)} className="btn-ghost text-xs flex-shrink-0">
               Change
             </button>
           </div>
@@ -667,7 +668,7 @@ export function Toolbar({
       {/* View toggles - only show if callbacks provided */}
       {(onToggleNodePalette || onToggleOutputPanel || onTogglePlayground) && (
         <>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 flex-shrink-0">
             {onToggleNodePalette && (
               <button
                 onClick={onToggleNodePalette}
