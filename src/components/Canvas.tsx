@@ -199,7 +199,9 @@ export function Canvas() {
       <CanvasControls onModeChange={setCanvasMode} />
       <ZoomControls />
       <AlignmentGuides guides={guides} />
-      <MiniMap nodeColor={getNodeColor} maskColor="rgba(10, 10, 15, 0.8)" />
+      {!showEmptyPrompt && (
+        <MiniMap nodeColor={getNodeColor} maskColor="rgba(10, 10, 15, 0.8)" />
+      )}
       {contextMenu && selectedNodes.length >= 2 && (
         <SelectionContextMenu
           position={contextMenu}
