@@ -1,96 +1,92 @@
-import { useMemo, memo } from "react";
-import {
-  ReactFlow,
-  Node,
-  Edge,
-  NodeProps,
-  Handle,
-  Position,
-  NodeTypes,
-} from "@xyflow/react";
+import { useMemo } from "react";
 import { TemplateNode, TemplateEdge } from "@/lib/templates";
-import { cn } from "@/lib/utils";
-import {
-  RiDatabase2Line,
-  RiGitBranchLine,
-  RiRobot2Line,
-  RiBarChartBoxLine,
-  RiDownload2Line,
-  RiCodeLine,
-} from "@remixicon/react";
 
 interface TemplatePreviewProps {
   nodes: TemplateNode[];
   edges: TemplateEdge[];
 }
 
-// Node styling by type
-const NODE_STYLES: Record<string, { bg: string; border: string; icon: React.ElementType }> = {
-  dataLoader: { bg: "bg-emerald-500/20", border: "border-emerald-500/50", icon: RiDatabase2Line },
-  dataSplit: { bg: "bg-cyan-500/20", border: "border-cyan-500/50", icon: RiGitBranchLine },
-  trainer: { bg: "bg-violet-500/20", border: "border-violet-500/50", icon: RiRobot2Line },
-  evaluator: { bg: "bg-amber-500/20", border: "border-amber-500/50", icon: RiBarChartBoxLine },
-  modelExporter: { bg: "bg-teal-500/20", border: "border-teal-500/50", icon: RiDownload2Line },
-  script: { bg: "bg-sky-500/20", border: "border-sky-500/50", icon: RiCodeLine },
-};
-
-// Preview node component - simplified version of actual nodes
-const PreviewNode = memo(function PreviewNode({ data }: NodeProps) {
-  const nodeData = data as { type: string; label: string };
-  const style = NODE_STYLES[nodeData.type] || { bg: "bg-gray-500/20", border: "border-gray-500/50", icon: RiCodeLine };
-  const Icon = style.icon;
-
-  return (
-    <div
-      className={cn(
-        "px-2 py-1.5 rounded-md border backdrop-blur-sm",
-        "flex items-center gap-1.5 min-w-[60px]",
-        style.bg,
-        style.border
-      )}
-    >
-      <Handle type="target" position={Position.Left} className="!w-1 !h-1 !bg-white/30 !border-0 !-left-0.5" />
-      <Icon className="w-3 h-3 text-white/70 flex-shrink-0" />
-      <span className="text-[8px] text-white/80 font-medium truncate max-w-[50px]">
-        {nodeData.label}
-      </span>
-      <Handle type="source" position={Position.Right} className="!w-1 !h-1 !bg-white/30 !border-0 !-right-0.5" />
-    </div>
-  );
-});
-
-// Node types for ReactFlow
-const previewNodeTypes: NodeTypes = {
-  preview: PreviewNode,
+// Node colors by type
+const NODE_COLORS: Record<string, string> = {
+  dataLoader: "#34d399",
+  dataSplit: "#22d3ee",
+  trainer: "#a78bfa",
+  evaluator: "#fbbf24",
+  modelExporter: "#2dd4bf",
+  script: "#38bdf8",
 };
 
 export function TemplatePreview({ nodes, edges }: TemplatePreviewProps) {
-  // Transform template nodes to ReactFlow nodes with preview type
-  const { flowNodes, flowEdges } = useMemo(() => {
+  // Calculate scaled positions for the preview
+  const { scaledNodes, lines, viewBox } = useMemo(() => {
     if (nodes.length === 0) {
-      return { flowNodes: [], flowEdges: [] };
+      return { scaledNodes: [], lines: [], viewBox: "0 0 100 100" };
     }
 
-    const flowNodes: Node[] = nodes.map((node) => ({
-      id: node.id,
-      type: "preview",
-      position: node.position,
-      data: { type: node.type, label: node.data.label },
-      draggable: false,
-      selectable: false,
-      connectable: false,
-    }));
+    // Find bounding box
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    const nodeWidth = 70;
+    const nodeHeight = 24;
 
-    const flowEdges: Edge[] = edges.map((edge) => ({
-      id: edge.id,
-      source: edge.source,
-      target: edge.target,
-      type: "default",
-      style: { stroke: "rgba(255,255,255,0.25)", strokeWidth: 1.5 },
-      animated: false,
-    }));
+    for (const node of nodes) {
+      minX = Math.min(minX, node.position.x);
+      minY = Math.min(minY, node.position.y);
+      maxX = Math.max(maxX, node.position.x + nodeWidth);
+      maxY = Math.max(maxY, node.position.y + nodeHeight);
+    }
 
-    return { flowNodes, flowEdges };
+    // Add padding
+    const padding = 10;
+    minX -= padding;
+    minY -= padding;
+    maxX += padding;
+    maxY += padding;
+
+    const width = maxX - minX;
+    const height = maxY - minY;
+
+    // Create node positions map for edge calculation
+    const nodePositions = new Map<string, { x: number; y: number; width: number; height: number }>();
+
+    const scaledNodes = nodes.map((node) => {
+      const x = node.position.x - minX;
+      const y = node.position.y - minY;
+      nodePositions.set(node.id, {
+        x,
+        y,
+        width: nodeWidth,
+        height: nodeHeight,
+      });
+
+      return {
+        id: node.id,
+        type: node.type,
+        label: node.data.label,
+        x,
+        y,
+      };
+    });
+
+    // Create edge lines (from right edge of source to left edge of target)
+    const lines = edges.map((edge) => {
+      const source = nodePositions.get(edge.source);
+      const target = nodePositions.get(edge.target);
+      if (!source || !target) return null;
+
+      return {
+        id: edge.id,
+        x1: source.x + source.width,
+        y1: source.y + source.height / 2,
+        x2: target.x,
+        y2: target.y + target.height / 2,
+      };
+    }).filter(Boolean) as { id: string; x1: number; y1: number; x2: number; y2: number }[];
+
+    return {
+      scaledNodes,
+      lines,
+      viewBox: `0 0 ${width} ${height}`,
+    };
   }, [nodes, edges]);
 
   if (nodes.length === 0) {
@@ -98,26 +94,65 @@ export function TemplatePreview({ nodes, edges }: TemplatePreviewProps) {
   }
 
   return (
-    <div className="h-20 w-full overflow-hidden rounded">
-      <ReactFlow
-        nodes={flowNodes}
-        edges={flowEdges}
-        nodeTypes={previewNodeTypes}
-        fitView
-        fitViewOptions={{ padding: 0.3, maxZoom: 0.5 }}
-        proOptions={{ hideAttribution: true }}
-        panOnDrag={false}
-        zoomOnScroll={false}
-        zoomOnPinch={false}
-        zoomOnDoubleClick={false}
-        nodesDraggable={false}
-        nodesConnectable={false}
-        nodesFocusable={false}
-        edgesFocusable={false}
-        elementsSelectable={false}
-        preventScrolling={false}
-        className="pointer-events-none"
-      />
+    <div className="h-20 w-full overflow-hidden rounded relative">
+      <svg
+        viewBox={viewBox}
+        className="w-full h-full"
+        preserveAspectRatio="xMidYMid meet"
+      >
+        {/* Edge lines */}
+        {lines.map((line) => (
+          <line
+            key={line.id}
+            x1={line.x1}
+            y1={line.y1}
+            x2={line.x2}
+            y2={line.y2}
+            stroke="rgba(255,255,255,0.2)"
+            strokeWidth={1.5}
+          />
+        ))}
+
+        {/* Nodes */}
+        {scaledNodes.map((node) => {
+          const color = NODE_COLORS[node.type] || NODE_COLORS.script;
+
+          return (
+            <g key={node.id} transform={`translate(${node.x}, ${node.y})`}>
+              {/* Node background */}
+              <rect
+                x={0}
+                y={0}
+                width={70}
+                height={24}
+                rx={4}
+                fill="rgba(0,0,0,0.3)"
+                stroke={color}
+                strokeWidth={1}
+                strokeOpacity={0.5}
+              />
+              {/* Icon circle */}
+              <circle
+                cx={12}
+                cy={12}
+                r={6}
+                fill={color}
+                fillOpacity={0.3}
+              />
+              {/* Label */}
+              <text
+                x={24}
+                y={15}
+                fontSize={8}
+                fill="rgba(255,255,255,0.7)"
+                className="select-none"
+              >
+                {node.label.length > 8 ? node.label.slice(0, 8) + "…" : node.label}
+              </text>
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 }
