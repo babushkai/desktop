@@ -103,7 +103,10 @@ export function Toolbar({
     const loadPythonPath = async () => {
       let path = await getPythonPath();
       if (!path) {
-        path = await findPython();
+        const pythonInfo = await findPython();
+        if (pythonInfo) {
+          path = pythonInfo.path;
+        }
       }
       if (path) {
         setStorePythonPath(path);

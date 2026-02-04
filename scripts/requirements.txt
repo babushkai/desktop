@@ -1,0 +1,29 @@
+# Requirements for bundled Python runtime
+# Generate hashes with: pip-compile --generate-hashes requirements.in
+#
+# These packages are pre-installed in the bundled Python to eliminate
+# user dependency management.
+
+# Core ML Stack
+scikit-learn==1.4.2
+pandas==2.2.3
+numpy==1.26.4
+joblib==1.4.2
+
+# Visualization (required for SHAP plots)
+matplotlib==3.9.2
+
+# Model Explainability
+shap==0.46.0
+
+# Hyperparameter Tuning
+optuna==4.0.0
+
+# HTTP Serving (v10)
+fastapi==0.115.4
+uvicorn==0.32.0
+slowapi==0.1.9
+
+# ONNX Support
+onnxruntime==1.20.0
+skl2onnx==1.17.0

@@ -1814,10 +1814,12 @@ dependencies = [
  "tauri-plugin-fs",
  "tauri-plugin-shell",
  "tempfile",
+ "thiserror 1.0.69",
  "tokio",
  "tracing",
  "tracing-subscriber",
  "uuid",
+ "walkdir",
 ]
 
 [[package]]

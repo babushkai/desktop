@@ -1,0 +1,23 @@
+# Python Build Standalone checksums
+# Version: 3.11.9
+# Release: 20240814
+#
+# Update these when upgrading Python version.
+# Get checksums from: https://github.com/indygreg/python-build-standalone/releases
+#
+# Format: <sha256>  <filename>
+
+# macOS arm64 (Apple Silicon)
+d68c4b3ca8d37f1a9b20a8f7d88427d8cce05c4a0d3a57cf79a8a13e3f0eef88  cpython-3.11.9+20240814-aarch64-apple-darwin-install_only.tar.gz
+
+# macOS x64 (Intel)
+# TODO: Get actual checksum from release
+0000000000000000000000000000000000000000000000000000000000000000  cpython-3.11.9+20240814-x86_64-apple-darwin-install_only.tar.gz
+
+# Linux x64
+# TODO: Get actual checksum from release
+0000000000000000000000000000000000000000000000000000000000000000  cpython-3.11.9+20240814-x86_64-unknown-linux-gnu-install_only.tar.gz
+
+# Windows x64
+# TODO: Get actual checksum from release
+0000000000000000000000000000000000000000000000000000000000000000  cpython-3.11.9+20240814-x86_64-pc-windows-msvc-shared-install_only.tar.gz

@@ -27,6 +27,12 @@
     "active": true,
     "targets": "all",
     "icon": [],
-    "resources": ["resources/examples/*"]
+    "resources": [
+      "resources/examples/*"
+    ],
+    "macOS": {
+      "entitlements": "entitlements.plist",
+      "signingIdentity": null
+    }
   }
 }

@@ -215,8 +215,8 @@ export function ExplainSection({
     <Disclosure defaultOpen={hasData}>
       {({ open }) => (
         <div className="border-t border-white/5">
-          <Disclosure.Button className="flex items-center justify-between w-full px-3 py-2 text-left hover:bg-white/5 transition-colors">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between w-full px-3 py-2">
+            <Disclosure.Button className="flex items-center gap-2 text-left hover:bg-white/5 transition-colors rounded px-1 -mx-1">
               {open ? (
                 <RiArrowDownSLine className="w-4 h-4 text-text-muted" />
               ) : (
@@ -224,14 +224,11 @@ export function ExplainSection({
               )}
               <RiLightbulbLine className="w-4 h-4 text-accent" />
               <span className="text-xs font-medium text-text-primary">Model Explainability</span>
-            </div>
+            </Disclosure.Button>
 
             {!hasData && !isRunning && (
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onExplain();
-                }}
+                onClick={onExplain}
                 disabled={!canExplain}
                 className={cn(
                   "px-2 py-1 text-xs rounded transition-colors",
@@ -243,7 +240,7 @@ export function ExplainSection({
                 Explain
               </button>
             )}
-          </Disclosure.Button>
+          </div>
 
           <Disclosure.Panel>
             {/* Progress */}

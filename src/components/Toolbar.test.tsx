@@ -6,7 +6,9 @@ import { usePipelineStore } from "../stores/pipelineStore";
 // Mock tauri APIs
 vi.mock("../lib/tauri", () => ({
   getPythonPath: vi.fn(() => Promise.resolve("/usr/bin/python3")),
-  findPython: vi.fn(() => Promise.resolve("/usr/bin/python3")),
+  findPython: vi.fn(() =>
+    Promise.resolve({ path: "/usr/bin/python3", version: "3.11.9", is_bundled: false })
+  ),
   setPythonPath: vi.fn(() => Promise.resolve()),
   runScript: vi.fn(() => Promise.resolve()),
   cancelScript: vi.fn(() => Promise.resolve()),

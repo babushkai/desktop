@@ -24,12 +24,14 @@ import {
   getHttpServerMetrics,
   resetHttpServerMetrics,
   listenToHttpRequestLog,
+  findPython,
   HttpServerStatus,
   HttpServerMetrics,
   HttpRequestLog,
   HttpServerConfig,
   ModelMetadata,
   ModelVersion,
+  PythonInfo,
 } from "@/lib/tauri";
 import { ServerConfigDialog } from "./ServerConfigDialog";
 
@@ -73,6 +75,7 @@ export function ServingPanel() {
     onnxruntime: false,
   });
   const [checkingDeps, setCheckingDeps] = useState(true);
+  const [pythonInfo, setPythonInfo] = useState<PythonInfo | null>(null);
 
   // Server state
   const [serverState, setServerState] = useState<ServerState>("stopped");
@@ -94,13 +97,28 @@ export function ServingPanel() {
   const checkDependencies = useCallback(async () => {
     setCheckingDeps(true);
     try {
-      const [fastapi, uvicorn, slowapi, onnxruntime] = await Promise.all([
-        checkPythonPackage("fastapi"),
-        checkPythonPackage("uvicorn"),
-        checkPythonPackage("slowapi"),
-        checkPythonPackage("onnxruntime"),
-      ]);
-      setDeps({ fastapi, uvicorn, slowapi, onnxruntime });
+      // First check if we have bundled Python
+      const pyInfo = await findPython();
+      setPythonInfo(pyInfo);
+
+      if (pyInfo?.is_bundled) {
+        // Bundled Python has all packages pre-installed
+        setDeps({
+          fastapi: true,
+          uvicorn: true,
+          slowapi: true,
+          onnxruntime: true,
+        });
+      } else {
+        // System Python - check each package
+        const [fastapi, uvicorn, slowapi, onnxruntime] = await Promise.all([
+          checkPythonPackage("fastapi"),
+          checkPythonPackage("uvicorn"),
+          checkPythonPackage("slowapi"),
+          checkPythonPackage("onnxruntime"),
+        ]);
+        setDeps({ fastapi, uvicorn, slowapi, onnxruntime });
+      }
     } finally {
       setCheckingDeps(false);
     }
@@ -283,8 +301,23 @@ export function ServingPanel() {
 
       {/* Content */}
       <div className="flex-1 overflow-auto p-4 space-y-4">
-        {/* Dependency warnings */}
-        {!hasRequiredDeps && !checkingDeps && (
+        {/* Python status indicator */}
+        {!checkingDeps && pythonInfo?.is_bundled && (
+          <div className="bg-state-success/10 border border-state-success/30 rounded-lg p-3">
+            <div className="flex items-center gap-2">
+              <RiCheckLine className="w-4 h-4 text-state-success shrink-0" />
+              <div className="text-xs text-state-success">
+                <span className="font-medium">Using bundled Python</span>
+                <span className="text-state-success/70 ml-2">
+                  v{pythonInfo.version} • All packages pre-installed
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Dependency warnings (only for system Python) */}
+        {!hasRequiredDeps && !checkingDeps && !pythonInfo?.is_bundled && (
           <div className="bg-state-warning/10 border border-state-warning/30 rounded-lg p-3">
             <div className="flex items-start gap-2">
               <RiAlertLine className="w-4 h-4 text-state-warning shrink-0 mt-0.5" />

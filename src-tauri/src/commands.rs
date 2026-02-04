@@ -177,12 +177,36 @@ pub fn get_python_path() -> Option<String> {
 }
 
 #[tauri::command]
-pub fn check_python_package(package: String) -> bool {
-    let python_path = match python::find_python() {
+pub fn check_python_package(app: AppHandle, package: String) -> bool {
+    let resource_dir = app.path().resource_dir().ok();
+    let python_info = match python::find_python(resource_dir.as_ref()) {
         Some(p) => p,
         None => return false,
     };
-    Command::new(&python_path)
+
+    // If using bundled Python, all packages are pre-installed
+    if python_info.is_bundled {
+        // Check if it's one of our bundled packages
+        let bundled_packages = [
+            "sklearn",
+            "pandas",
+            "numpy",
+            "joblib",
+            "optuna",
+            "shap",
+            "matplotlib",
+            "fastapi",
+            "uvicorn",
+            "slowapi",
+            "onnxruntime",
+            "skl2onnx",
+        ];
+        if bundled_packages.contains(&package.as_str()) {
+            return true;
+        }
+    }
+
+    Command::new(&python_info.path)
         .args(["-c", &format!("import {}", package)])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
@@ -197,8 +221,9 @@ pub fn set_python_path(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn find_python() -> Option<String> {
-    python::find_python().map(|p| p.to_string_lossy().to_string())
+pub fn find_python(app: AppHandle) -> Option<python::PythonInfo> {
+    let resource_dir = app.path().resource_dir().ok();
+    python::find_python(resource_dir.as_ref())
 }
 
 #[tauri::command]
@@ -208,8 +233,10 @@ pub async fn run_script(
     input_path: String,
 ) -> Result<(), String> {
     // Get Python path
-    let python_path = python::find_python()
+    let resource_dir = app.path().resource_dir().ok();
+    let python_info = python::find_python(resource_dir.as_ref())
         .ok_or_else(|| "No Python installation found".to_string())?;
+    let python_path = python_info.path;
 
     // Create temp script file
     let app_data_dir = app
@@ -769,8 +796,10 @@ pub async fn start_inference_server(
     let model_path = version.file_path.clone();
 
     // Get Python path
-    let python_path = python::find_python()
+    let resource_dir = app.path().resource_dir().ok();
+    let python_info = python::find_python(resource_dir.as_ref())
         .ok_or_else(|| "No Python installation found".to_string())?;
+    let python_path = python_info.path;
 
     // Write inference server script to app data dir
     let app_data_dir = app
@@ -1371,8 +1400,10 @@ pub async fn start_http_server(
     let model_path = version.file_path.clone();
 
     // Get Python path
-    let python_path = python::find_python()
+    let resource_dir = app.path().resource_dir().ok();
+    let python_info = python::find_python(resource_dir.as_ref())
         .ok_or_else(|| "No Python installation found".to_string())?;
+    let python_path = python_info.path;
 
     // Write HTTP server script to app data dir
     let app_data_dir = app

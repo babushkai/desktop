@@ -53,6 +53,13 @@ export type ScriptEvent =
   | { type: "explainMetadata"; data: ExplainMetadataData }
   | { type: "explainComplete"; durationMs: number };
 
+// Python runtime information
+export interface PythonInfo {
+  path: string;
+  version: string;
+  is_bundled: boolean;
+}
+
 export async function getPythonPath(): Promise<string | null> {
   return invoke<string | null>("get_python_path");
 }
@@ -61,8 +68,8 @@ export async function setPythonPath(path: string): Promise<void> {
   return invoke("set_python_path", { path });
 }
 
-export async function findPython(): Promise<string | null> {
-  return invoke<string | null>("find_python");
+export async function findPython(): Promise<PythonInfo | null> {
+  return invoke<PythonInfo | null>("find_python");
 }
 
 export async function runScript(scriptCode: string, inputPath: string): Promise<void> {
