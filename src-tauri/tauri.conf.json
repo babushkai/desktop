@@ -28,11 +28,7 @@
     "targets": "all",
     "icon": [],
     "resources": [
-      "resources/examples/*",
-      {
-        "path": "python",
-        "target": "python"
-      }
+      "resources/examples/*"
     ],
     "macOS": {
       "entitlements": "entitlements.plist",

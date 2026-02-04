@@ -255,6 +255,25 @@ print(f'shap:     {shap.__version__}')
 print(f'fastapi:  {fastapi.__version__}')
 "
 
+    # Update tauri.conf.json to include python resources
+    echo ""
+    echo "=== Updating tauri.conf.json ==="
+    local tauri_conf="$PROJECT_ROOT/src-tauri/tauri.conf.json"
+    if [[ -f "$tauri_conf" ]]; then
+        # Check if python resource is already added
+        if ! grep -q '"python/\*\*/\*"' "$tauri_conf"; then
+            # Add python resource using sed (compatible with macOS)
+            if [[ "$(uname -s)" == "Darwin" ]]; then
+                sed -i '' 's|"resources/examples/\*"|"resources/examples/*",\n      "python/**/*"|' "$tauri_conf"
+            else
+                sed -i 's|"resources/examples/\*"|"resources/examples/*",\n      "python/**/*"|' "$tauri_conf"
+            fi
+            echo "Added python/**/* to bundle resources"
+        else
+            echo "Python resource already in tauri.conf.json"
+        fi
+    fi
+
     # Final report
     echo ""
     echo "=== Bundle complete ==="
