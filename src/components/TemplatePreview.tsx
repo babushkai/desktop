@@ -66,35 +66,10 @@ const previewNodeTypes: NodeTypes = {
 
 export function TemplatePreview({ nodes, edges }: TemplatePreviewProps) {
   // Transform template nodes to ReactFlow nodes with preview type
-  const { flowNodes, flowEdges, viewportConfig } = useMemo(() => {
+  const { flowNodes, flowEdges } = useMemo(() => {
     if (nodes.length === 0) {
-      return { flowNodes: [], flowEdges: [], viewportConfig: { x: 0, y: 0, zoom: 1 } };
+      return { flowNodes: [], flowEdges: [] };
     }
-
-    // Find bounding box
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    for (const node of nodes) {
-      minX = Math.min(minX, node.position.x);
-      minY = Math.min(minY, node.position.y);
-      maxX = Math.max(maxX, node.position.x + 80); // Approximate node width
-      maxY = Math.max(maxY, node.position.y + 30); // Approximate node height
-    }
-
-    const width = maxX - minX;
-    const height = maxY - minY;
-
-    // Calculate zoom to fit in preview area (220x70 with padding)
-    const containerWidth = 200;
-    const containerHeight = 60;
-    const zoom = Math.min(
-      containerWidth / width,
-      containerHeight / height,
-      0.5 // Max zoom
-    ) * 0.85; // Scale down a bit for padding
-
-    // Calculate center offset
-    const centerX = (minX + maxX) / 2;
-    const centerY = (minY + maxY) / 2;
 
     const flowNodes: Node[] = nodes.map((node) => ({
       id: node.id,
@@ -115,15 +90,7 @@ export function TemplatePreview({ nodes, edges }: TemplatePreviewProps) {
       animated: false,
     }));
 
-    return {
-      flowNodes,
-      flowEdges,
-      viewportConfig: {
-        x: containerWidth / 2 - centerX * zoom,
-        y: containerHeight / 2 - centerY * zoom,
-        zoom,
-      },
-    };
+    return { flowNodes, flowEdges };
   }, [nodes, edges]);
 
   if (nodes.length === 0) {
@@ -136,7 +103,8 @@ export function TemplatePreview({ nodes, edges }: TemplatePreviewProps) {
         nodes={flowNodes}
         edges={flowEdges}
         nodeTypes={previewNodeTypes}
-        defaultViewport={viewportConfig}
+        fitView
+        fitViewOptions={{ padding: 0.3, maxZoom: 0.5 }}
         proOptions={{ hideAttribution: true }}
         panOnDrag={false}
         zoomOnScroll={false}
