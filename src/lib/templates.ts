@@ -1,8 +1,8 @@
 import { Node, Edge } from "@xyflow/react";
 import { nanoid } from "nanoid";
-import { resolveResource } from "@tauri-apps/api/path";
 import { NodeData, TrainerMode } from "@/stores/pipelineStore";
 import { TuningConfig } from "./tuningTypes";
+import { getExampleDataPath } from "./tauri";
 
 // Template-specific node data types (before instantiation)
 export interface TemplateDataLoaderNode {
@@ -102,13 +102,12 @@ export interface PipelineTemplate {
 }
 
 /**
- * Resolve a bundled dataset path
+ * Resolve a bundled dataset path using the Tauri backend
  */
 export async function resolveDatasetPath(datasetName: string): Promise<string> {
-  // Tauri resolves paths relative to the resource directory
-  // In dev: src-tauri/resources/datasets/
-  // In prod: Resources/datasets/ (bundled in app)
-  return await resolveResource(`datasets/${datasetName}`);
+  // Use the existing Tauri command that handles resource path resolution
+  // and copies to app data directory for consistent access
+  return await getExampleDataPath(datasetName);
 }
 
 /**
@@ -138,8 +137,9 @@ export async function instantiateTemplate(template: PipelineTemplate): Promise<{
       }
 
       return {
-        ...node,
         id: newId,
+        type: node.type,
+        position: node.position,
         data,
         // Add width for script nodes
         style: node.type === "script" ? { width: 320, height: 280 } : undefined,
