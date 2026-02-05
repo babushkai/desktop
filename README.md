@@ -16,5 +16,6 @@ Our console is designed to be simple yet fun to work with. The vivid color yet s
 ![alt te](./assets/image.png)
 ![alt te](./assets/image2.png)
 ![alt te](./assets/image3.png)
+![alt te](./assets/image4.png)
 
 That's it! enjoy our platform for your mlops journey 🧑‍💻 👩‍💻
