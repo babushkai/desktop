@@ -18,6 +18,7 @@ import {
   RiServerLine,
 } from "@remixicon/react";
 import { cn } from "@/lib/utils";
+import { SHORTCUTS } from "@/lib/shortcuts";
 import { MetricsPanel } from "./MetricsPanel";
 import { RunsPanel } from "./RunsPanel";
 import { ModelsPanel } from "./ModelsPanel";
@@ -258,7 +259,7 @@ export function OutputPanel({ onCollapse, onExplainRun, canExplain = true }: Out
                 <button
                   onClick={onCollapse}
                   className="btn-icon-sm -ml-1"
-                  title="Collapse panel (Ctrl+J)"
+                  title={`Collapse panel (${SHORTCUTS.toggleOutput()})`}
                 >
                   <RiArrowDownSLine className="w-4 h-4" />
                 </button>

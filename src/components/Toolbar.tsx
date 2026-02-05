@@ -19,6 +19,7 @@ import {
   RiAlertLine,
 } from "@remixicon/react";
 import { usePipelineStore } from "../stores/pipelineStore";
+import { SHORTCUTS } from "../lib/shortcuts";
 import {
   findPython,
   getPythonPath,
@@ -736,7 +737,7 @@ export function Toolbar({
                   "btn-icon h-8 w-8",
                   showNodePalette && "bg-accent/20 text-accent"
                 )}
-                title="Toggle Components Panel (Ctrl+B)"
+                title={`Toggle Components Panel (${SHORTCUTS.toggleNodePalette()})`}
               >
                 <RiSideBarLine className="w-4 h-4" />
               </button>
@@ -748,7 +749,7 @@ export function Toolbar({
                   "btn-icon h-8 w-8",
                   showOutputPanel && "bg-accent/20 text-accent"
                 )}
-                title="Toggle Output Panel (Ctrl+J)"
+                title={`Toggle Output Panel (${SHORTCUTS.toggleOutput()})`}
               >
                 <RiTerminalBoxLine className="w-4 h-4" />
               </button>
@@ -760,7 +761,7 @@ export function Toolbar({
                   "btn-icon h-8 w-8",
                   showPlayground && "bg-accent/20 text-accent"
                 )}
-                title="Toggle Playground (Ctrl+Shift+P)"
+                title={`Toggle Playground (${SHORTCUTS.togglePlayground()})`}
               >
                 <RiRocketLine className="w-4 h-4" />
               </button>
