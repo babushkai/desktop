@@ -40,14 +40,14 @@ export default {
           warning: "#fbbf24",
           running: "#fbbf24",
         },
-        // Node type colors
+        // Node type colors (GitHub Dark theme)
         node: {
-          dataloader: "#34d399",
-          datasplit: "#e879f9",
-          trainer: "#a78bfa",
-          evaluator: "#fb923c",
-          exporter: "#2dd4bf",
-          script: "#38bdf8",
+          dataloader: "#3fb950",  // GitHub green
+          datasplit: "#a371f7",   // GitHub purple
+          trainer: "#db61a2",     // GitHub pink
+          evaluator: "#f0883e",   // GitHub orange
+          exporter: "#79c0ff",    // GitHub light blue
+          script: "#58a6ff",      // GitHub blue
         },
       },
       borderRadius: {
