@@ -194,6 +194,15 @@
     @apply btn-icon hover:text-accent hover:bg-accent/20;
   }
 
+  /* Button size variants */
+  .btn-sm {
+    @apply px-2 py-1 text-xs;
+  }
+
+  .btn-md {
+    @apply px-3 py-1.5 text-sm;
+  }
+
   /* Input base */
   .input {
     @apply w-full rounded-lg border border-white/10 bg-background-surface px-3 py-2 text-sm text-text-primary;
