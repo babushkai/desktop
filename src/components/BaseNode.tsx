@@ -30,47 +30,48 @@ interface BaseNodeProps {
 }
 
 // Node variant styles with black backgrounds
+// Uses Tailwind classes for text/ring, keeps rgba for shadows (hex colors don't support opacity modifiers)
 const variantStyles: Record<NodeVariant, { bg: string; text: string; glow: string; selectedRing: string; selectedGlow: string }> = {
   dataloader: {
     bg: "bg-[#0d1117]/95",
-    text: "text-[#3fb950]",
+    text: "text-node-dataloader",
     glow: "shadow-[0_0_20px_rgba(63,185,80,0.12)]",
-    selectedRing: "ring-[#3fb950]",
+    selectedRing: "ring-node-dataloader",
     selectedGlow: "shadow-[0_0_30px_rgba(63,185,80,0.35)]",
   },
   datasplit: {
     bg: "bg-[#0d1117]/95",
-    text: "text-[#a371f7]",
+    text: "text-node-datasplit",
     glow: "shadow-[0_0_20px_rgba(163,113,247,0.12)]",
-    selectedRing: "ring-[#a371f7]",
+    selectedRing: "ring-node-datasplit",
     selectedGlow: "shadow-[0_0_30px_rgba(163,113,247,0.35)]",
   },
   trainer: {
     bg: "bg-[#0d1117]/95",
-    text: "text-[#db61a2]",
+    text: "text-node-trainer",
     glow: "shadow-[0_0_20px_rgba(219,97,162,0.12)]",
-    selectedRing: "ring-[#db61a2]",
+    selectedRing: "ring-node-trainer",
     selectedGlow: "shadow-[0_0_30px_rgba(219,97,162,0.35)]",
   },
   evaluator: {
     bg: "bg-[#0d1117]/95",
-    text: "text-[#f0883e]",
+    text: "text-node-evaluator",
     glow: "shadow-[0_0_20px_rgba(240,136,62,0.12)]",
-    selectedRing: "ring-[#f0883e]",
+    selectedRing: "ring-node-evaluator",
     selectedGlow: "shadow-[0_0_30px_rgba(240,136,62,0.35)]",
   },
   exporter: {
     bg: "bg-[#0d1117]/95",
-    text: "text-[#79c0ff]",
+    text: "text-node-exporter",
     glow: "shadow-[0_0_20px_rgba(121,192,255,0.12)]",
-    selectedRing: "ring-[#79c0ff]",
+    selectedRing: "ring-node-exporter",
     selectedGlow: "shadow-[0_0_30px_rgba(121,192,255,0.35)]",
   },
   script: {
     bg: "bg-[#0d1117]/95",
-    text: "text-[#58a6ff]",
+    text: "text-node-script",
     glow: "shadow-[0_0_20px_rgba(88,166,255,0.12)]",
-    selectedRing: "ring-[#58a6ff]",
+    selectedRing: "ring-node-script",
     selectedGlow: "shadow-[0_0_30px_rgba(88,166,255,0.35)]",
   },
 };
