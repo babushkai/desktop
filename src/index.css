@@ -170,6 +170,30 @@
     @apply btn bg-state-error text-white hover:bg-state-error/90 shadow-md px-4 py-2;
   }
 
+  /* Icon-only button variants */
+  .btn-icon {
+    @apply inline-flex items-center justify-center p-1.5 rounded-md;
+    @apply text-text-secondary hover:text-text-primary hover:bg-white/10;
+    @apply transition-colors duration-150;
+    @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+  }
+
+  .btn-icon-sm {
+    @apply btn-icon p-1;
+  }
+
+  .btn-icon-success {
+    @apply btn-icon hover:text-state-success hover:bg-state-success/10;
+  }
+
+  .btn-icon-error {
+    @apply btn-icon hover:text-state-error hover:bg-state-error/20;
+  }
+
+  .btn-icon-accent {
+    @apply btn-icon hover:text-accent hover:bg-accent/20;
+  }
+
   /* Input base */
   .input {
     @apply w-full rounded-lg border border-white/10 bg-background-surface px-3 py-2 text-sm text-text-primary;
