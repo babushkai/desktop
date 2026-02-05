@@ -1,21 +1,75 @@
 # MLOps Desktop
-End to end mlops platform completely available from UI without any technical knowledge in your MacBook Air, Pro
 
-## What is it?
-MLOps Desktop is designed for all engineer and non engineer people who are interested in machine learning, AI but never experience designing it. The platform is completely dependency free and run in your Macbook Air instantly!
+Visual ML pipeline builder for macOS. Train, evaluate, and deploy models without writing boilerplate code.
 
-### How to get started?
-MLOps Desktop is created by MacBook lovers and the creator himself is over a decade user. Therefore, we need  Macbook. 
+![MLOps Desktop](./assets/image.png)
 
-Go buy one if you don't have yet. Of course we don't judge you if you are windows user...
+## Features
 
-### What it looks like?
+- **Visual Pipeline Builder** - Drag-and-drop canvas with ReactFlow
+- **Node Types** - DataLoader, DataSplit, Trainer, Evaluator, ModelExporter, Script
+- **ML Models** - Linear Regression, Random Forest, Gradient Boosting, XGBoost, LightGBM
+- **Hyperparameter Tuning** - Optuna integration with Grid/Random/TPE search
+- **Model Explainability** - Feature importance, SHAP values, partial dependence plots
+- **Experiment Tracking** - Run history, metrics comparison, annotations
+- **Model Registry** - Version management, staging (None → Staging → Production)
+- **Model Serving** - HTTP inference server with FastAPI/uvicorn
+- **Pipeline Templates** - Pre-built templates for common ML tasks
 
-Our console is designed to be simple yet fun to work with. The vivid color yet simple design allows you to navigate the mandane mlops work more fun and enjoyable! 
+## Requirements
 
-![alt te](./assets/image.png)
-![alt te](./assets/image2.png)
-![alt te](./assets/image3.png)
-![alt te](./assets/image4.png)
+- macOS 12+ (Apple Silicon or Intel)
+- Python 3.9+ (system Python)
 
-That's it! enjoy our platform for your mlops journey 🧑‍💻 👩‍💻
+## Quick Start (Development)
+
+```bash
+git clone https://github.com/babushkai/desktop.git
+cd desktop
+npm install
+npm run tauri dev
+```
+
+Then:
+1. Create new pipeline or load a template (⌘T)
+2. Add DataLoader → Trainer → Evaluator nodes
+3. Connect nodes and configure parameters
+4. Click Run (⌘R)
+
+## Screenshots
+
+![Pipeline Canvas](./assets/image2.png)
+![Model Training](./assets/image3.png)
+![Evaluation Results](./assets/image4.png)
+
+## Development
+
+### Prerequisites
+
+- Node.js 18+
+- Rust 1.70+
+- npm
+
+### Commands
+
+```bash
+npm run dev          # Vite dev server only
+npm run tauri dev    # Full Tauri development
+npm run build        # Production build
+npm run test         # Run tests
+```
+
+## Tech Stack
+
+- **Frontend**: React 19, TypeScript, Vite, Zustand, @xyflow/react
+- **Backend**: Rust, Tauri 2.0, SQLite
+- **UI**: Tailwind CSS, Headless UI, Remix Icons
+- **Charts**: ECharts
+
+## Documentation
+
+- [API Reference](./docs/API.md) - Tauri command documentation
+
+## License
+
+MIT
