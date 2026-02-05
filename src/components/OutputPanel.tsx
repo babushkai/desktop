@@ -257,7 +257,7 @@ export function OutputPanel({ onCollapse, onExplainRun, canExplain = true }: Out
               {onCollapse && (
                 <button
                   onClick={onCollapse}
-                  className="p-1 -ml-1 rounded hover:bg-white/10 text-text-muted hover:text-text-primary transition-colors"
+                  className="btn-icon-sm -ml-1"
                   title="Collapse panel (Ctrl+J)"
                 >
                   <RiArrowDownSLine className="w-4 h-4" />

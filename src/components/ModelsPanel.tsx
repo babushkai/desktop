@@ -412,7 +412,7 @@ function ModelRow({
                   e.stopPropagation();
                   onCompareVersions();
                 }}
-                className="p-1 rounded hover:bg-white/10 text-text-muted hover:text-text-primary"
+                className="btn-icon-sm"
                 title="Compare versions"
               >
                 <RiLineChartLine className="w-4 h-4" />
@@ -423,7 +423,7 @@ function ModelRow({
                 e.stopPropagation();
                 onDelete();
               }}
-              className="p-1 rounded hover:bg-state-error/20 text-text-muted hover:text-state-error"
+              className="btn-icon-sm hover:text-state-error hover:bg-state-error/20"
               title="Delete model"
             >
               <RiDeleteBinLine className="w-4 h-4" />
@@ -513,21 +513,21 @@ function ModelRow({
                           <div className="flex items-center gap-1">
                             <button
                               onClick={() => onServe(version.id)}
-                              className="p-1 rounded hover:bg-accent/20 text-text-muted hover:text-accent"
+                              className="btn-icon-sm hover:text-accent hover:bg-accent/20"
                               title="Serve this model"
                             >
                               <RiServerLine className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => onViewDetails(version)}
-                              className="p-1 rounded hover:bg-white/10 text-text-muted hover:text-text-primary"
+                              className="btn-icon-sm"
                               title="View details"
                             >
                               <RiEyeLine className="w-3.5 h-3.5" />
                             </button>
                             <button
                               onClick={() => onVersionDelete(version.id)}
-                              className="p-1 rounded hover:bg-state-error/20 text-text-muted hover:text-state-error"
+                              className="btn-icon-sm hover:text-state-error hover:bg-state-error/20"
                               title="Delete version"
                             >
                               <RiDeleteBinLine className="w-3.5 h-3.5" />

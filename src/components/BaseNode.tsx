@@ -147,11 +147,7 @@ export function BaseNode({
               e.stopPropagation();
               onRun();
             }}
-            className={cn(
-              "nodrag p-1.5 rounded-md",
-              "text-text-secondary hover:text-state-success hover:bg-state-success/10",
-              "transition-colors duration-150"
-            )}
+            className="nodrag btn-icon-success"
             title="Run node"
           >
             <RiPlayLine className="w-4 h-4" />
@@ -163,11 +159,7 @@ export function BaseNode({
               e.stopPropagation();
               onDelete();
             }}
-            className={cn(
-              "nodrag p-1.5 rounded-md",
-              "text-text-secondary hover:text-state-error hover:bg-state-error/10",
-              "transition-colors duration-150"
-            )}
+            className="nodrag btn-icon-error"
             title="Delete node"
           >
             <RiDeleteBinLine className="w-4 h-4" />

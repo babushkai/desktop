@@ -706,11 +706,11 @@ export function Toolbar({
               onChange={(e) => setPathInput(e.target.value)}
               className="input w-48 h-7 text-xs font-mono"
             />
-            <button onClick={handleSavePythonPath} className="btn-ghost h-7 w-7 p-0">
-              <RiCheckLine className="w-4 h-4 text-state-success" />
+            <button onClick={handleSavePythonPath} className="btn-icon-success">
+              <RiCheckLine className="w-4 h-4" />
             </button>
-            <button onClick={() => setIsEditingPath(false)} className="btn-ghost h-7 w-7 p-0">
-              <RiCloseLine className="w-4 h-4 text-text-muted" />
+            <button onClick={() => setIsEditingPath(false)} className="btn-icon-sm">
+              <RiCloseLine className="w-4 h-4" />
             </button>
           </div>
         ) : (
@@ -733,7 +733,7 @@ export function Toolbar({
               <button
                 onClick={onToggleNodePalette}
                 className={cn(
-                  "btn-ghost h-8 w-8 p-0",
+                  "btn-icon h-8 w-8",
                   showNodePalette && "bg-accent/20 text-accent"
                 )}
                 title="Toggle Components Panel (Ctrl+B)"
@@ -745,7 +745,7 @@ export function Toolbar({
               <button
                 onClick={onToggleOutputPanel}
                 className={cn(
-                  "btn-ghost h-8 w-8 p-0",
+                  "btn-icon h-8 w-8",
                   showOutputPanel && "bg-accent/20 text-accent"
                 )}
                 title="Toggle Output Panel (Ctrl+J)"
@@ -757,7 +757,7 @@ export function Toolbar({
               <button
                 onClick={onTogglePlayground}
                 className={cn(
-                  "btn-ghost h-8 w-8 p-0",
+                  "btn-icon h-8 w-8",
                   showPlayground && "bg-accent/20 text-accent"
                 )}
                 title="Toggle Playground (Ctrl+Shift+P)"
