@@ -29,6 +29,8 @@ import {
 } from "./lib/tauri";
 import { generateTuningCode, generateTuningCodeWithSplit } from "./lib/tunerCodeGen";
 import { generateDataSplitCode } from "./lib/dataSplitCodeGen";
+import { generateEvaluatorCodeWithSplit, generateEvaluatorCode } from "./lib/evaluatorCodeGen";
+import { MODEL_FILE } from "./lib/constants";
 import { TuningConfig } from "./lib/tuningTypes";
 import { generateExplainerCode } from "./lib/explainerCodeGen";
 import {
@@ -234,12 +236,38 @@ function App() {
 
         await runScriptAndWait(tuningCode, inputPath, handleOutput);
 
-        // Complete session and run
-        const duration = Date.now() - startTime;
-
+        // Complete tuning session
         if (sessionId) {
           await completeTuningSession(sessionId);
         }
+
+        appendLog("");
+        appendLog(`Tuning completed in ${((Date.now() - startTime) / 1000).toFixed(1)}s`);
+
+        // Run Evaluator if connected
+        const evaluatorNode = nodes.find((n) => n.type === "evaluator");
+        if (evaluatorNode) {
+          const evalEdge = edges.find((e) => e.target === evaluatorNode.id);
+          const evalSourceNode = nodes.find((n) => n.id === evalEdge?.source);
+
+          // Run evaluator if connected to the trainer that was just tuned
+          if (evalSourceNode?.id === trainerNode.id) {
+            appendLog("");
+            appendLog("--- Running Evaluator ---");
+
+            let evalCode;
+            if (useDataSplit) {
+              evalCode = generateEvaluatorCodeWithSplit(trainerNode.data, inputPath);
+            } else {
+              evalCode = generateEvaluatorCode(trainerNode.data, MODEL_FILE, inputPath);
+            }
+
+            await runScriptAndWait(evalCode, inputPath, handleOutput);
+          }
+        }
+
+        // Complete run
+        const duration = Date.now() - startTime;
 
         if (runId && collectedMetrics.length > 0) {
           await saveRunMetrics(runId, collectedMetrics);
@@ -251,9 +279,6 @@ function App() {
 
         setTuningStatus("completed");
         setExecutionStatus("success");
-
-        appendLog("");
-        appendLog(`Tuning completed in ${(duration / 1000).toFixed(1)}s`);
       } catch (error) {
         appendLog(`ERROR: ${String(error)}`);
         setTuningStatus("error");

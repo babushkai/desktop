@@ -1,5 +1,5 @@
 import { NodeData } from "../stores/pipelineStore";
-import { SPLIT_INDICES_FILE, MODEL_FILE } from "./constants";
+import { SPLIT_INDICES_FILE, MODEL_FILE, MODEL_INFO_FILE } from "./constants";
 
 // TrainerData subset - what the evaluator actually needs from trainer
 export interface TrainerInfo {
@@ -10,6 +10,59 @@ export interface TrainerInfo {
 
 const sanitizePath = (p: string): string =>
   p.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+
+// Preprocessing code for handling categorical features (must match trainer)
+const PREPROCESSING_CODE = `
+def preprocess_features(df, target_col, model_info=None):
+    """Preprocess features: handle missing values and encode categorical columns."""
+    import warnings
+    warnings.filterwarnings('ignore', category=FutureWarning)
+
+    X = df.drop(target_col, axis=1)
+
+    # Drop columns that are typically not useful for ML
+    cols_to_drop = []
+    for col in X.columns:
+        # Drop ID-like columns
+        if col.lower() in ['id', 'index', 'passengerid', 'ticket', 'cabin', 'name']:
+            cols_to_drop.append(col)
+        # Drop columns with too many unique values (likely IDs or free text)
+        elif X[col].dtype == 'object' and X[col].nunique() > 50:
+            cols_to_drop.append(col)
+
+    if cols_to_drop:
+        print(f"Dropping columns: {cols_to_drop}")
+        X = X.drop(cols_to_drop, axis=1)
+
+    # Identify categorical columns (include 'string' for pandas 2.0+)
+    cat_cols = X.select_dtypes(include=['object', 'category', 'string']).columns.tolist()
+    num_cols = X.select_dtypes(include=['number']).columns.tolist()
+
+    # Fill missing values
+    for col in num_cols:
+        if X[col].isnull().any():
+            X[col] = X[col].fillna(X[col].median())
+
+    for col in cat_cols:
+        if X[col].isnull().any():
+            X[col] = X[col].fillna(X[col].mode()[0] if len(X[col].mode()) > 0 else 'Unknown')
+
+    # Encode categorical columns using Label Encoding
+    from sklearn.preprocessing import LabelEncoder
+    encoders = {}
+    for col in cat_cols:
+        le = LabelEncoder()
+        # If we have model_info with encoder classes, use them for consistent encoding
+        if model_info and 'encoders' in model_info and col in model_info['encoders']:
+            le.classes_ = np.array(model_info['encoders'][col])
+            # Transform, handling unseen values
+            X[col] = X[col].astype(str).apply(lambda x: le.transform([x])[0] if x in le.classes_ else -1)
+        else:
+            X[col] = le.fit_transform(X[col].astype(str))
+        encoders[col] = le
+
+    return X, encoders
+`;
 
 export const generateEvaluatorCode = (
   trainerData: TrainerInfo | NodeData,
@@ -22,23 +75,32 @@ export const generateEvaluatorCode = (
   const safeDataPath = sanitizePath(dataPath);
 
   return `import sys
+import os
+import json
 import pandas as pd
 import joblib
 import numpy as np
 from sklearn.base import is_classifier, is_regressor
 from sklearn.model_selection import train_test_split
 import json as _json
-
+${PREPROCESSING_CODE}
 try:
     model = joblib.load("${safeModelPath}")
     df = pd.read_csv("${safeDataPath}")
+
+    # Load model info for consistent encoding
+    model_info = None
+    if os.path.exists("${MODEL_INFO_FILE}"):
+        with open("${MODEL_INFO_FILE}", "r") as f:
+            model_info = json.load(f)
 
     target_col = "${targetCol}"
     if target_col not in df.columns:
         print(f"ERROR: Column '{target_col}' not found. Available: {list(df.columns)}")
         sys.exit(1)
 
-    X = df.drop(target_col, axis=1)
+    # Preprocess features (handle categorical columns and missing values)
+    X, encoders = preprocess_features(df, target_col, model_info)
     y = df[target_col]
 
     _, X_test, _, y_test = train_test_split(
@@ -140,7 +202,7 @@ import joblib
 import numpy as np
 from sklearn.base import is_classifier, is_regressor
 import json as _json
-
+${PREPROCESSING_CODE}
 try:
     # Pre-execution validation
     if not os.path.exists("${SPLIT_INDICES_FILE}"):
@@ -156,6 +218,12 @@ try:
     with open("${SPLIT_INDICES_FILE}", "r") as f:
         split_info = json.load(f)
 
+    # Load model info for consistent encoding
+    model_info = None
+    if os.path.exists("${MODEL_INFO_FILE}"):
+        with open("${MODEL_INFO_FILE}", "r") as f:
+            model_info = json.load(f)
+
     test_idx = split_info["test_indices"]
 
     target_col = "${targetCol}"
@@ -163,7 +231,8 @@ try:
         print(f"ERROR: Column '{target_col}' not found. Available: {list(df.columns)}")
         sys.exit(1)
 
-    X = df.drop(target_col, axis=1)
+    # Preprocess features (handle categorical columns and missing values)
+    X, encoders = preprocess_features(df, target_col, model_info)
     y = df[target_col]
 
     # Use pre-computed indices from DataSplit
@@ -265,13 +334,14 @@ export const generateAutoEvaluatorCode = (
 
   return `import sys
 import os
+import json
 import pandas as pd
 import joblib
 import numpy as np
 from sklearn.base import is_classifier, is_regressor
 from sklearn.model_selection import train_test_split
 import json as _json
-
+${PREPROCESSING_CODE}
 try:
     if not os.path.exists("${safeModelPath}"):
         print(f"ERROR: Model file not found: ${safeModelPath}")
@@ -282,11 +352,18 @@ try:
     model = joblib.load("${safeModelPath}")
     df = pd.read_csv("${safeDataPath}")
 
+    # Load model info for consistent encoding
+    model_info = None
+    if os.path.exists("${MODEL_INFO_FILE}"):
+        with open("${MODEL_INFO_FILE}", "r") as f:
+            model_info = json.load(f)
+
     # Auto-detect target column: assume last column is target
     target_col = df.columns[-1]
     print(f"Auto-detected target column: {target_col}")
 
-    X = df.drop(target_col, axis=1)
+    # Preprocess features (handle categorical columns and missing values)
+    X, encoders = preprocess_features(df, target_col, model_info)
     y = df[target_col]
 
     _, X_test, _, y_test = train_test_split(

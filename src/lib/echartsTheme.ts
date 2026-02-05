@@ -1,34 +1,42 @@
 import type { EChartsOption } from "echarts";
 
-// Colors matching the app's dark theme from tailwind.config.js
+// GitHub Dark theme colors
 export const colors = {
-  background: "#0a0a0f",
-  surface: "#0f172a",
-  elevated: "#1e293b",
-  accent: "#22d3ee",
-  accentSecondary: "#14b8a6",
-  textPrimary: "#f8fafc",
-  textSecondary: "#94a3b8",
-  textMuted: "#64748b",
-  success: "#4ade80",
-  error: "#f87171",
-  warning: "#fbbf24",
+  background: "#0d1117",
+  surface: "#161b22",
+  elevated: "#21262d",
+  border: "#30363d",
+  // GitHub accent colors
+  accent: "#58a6ff",      // Blue
+  accentSecondary: "#3fb950", // Green
+  // Text colors
+  textPrimary: "#e6edf3",
+  textSecondary: "#8b949e",
+  textMuted: "#6e7681",
+  // Status colors
+  success: "#3fb950",
+  error: "#f85149",
+  warning: "#d29922",
+  purple: "#a371f7",
+  orange: "#db6d28",
+  pink: "#db61a2",
 };
 
-// Chart color palette for bar charts
+// Chart color palette - GitHub's vibrant colors
 export const chartColors = [
-  "#22d3ee", // accent
-  "#14b8a6", // accent-secondary
-  "#4ade80", // success
-  "#a78bfa", // purple
-  "#fb923c", // orange
+  "#58a6ff", // Blue
+  "#3fb950", // Green
+  "#a371f7", // Purple
+  "#f0883e", // Orange
+  "#db61a2", // Pink
+  "#79c0ff", // Light blue
 ];
 
-// Confusion matrix color scale (blue to red through white)
+// Confusion matrix color scale
 export const heatmapColors = [
-  "#1e293b", // Low - dark
-  "#22d3ee", // Medium - accent
-  "#4ade80", // High - success
+  "#0d1117", // Low - dark bg
+  "#1f6feb", // Medium - blue
+  "#238636", // High - green
 ];
 
 export const echartsTheme: EChartsOption = {
@@ -40,8 +48,8 @@ export const echartsTheme: EChartsOption = {
   title: {
     textStyle: {
       color: colors.textPrimary,
-      fontSize: 14,
-      fontWeight: 500,
+      fontSize: 13,
+      fontWeight: 600,
     },
   },
   legend: {
@@ -51,53 +59,59 @@ export const echartsTheme: EChartsOption = {
   },
   tooltip: {
     backgroundColor: colors.surface,
-    borderColor: "rgba(255, 255, 255, 0.1)",
+    borderColor: colors.border,
     borderWidth: 1,
     textStyle: {
       color: colors.textPrimary,
+      fontSize: 12,
     },
+    extraCssText: "border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);",
   },
   xAxis: {
     axisLine: {
       lineStyle: {
-        color: colors.textMuted,
+        color: colors.border,
       },
     },
     axisTick: {
       lineStyle: {
-        color: colors.textMuted,
+        color: colors.border,
       },
     },
     axisLabel: {
       color: colors.textSecondary,
+      fontSize: 11,
     },
     splitLine: {
       lineStyle: {
-        color: "rgba(255, 255, 255, 0.05)",
+        color: colors.border,
+        opacity: 0.3,
       },
     },
   },
   yAxis: {
     axisLine: {
       lineStyle: {
-        color: colors.textMuted,
+        color: colors.border,
       },
     },
     axisTick: {
       lineStyle: {
-        color: colors.textMuted,
+        color: colors.border,
       },
     },
     axisLabel: {
       color: colors.textSecondary,
+      fontSize: 11,
     },
     splitLine: {
       lineStyle: {
-        color: "rgba(255, 255, 255, 0.05)",
+        color: colors.border,
+        opacity: 0.3,
       },
     },
   },
   grid: {
-    borderColor: "rgba(255, 255, 255, 0.05)",
+    borderColor: colors.border,
   },
 };

@@ -29,67 +29,69 @@ interface BaseNodeProps {
   onDelete?: () => void;
 }
 
+// Node variant styles with black backgrounds
 const variantStyles: Record<NodeVariant, { bg: string; text: string; glow: string; selectedRing: string; selectedGlow: string }> = {
   dataloader: {
-    bg: "bg-emerald-950/80",
-    text: "text-node-dataloader",
-    glow: "shadow-[0_0_20px_rgba(52,211,153,0.15)]",
-    selectedRing: "ring-emerald-400",
-    selectedGlow: "shadow-[0_0_30px_rgba(52,211,153,0.4)]",
+    bg: "bg-[#0d1117]/95",
+    text: "text-[#3fb950]",
+    glow: "shadow-[0_0_20px_rgba(63,185,80,0.12)]",
+    selectedRing: "ring-[#3fb950]",
+    selectedGlow: "shadow-[0_0_30px_rgba(63,185,80,0.35)]",
   },
   datasplit: {
-    bg: "bg-fuchsia-950/80",
-    text: "text-node-datasplit",
-    glow: "shadow-[0_0_20px_rgba(232,121,249,0.15)]",
-    selectedRing: "ring-fuchsia-400",
-    selectedGlow: "shadow-[0_0_30px_rgba(232,121,249,0.4)]",
+    bg: "bg-[#0d1117]/95",
+    text: "text-[#a371f7]",
+    glow: "shadow-[0_0_20px_rgba(163,113,247,0.12)]",
+    selectedRing: "ring-[#a371f7]",
+    selectedGlow: "shadow-[0_0_30px_rgba(163,113,247,0.35)]",
   },
   trainer: {
-    bg: "bg-violet-950/80",
-    text: "text-node-trainer",
-    glow: "shadow-[0_0_20px_rgba(167,139,250,0.15)]",
-    selectedRing: "ring-violet-400",
-    selectedGlow: "shadow-[0_0_30px_rgba(167,139,250,0.4)]",
+    bg: "bg-[#0d1117]/95",
+    text: "text-[#db61a2]",
+    glow: "shadow-[0_0_20px_rgba(219,97,162,0.12)]",
+    selectedRing: "ring-[#db61a2]",
+    selectedGlow: "shadow-[0_0_30px_rgba(219,97,162,0.35)]",
   },
   evaluator: {
-    bg: "bg-orange-950/80",
-    text: "text-node-evaluator",
-    glow: "shadow-[0_0_20px_rgba(251,146,60,0.15)]",
-    selectedRing: "ring-orange-400",
-    selectedGlow: "shadow-[0_0_30px_rgba(251,146,60,0.4)]",
+    bg: "bg-[#0d1117]/95",
+    text: "text-[#f0883e]",
+    glow: "shadow-[0_0_20px_rgba(240,136,62,0.12)]",
+    selectedRing: "ring-[#f0883e]",
+    selectedGlow: "shadow-[0_0_30px_rgba(240,136,62,0.35)]",
   },
   exporter: {
-    bg: "bg-teal-950/80",
-    text: "text-node-exporter",
-    glow: "shadow-[0_0_20px_rgba(45,212,191,0.15)]",
-    selectedRing: "ring-teal-400",
-    selectedGlow: "shadow-[0_0_30px_rgba(45,212,191,0.4)]",
+    bg: "bg-[#0d1117]/95",
+    text: "text-[#79c0ff]",
+    glow: "shadow-[0_0_20px_rgba(121,192,255,0.12)]",
+    selectedRing: "ring-[#79c0ff]",
+    selectedGlow: "shadow-[0_0_30px_rgba(121,192,255,0.35)]",
   },
   script: {
-    bg: "bg-sky-950/80",
-    text: "text-node-script",
-    glow: "shadow-[0_0_20px_rgba(56,189,248,0.15)]",
-    selectedRing: "ring-sky-400",
-    selectedGlow: "shadow-[0_0_30px_rgba(56,189,248,0.4)]",
+    bg: "bg-[#0d1117]/95",
+    text: "text-[#58a6ff]",
+    glow: "shadow-[0_0_20px_rgba(88,166,255,0.12)]",
+    selectedRing: "ring-[#58a6ff]",
+    selectedGlow: "shadow-[0_0_30px_rgba(88,166,255,0.35)]",
   },
 };
 
+// Execution state styles
 const executionStateStyles: Record<ExecutionState, { border: string; icon: React.ReactNode | null }> = {
   idle: {
     border: "",
     icon: null,
   },
   running: {
-    border: "ring-2 ring-blue-500",
-    icon: <RiLoader4Line className="w-3.5 h-3.5 text-blue-400 animate-spin" />,
+    border: "ring-2 ring-accent",
+    icon: <RiLoader4Line className="w-3.5 h-3.5 text-accent animate-spin" />,
   },
   success: {
-    border: "ring-2 ring-green-500",
-    icon: <RiCheckLine className="w-3.5 h-3.5 text-green-400" />,
+    border: "ring-2 ring-state-success",
+    icon: <RiCheckLine className="w-3.5 h-3.5 text-state-success" />,
   },
   failed: {
-    border: "ring-2 ring-red-500",
-    icon: <RiCloseLine className="w-3.5 h-3.5 text-red-400" />,
+    border: "ring-2 ring-state-error",
+    icon: <RiCloseLine className="w-3.5 h-3.5 text-state-error" />,
   },
 };
 
@@ -132,7 +134,7 @@ export function BaseNode({
         className={cn(
           "absolute -top-10 left-1/2 -translate-x-1/2 z-10",
           "flex items-center gap-1 px-2 py-1.5",
-          "bg-background/80 backdrop-blur-md",
+          "bg-background-surface/95 backdrop-blur-md",
           "rounded-lg shadow-lg border border-white/10",
           "opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0",
           "transition-all duration-200 ease-out"
@@ -146,7 +148,7 @@ export function BaseNode({
             }}
             className={cn(
               "nodrag p-1.5 rounded-md",
-              "text-text-secondary hover:text-green-400 hover:bg-green-400/10",
+              "text-text-secondary hover:text-state-success hover:bg-state-success/10",
               "transition-colors duration-150"
             )}
             title="Run node"
@@ -162,7 +164,7 @@ export function BaseNode({
             }}
             className={cn(
               "nodrag p-1.5 rounded-md",
-              "text-text-secondary hover:text-red-400 hover:bg-red-400/10",
+              "text-text-secondary hover:text-state-error hover:bg-state-error/10",
               "transition-colors duration-150"
             )}
             title="Delete node"
@@ -239,9 +241,9 @@ export function NodeInput({ className, ...props }: NodeInputProps) {
     <input
       className={cn(
         "nodrag w-full px-2 py-1.5 text-xs rounded-md",
-        "bg-background text-text-primary",
+        "bg-black/30 text-text-primary",
         "border border-white/10",
-        "focus:outline-none focus:ring-1 focus:ring-accent",
+        "focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent",
         "placeholder:text-text-muted",
         className
       )}
@@ -260,7 +262,7 @@ export function NodeSelect({ options, className, ...props }: NodeSelectProps) {
     <select
       className={cn(
         "nodrag w-full px-2 py-1.5 text-xs rounded-md appearance-none",
-        "bg-background text-text-primary",
+        "bg-black/30 text-text-primary",
         "border border-white/10",
         "focus:outline-none focus:ring-1 focus:ring-accent",
         className
@@ -286,7 +288,7 @@ export function NodeSlider({ className, ...props }: NodeSliderProps) {
       type="range"
       className={cn(
         "nodrag w-full h-1.5 rounded-full appearance-none cursor-pointer",
-        "bg-background-elevated",
+        "bg-white/10",
         "[&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3",
         "[&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent",
         "[&::-webkit-slider-thumb]:shadow-sm [&::-webkit-slider-thumb]:transition-transform",
@@ -304,12 +306,12 @@ interface NodeCheckboxProps extends React.InputHTMLAttributes<HTMLInputElement> 
 
 export function NodeCheckbox({ label, className, ...props }: NodeCheckboxProps) {
   return (
-    <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer">
+    <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer hover:text-text-primary transition-colors">
       <input
         type="checkbox"
         className={cn(
           "nodrag w-3.5 h-3.5 rounded",
-          "bg-background border border-white/10",
+          "bg-black/30 border border-white/10",
           "checked:bg-accent checked:border-accent",
           "focus:ring-1 focus:ring-accent focus:ring-offset-0",
           className
@@ -340,9 +342,9 @@ export function NodeButton({ className, children, ...props }: NodeButtonProps) {
     <button
       className={cn(
         "nodrag w-full px-3 py-2 text-xs text-left rounded-md",
-        "bg-background text-text-secondary",
+        "bg-black/30 text-text-secondary",
         "border border-white/10",
-        "hover:bg-background-elevated hover:text-text-primary",
+        "hover:bg-white/5 hover:text-text-primary hover:border-accent/50",
         "transition-colors duration-150",
         className
       )}
@@ -368,7 +370,7 @@ export function NodeSelectGrouped({ groups, className, ...props }: NodeSelectGro
     <select
       className={cn(
         "nodrag w-full px-2 py-1.5 text-xs rounded-md appearance-none",
-        "bg-background text-text-primary",
+        "bg-black/30 text-text-primary",
         "border border-white/10",
         "focus:outline-none focus:ring-1 focus:ring-accent",
         className

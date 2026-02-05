@@ -18,9 +18,9 @@ export const LOGISTIC_REGRESSION_SPACE: SearchSpacePreset = {
   },
   max_iter: {
     type: "int",
-    min: 100,
-    max: 1000,
-    step: 100,
+    min: 500,  // Increased from 100 to avoid convergence warnings
+    max: 2000,
+    step: 500,
   },
 };
 
@@ -34,18 +34,18 @@ export const RANDOM_FOREST_SPACE: SearchSpacePreset = {
   },
   max_depth: {
     type: "categorical",
-    values: [null, 5, 10, 20, 30],
+    values: [null, 10, 15, 20, 30],  // Removed 5 (too shallow for most datasets)
   },
   min_samples_split: {
     type: "int",
     min: 2,
-    max: 20,
+    max: 10,  // Reduced from 20 to prevent underfitting
     step: 2,
   },
   min_samples_leaf: {
     type: "int",
     min: 1,
-    max: 10,
+    max: 4,  // Reduced from 10 to allow finer splits
     step: 1,
   },
 };
@@ -67,12 +67,12 @@ export const GRADIENT_BOOSTING_SPACE: SearchSpacePreset = {
   max_depth: {
     type: "int",
     min: 3,
-    max: 10,
+    max: 8,  // GB works best with shallow trees (3-8), unlike RF
     step: 1,
   },
   subsample: {
     type: "float",
-    min: 0.5,
+    min: 0.7,  // Increased from 0.5 for better stability
     max: 1.0,
     distribution: "uniform",
   },

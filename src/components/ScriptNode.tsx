@@ -38,6 +38,7 @@ export function ScriptNode({ id, data, selected }: NodeProps) {
       isRunning={executionStatus === "running"}
       isSelected={selected}
       hasInput
+      hasOutput
       minWidth={300}
     >
       <div className="nodrag rounded-md border border-white/5 overflow-hidden">

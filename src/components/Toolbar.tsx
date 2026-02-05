@@ -13,10 +13,9 @@ import {
   RiCloseLine,
   RiSideBarLine,
   RiTerminalBoxLine,
-  RiFlaskLine,
-  RiHome4Line,
   RiRocketLine,
   RiTestTubeLine,
+  RiLayoutGridLine,
 } from "@remixicon/react";
 import { usePipelineStore } from "../stores/pipelineStore";
 import {
@@ -36,6 +35,7 @@ import {
   MetricInput,
 } from "../lib/tauri";
 import { ExperimentDialog } from "./ExperimentDialog";
+import { TemplateGallery } from "./TemplateGallery";
 import { generateTrainerCode, generateTrainerCodeWithSplit } from "../lib/trainerCodeGen";
 import { generateEvaluatorCode, generateEvaluatorCodeWithSplit, generateAutoEvaluatorCode } from "../lib/evaluatorCodeGen";
 import { generateLoadModelCode } from "../lib/loadModelCodeGen";
@@ -76,7 +76,6 @@ export function Toolbar({
     isDirty,
     savePipeline,
     loadPipeline,
-    loadExampleWorkflow,
     newPipeline,
     setCurrentRunId,
     loadRunHistory,
@@ -98,6 +97,7 @@ export function Toolbar({
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveNameInput, setSaveNameInput] = useState("");
   const [showExperimentDialog, setShowExperimentDialog] = useState(false);
+  const [showTemplateGallery, setShowTemplateGallery] = useState(false);
 
   useEffect(() => {
     const loadPythonPath = async () => {
@@ -237,8 +237,19 @@ export function Toolbar({
 
       if (trainerNode) {
         const isLoadMode = trainerNode.data.trainerMode === "load";
+        const isTuneMode = trainerNode.data.trainerMode === "tune";
 
-        if (isLoadMode) {
+        if (isTuneMode) {
+          appendLog("");
+          appendLog("--- Trainer is in Tune Mode ---");
+          appendLog("To run hyperparameter tuning:");
+          appendLog("1. Select the Trainer node");
+          appendLog("2. Click 'Start Tuning' in the Tuning Panel on the right");
+          appendLog("");
+          appendLog("Or switch the Trainer to 'Train' mode to run with default parameters.");
+          setExecutionStatus("idle");
+          return;
+        } else if (isLoadMode) {
           appendLog("");
           appendLog("--- Loading Pre-trained Model ---");
           appendLog(`Model file: ${trainerNode.data.modelFilePath}`);
@@ -457,22 +468,6 @@ export function Toolbar({
     newPipeline();
   }, [isDirty, newPipeline]);
 
-  const handleLoadExample = useCallback(
-    async (type: "classification" | "regression") => {
-      if (isDirty) {
-        const confirmed = window.confirm("Discard unsaved changes?");
-        if (!confirmed) return;
-      }
-      try {
-        await loadExampleWorkflow(type);
-        appendLog(`Loaded example: ${type === "classification" ? "Iris Classification" : "California Housing"}`);
-      } catch (error) {
-        appendLog(`ERROR: Failed to load example: ${error}`);
-      }
-    },
-    [isDirty, loadExampleWorkflow, appendLog]
-  );
-
   const hasExecutableNode = nodes.some(
     (n) => n.type === "script" || n.type === "trainer" || n.type === "evaluator"
   );
@@ -480,10 +475,11 @@ export function Toolbar({
   const isRunnable = hasExecutableNode && hasDataLoaderWithFile;
 
   return (
-    <div className="flex items-center gap-4 px-4 py-3 panel-toolbar border-b border-white/5">
-      {/* Title */}
-      <h1 className="text-lg font-semibold text-text-primary">
-        MLOps Desktop
+    <div className="flex items-center gap-3 px-4 py-3 panel-toolbar border-b border-white/5 overflow-hidden min-w-0">
+      {/* Title - allow shrinking */}
+      <h1 className="text-lg font-semibold text-text-primary truncate flex-shrink min-w-0">
+        <span className="hidden sm:inline">MLOps Desktop</span>
+        <span className="sm:hidden">MLOps</span>
         {currentPipelineName && (
           <span className="font-normal text-text-muted ml-2">
             - {currentPipelineName}
@@ -498,7 +494,7 @@ export function Toolbar({
       </h1>
 
       {/* Pipeline buttons */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-shrink-0">
         <button onClick={handleNew} className="btn-secondary">
           <RiAddLine className="w-4 h-4" />
           New
@@ -555,45 +551,21 @@ export function Toolbar({
                   </Menu.Item>
                 ))
               )}
-              <div className="border-t border-white/5 my-1" />
-              <div className="px-3 py-2 text-xs font-semibold text-text-muted uppercase tracking-wider">
-                Example Workflows
-              </div>
-              <Menu.Item>
-                {({ active }) => (
-                  <button
-                    onClick={() => handleLoadExample("classification")}
-                    className={cn(
-                      "w-full flex items-center gap-2 px-3 py-2 text-sm",
-                      active && "bg-background-elevated"
-                    )}
-                  >
-                    <RiFlaskLine className="w-4 h-4 text-text-muted" />
-                    Iris Classification
-                  </button>
-                )}
-              </Menu.Item>
-              <Menu.Item>
-                {({ active }) => (
-                  <button
-                    onClick={() => handleLoadExample("regression")}
-                    className={cn(
-                      "w-full flex items-center gap-2 px-3 py-2 text-sm",
-                      active && "bg-background-elevated"
-                    )}
-                  >
-                    <RiHome4Line className="w-4 h-4 text-text-muted" />
-                    California Housing
-                  </button>
-                )}
-              </Menu.Item>
             </Menu.Items>
           </Transition>
         </Menu>
+
+        <button
+          onClick={() => setShowTemplateGallery(true)}
+          className="btn-secondary"
+        >
+          <RiLayoutGridLine className="w-4 h-4" />
+          Templates
+        </button>
       </div>
 
       {/* Experiment selector */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-shrink-0">
         <RiTestTubeLine className="w-4 h-4 text-text-muted" />
         <Listbox value={selectedExperimentId} onChange={setSelectedExperimentId}>
           <div className="relative">
@@ -673,17 +645,17 @@ export function Toolbar({
       <div className="flex-1" />
 
       {/* Python path display/edit */}
-      <div className="flex items-center gap-2">
-        <RiSettings4Line className="w-4 h-4 text-text-muted" />
-        <span className="text-xs text-text-muted">Python:</span>
+      <div className="flex items-center gap-2 flex-shrink min-w-0">
+        <RiSettings4Line className="w-4 h-4 text-text-muted flex-shrink-0" />
+        <span className="text-xs text-text-muted flex-shrink-0">Python:</span>
 
         {isEditingPath ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <input
               type="text"
               value={pathInput}
               onChange={(e) => setPathInput(e.target.value)}
-              className="input w-72 h-7 text-xs font-mono"
+              className="input w-48 h-7 text-xs font-mono"
             />
             <button onClick={handleSavePythonPath} className="btn-ghost h-7 w-7 p-0">
               <RiCheckLine className="w-4 h-4 text-state-success" />
@@ -693,11 +665,11 @@ export function Toolbar({
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-text-primary font-mono">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-xs text-text-primary font-mono truncate max-w-[180px]">
               {pythonPath || "Not found"}
             </span>
-            <button onClick={() => setIsEditingPath(true)} className="btn-ghost text-xs">
+            <button onClick={() => setIsEditingPath(true)} className="btn-ghost text-xs flex-shrink-0">
               Change
             </button>
           </div>
@@ -707,7 +679,7 @@ export function Toolbar({
       {/* View toggles - only show if callbacks provided */}
       {(onToggleNodePalette || onToggleOutputPanel || onTogglePlayground) && (
         <>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 flex-shrink-0">
             {onToggleNodePalette && (
               <button
                 onClick={onToggleNodePalette}
@@ -847,6 +819,12 @@ export function Toolbar({
           </div>
         </Dialog>
       </Transition>
+
+      {/* Template Gallery */}
+      <TemplateGallery
+        isOpen={showTemplateGallery}
+        onClose={() => setShowTemplateGallery(false)}
+      />
     </div>
   );
 }
