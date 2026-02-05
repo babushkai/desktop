@@ -65,7 +65,10 @@ export function DataLoaderNode({ id, data, selected: isSelected }: NodeProps) {
     });
 
     return () => {
-      unlisten.then((fn) => fn());
+      unlisten.then((fn) => fn()).catch((err) => {
+        // Non-fatal: just log warning, component is unmounting anyway
+        console.warn("Failed to cleanup script output listener:", err);
+      });
     };
   }, [id, setDataProfile, setProfilingStatus, setProfilingNodeId, appendLog]);
 

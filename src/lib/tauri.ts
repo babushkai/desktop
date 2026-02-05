@@ -93,24 +93,37 @@ export async function runScriptAndWait(
   inputPath: string,
   onOutput?: (event: ScriptEvent) => void
 ): Promise<number> {
-  return new Promise((resolve, reject) => {
-    let unlistener: UnlistenFn | undefined;
+  // Create deferred promise handlers
+  let resolvePromise: (code: number) => void;
+  let rejectPromise: (err: Error) => void;
 
-    listenToScriptOutput((event) => {
-      onOutput?.(event);
-      if (event.type === "exit") {
-        unlistener?.();
-        if (event.code === 0) {
-          resolve(event.code);
-        } else {
-          reject(new Error(`Script exited with code ${event.code}`));
-        }
-      }
-    }).then((unlisten) => {
-      unlistener = unlisten;
-      runScript(scriptCode, inputPath).catch(reject);
-    });
+  const resultPromise = new Promise<number>((resolve, reject) => {
+    resolvePromise = resolve;
+    rejectPromise = reject;
   });
+
+  // AWAIT listener setup BEFORE running script - this is the key fix
+  const unlistener = await listenToScriptOutput((event) => {
+    onOutput?.(event);
+    if (event.type === "exit") {
+      unlistener(); // Guaranteed to be defined - we awaited above
+      if (event.code === 0) {
+        resolvePromise(event.code);
+      } else {
+        rejectPromise(new Error(`Script exited with code ${event.code}`));
+      }
+    }
+  });
+
+  // NOW start script - listener is ready, unlistener is defined
+  try {
+    await runScript(scriptCode, inputPath);
+  } catch (err) {
+    unlistener(); // Cleanup on error
+    throw err; // Re-throw to caller
+  }
+
+  return resultPromise;
 }
 
 // Pipeline CRUD

@@ -16,6 +16,7 @@ import {
   RiRocketLine,
   RiTestTubeLine,
   RiLayoutGridLine,
+  RiAlertLine,
 } from "@remixicon/react";
 import { usePipelineStore } from "../stores/pipelineStore";
 import {
@@ -36,6 +37,7 @@ import {
 } from "../lib/tauri";
 import { ExperimentDialog } from "./ExperimentDialog";
 import { TemplateGallery } from "./TemplateGallery";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { generateTrainerCode, generateTrainerCodeWithSplit } from "../lib/trainerCodeGen";
 import { generateEvaluatorCode, generateEvaluatorCodeWithSplit, generateAutoEvaluatorCode } from "../lib/evaluatorCodeGen";
 import { generateLoadModelCode } from "../lib/loadModelCodeGen";
@@ -98,6 +100,16 @@ export function Toolbar({
   const [saveNameInput, setSaveNameInput] = useState("");
   const [showExperimentDialog, setShowExperimentDialog] = useState(false);
   const [showTemplateGallery, setShowTemplateGallery] = useState(false);
+
+  // Confirmation dialog state
+  const [pendingAction, setPendingAction] = useState<{
+    type: "load" | "new";
+    pipelineId?: string;
+  } | null>(null);
+  const [showDiscardDialog, setShowDiscardDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [executionWarning, setExecutionWarning] = useState<string | null>(null);
 
   useEffect(() => {
     const loadPythonPath = async () => {
@@ -191,8 +203,11 @@ export function Toolbar({
       const activeExperiment = experiments.find(e => e.id === selectedExperimentId && e.status === 'active');
       runId = await createRun(pipelineName, hyperparams, activeExperiment?.id);
       setCurrentRunId(runId);
+      setExecutionWarning(null);
     } catch (error) {
       console.error("Failed to create run:", error);
+      setExecutionWarning("Metrics won't be saved - database error");
+      appendLog("WARNING: Failed to create run record - metrics won't be saved");
     }
 
     // Collect metrics to save at the end
@@ -350,6 +365,7 @@ export function Toolbar({
       }
 
       setExecutionStatus("success");
+      setExecutionWarning(null);
     } catch (error) {
       // Log run failure summary
       appendLog("");
@@ -358,6 +374,7 @@ export function Toolbar({
       appendLog(`Error: ${String(error)}`);
 
       setExecutionStatus("error");
+      setExecutionWarning(null);
 
       // Mark run as failed
       if (runId) {
@@ -440,30 +457,62 @@ export function Toolbar({
   }, []);
 
   const handleLoadPipeline = useCallback(
-    async (id: string) => {
+    (pipelineId: string) => {
       if (isDirty) {
-        const confirmed = window.confirm("Discard unsaved changes?");
-        if (!confirmed) return;
+        setPendingAction({ type: "load", pipelineId });
+        setShowDiscardDialog(true);
+        return;
       }
-      await loadPipeline(id);
+      loadPipeline(pipelineId);
     },
     [isDirty, loadPipeline]
   );
 
-  const handleDeletePipeline = useCallback(async (id: string, e: React.MouseEvent) => {
+  const handleConfirmDiscard = useCallback(async () => {
+    if (!pendingAction) return;
+
+    try {
+      if (pendingAction.type === "load" && pendingAction.pipelineId) {
+        await loadPipeline(pendingAction.pipelineId);
+      } else if (pendingAction.type === "new") {
+        newPipeline();
+      }
+    } catch (error) {
+      console.error("Failed to complete action:", error);
+      appendLog(`ERROR: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setPendingAction(null);
+      setShowDiscardDialog(false);
+    }
+  }, [pendingAction, loadPipeline, newPipeline, appendLog]);
+
+  const handleDeletePipeline = useCallback((pipelineId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const confirmed = window.confirm("Delete this pipeline?");
-    if (confirmed) {
-      await deletePipeline(id);
+    setDeleteTargetId(pipelineId);
+    setShowDeleteDialog(true);
+  }, []);
+
+  const handleConfirmDelete = useCallback(async () => {
+    if (!deleteTargetId) return;
+
+    try {
+      await deletePipeline(deleteTargetId);
       const list = await listPipelines();
       setPipelines(list);
+    } catch (error) {
+      console.error("Failed to delete pipeline:", error);
+      appendLog(`ERROR: Failed to delete pipeline: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setDeleteTargetId(null);
+      setShowDeleteDialog(false);
     }
-  }, []);
+  }, [deleteTargetId, appendLog]);
 
   const handleNew = useCallback(() => {
     if (isDirty) {
-      const confirmed = window.confirm("Discard unsaved changes?");
-      if (!confirmed) return;
+      setPendingAction({ type: "new" });
+      setShowDiscardDialog(true);
+      return;
     }
     newPipeline();
   }, [isDirty, newPipeline]);
@@ -721,6 +770,14 @@ export function Toolbar({
         </>
       )}
 
+      {/* Execution warning */}
+      {executionWarning && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-400 text-sm">
+          <RiAlertLine className="w-4 h-4 flex-shrink-0" />
+          <span>{executionWarning}</span>
+        </div>
+      )}
+
       {/* Run/Cancel buttons */}
       {tuningNodeId ? (
         <button onClick={handleCancelTuning} className="btn-destructive">
@@ -824,6 +881,34 @@ export function Toolbar({
       <TemplateGallery
         isOpen={showTemplateGallery}
         onClose={() => setShowTemplateGallery(false)}
+      />
+
+      {/* Discard Changes Dialog */}
+      <ConfirmDialog
+        isOpen={showDiscardDialog}
+        onClose={() => {
+          setShowDiscardDialog(false);
+          setPendingAction(null);
+        }}
+        onConfirm={handleConfirmDiscard}
+        title="Unsaved Changes"
+        message="You have unsaved changes. Are you sure you want to discard them?"
+        confirmLabel="Discard"
+        variant="destructive"
+      />
+
+      {/* Delete Pipeline Dialog */}
+      <ConfirmDialog
+        isOpen={showDeleteDialog}
+        onClose={() => {
+          setShowDeleteDialog(false);
+          setDeleteTargetId(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Delete Pipeline"
+        message="Are you sure you want to delete this pipeline? This cannot be undone."
+        confirmLabel="Delete"
+        variant="destructive"
       />
     </div>
   );
