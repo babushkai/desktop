@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, Fragment } from "react";
+import { useCallback, useEffect, useState, Fragment, useRef } from "react";
 import { Menu, Transition, Dialog, Listbox } from "@headlessui/react";
 import {
   RiPlayFill,
@@ -17,6 +17,7 @@ import {
   RiTestTubeLine,
   RiLayoutGridLine,
   RiAlertLine,
+  RiSparklingLine,
 } from "@remixicon/react";
 import { usePipelineStore } from "../stores/pipelineStore";
 import { SHORTCUTS } from "../lib/shortcuts";
@@ -39,6 +40,8 @@ import {
 import { ExperimentDialog } from "./ExperimentDialog";
 import { TemplateGallery } from "./TemplateGallery";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { OllamaSettings } from "./OllamaSettings";
+import { useOllamaStore } from "@/stores/ollamaStore";
 import { generateTrainerCode, generateTrainerCodeWithSplit } from "../lib/trainerCodeGen";
 import { generateEvaluatorCode, generateEvaluatorCodeWithSplit, generateAutoEvaluatorCode } from "../lib/evaluatorCodeGen";
 import { generateLoadModelCode } from "../lib/loadModelCodeGen";
@@ -101,6 +104,12 @@ export function Toolbar({
   const [saveNameInput, setSaveNameInput] = useState("");
   const [showExperimentDialog, setShowExperimentDialog] = useState(false);
   const [showTemplateGallery, setShowTemplateGallery] = useState(false);
+  const [showOllamaSettings, setShowOllamaSettings] = useState(false);
+
+  // Ollama state
+  const ollamaAvailable = useOllamaStore((s) => s.isAvailable);
+  const ollamaGenerating = useOllamaStore((s) => s.isGenerating);
+  const checkOllamaStatus = useOllamaStore((s) => s.checkStatus);
 
   // Confirmation dialog state
   const [pendingAction, setPendingAction] = useState<{
@@ -133,6 +142,15 @@ export function Toolbar({
   useEffect(() => {
     loadExperiments();
   }, [loadExperiments]);
+
+  // Check Ollama status on mount (once)
+  const hasCheckedOllama = useRef(false);
+  useEffect(() => {
+    if (!hasCheckedOllama.current) {
+      hasCheckedOllama.current = true;
+      checkOllamaStatus();
+    }
+  }, [checkOllamaStatus]);
 
   const handleRun = useCallback(async () => {
     const errors = validatePipeline();
@@ -771,6 +789,20 @@ export function Toolbar({
         </>
       )}
 
+      {/* Ollama AI Status */}
+      <button
+        onClick={() => setShowOllamaSettings(true)}
+        className={cn(
+          "btn-icon h-8 w-8",
+          ollamaAvailable ? "text-accent" : "text-text-muted"
+        )}
+        title={ollamaAvailable ? "Ollama connected - Click to configure" : "Ollama not connected - Click to configure"}
+      >
+        <RiSparklingLine
+          className={cn("w-4 h-4", ollamaGenerating && "animate-pulse")}
+        />
+      </button>
+
       {/* Execution warning */}
       {executionWarning && (
         <div className="flex items-center gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-400 text-sm">
@@ -910,6 +942,12 @@ export function Toolbar({
         message="Are you sure you want to delete this pipeline? This cannot be undone."
         confirmLabel="Delete"
         variant="destructive"
+      />
+
+      {/* Ollama Settings Dialog */}
+      <OllamaSettings
+        isOpen={showOllamaSettings}
+        onClose={() => setShowOllamaSettings(false)}
       />
     </div>
   );

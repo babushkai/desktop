@@ -327,9 +327,9 @@
   border-radius: 4px !important;
 }
 
-/* Node selection styling */
+/* Node selection styling - disabled since BaseNode handles selection with variant-specific colors */
 .react-flow__node.selected {
-  box-shadow: 0 0 0 2px #58a6ff, 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+  box-shadow: none !important;
 }
 
 /* Panel styling (for any floating panels) */

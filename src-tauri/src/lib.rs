@@ -1,5 +1,7 @@
 mod commands;
 mod db;
+mod lsp;
+mod ollama;
 mod python;
 
 use tauri::Manager;
@@ -103,6 +105,19 @@ pub fn run() {
             commands::reset_http_server_metrics,
             commands::get_serving_version_id,
             commands::delete_model_version_safe,
+            // Ollama
+            commands::check_ollama,
+            commands::list_ollama_models,
+            commands::generate_completion,
+            commands::cancel_completion,
+            // LSP
+            lsp::check_pyright,
+            lsp::start_lsp_server,
+            lsp::stop_lsp_server,
+            lsp::lsp_request,
+            lsp::lsp_notify,
+            lsp::lsp_cancel_request,
+            lsp::get_lsp_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
