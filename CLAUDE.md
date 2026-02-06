@@ -4,9 +4,9 @@ Tauri 2.0 desktop app for visual ML pipeline building, inspired by [Dify](https:
 
 ## Project Roadmap
 
-### v1 - Visual Pipeline Builder (Current)
+### v1 - Visual Pipeline Builder - COMPLETED
 - Drag-and-drop ReactFlow canvas
-- Node types: DataLoader, Script (more planned)
+- Node types: DataLoader, Script
 - System Python detection, subprocess execution
 - Pipeline save/load to SQLite
 - Real-time execution output
@@ -44,19 +44,52 @@ Tauri 2.0 desktop app for visual ML pipeline building, inspired by [Dify](https:
 - Interactive ECharts visualizations
 - Human-readable summary interpretations
 
-### Future Versions
-- **v8 - Experiment Tracking:** Experiment/run management, metrics logging, artifact storage
-- **v9 - Model Registry:** Model versioning, staging (None → Staging → Production), ONNX/CoreML export
-- **v10 - Model Serving:** Local inference server, interactive playground
+### v8 - Experiment Tracking - COMPLETED
+- Experiment/run management with status tracking
+- Metrics logging with run annotations (notes, tags)
+- Run comparison and historical metrics charts
+- Display name customization for runs
 
-### Long-term Vision
-- Bundled Python runtime (no user setup required)
-- Full node types: DataLoader → DataSplit → Trainer → Evaluator → ModelExporter
-- Metal GPU acceleration (macOS)
-- Monaco Editor for Python scripts
-- ECharts for metrics visualization
-- TanStack Query for async data
-- Tailwind CSS + shadcn/ui components
+### v9 - Model Registry - COMPLETED
+- Model versioning with automatic incrementing
+- Stage promotion (None → Staging → Production → Archived)
+- ONNX/CoreML export support
+- Model metadata, notes, and tagging
+- Version comparison with metrics
+
+### v10 - Model Serving - COMPLETED
+- HTTP inference server with FastAPI/uvicorn
+- Interactive playground panel for testing
+- Request logging and metrics (latency, throughput)
+- Batch inference with chunking support
+- CORS configuration
+
+### v11 - Bundled Python - PARTIAL
+- Auto-detection framework for bundled vs system Python
+- PythonInfo type with is_bundled flag
+- Not yet bundled - uses system Python
+
+### v12 - Pipeline Templates - COMPLETED
+- Template gallery with pre-built pipelines
+- Quick start for common ML tasks (classification, regression)
+- Template preview before loading
+
+### v13 - Bug Fixes - COMPLETED
+- Replace browser dialogs with state-based modals (ConfirmDialog)
+- Fix race conditions in pipeline execution
+- Proper script event listener setup before execution
+
+### v14 - UI Polish - COMPLETED
+- Node color alignment with Tailwind config
+- Icon button consistency (btn-icon classes)
+- Platform-aware keyboard shortcuts (⌘ vs Ctrl)
+- Button size variants (sm, md, lg)
+- Empty state prompts
+
+### Future Versions
+- **v16 - Advanced Nodes:** DataSplit node, feature engineering nodes
+- **v17 - GPU Acceleration:** Metal GPU support for macOS
+- **v18 - Cloud Integration:** Remote model deployment
 
 ## Tech Stack
 - Frontend: React 19, TypeScript, Vite, Zustand, @xyflow/react
@@ -337,18 +370,35 @@ npm run test:run     # Run tests once
 ## Architecture
 
 **Frontend:**
-- `src/stores/pipelineStore.ts` - Zustand store for nodes, edges, execution state, save/load
+- `src/stores/pipelineStore.ts` - Zustand store for nodes, edges, execution, experiments
 - `src/components/Canvas.tsx` - ReactFlow canvas wrapper
-- `src/components/Toolbar.tsx` - Run/Save/Load buttons, Python path config
-- `src/components/DataLoaderNode.tsx` - File picker node
-- `src/components/ScriptNode.tsx` - Python code editor node
-- `src/components/OutputPanel.tsx` - Script output display
-- `src/lib/tauri.ts` - Tauri IPC wrappers
+- `src/components/Toolbar.tsx` - Run/Save/Load, experiment selector, panel toggles
+- `src/components/BaseNode.tsx` - Base component for all node types
+- `src/components/DataLoaderNode.tsx` - CSV file picker
+- `src/components/DataSplitNode.tsx` - Train/test split configuration
+- `src/components/TrainerNode.tsx` - Model training with hyperparameters
+- `src/components/EvaluatorNode.tsx` - Model evaluation with metrics
+- `src/components/ModelExporterNode.tsx` - ONNX/CoreML/joblib export
+- `src/components/ScriptNode.tsx` - Custom Python code
+- `src/components/OutputPanel.tsx` - Tabbed panel (Logs, Metrics, Runs, Models, etc.)
+- `src/components/PropertiesPanel.tsx` - Node configuration side panel
+- `src/components/MetricsPanel.tsx` - Evaluation metrics with charts
+- `src/components/RunsPanel.tsx` - Run history with comparison
+- `src/components/ModelsPanel.tsx` - Model registry with versions
+- `src/components/ExplainSection.tsx` - SHAP, feature importance, PDP
+- `src/components/TrialsPanel.tsx` - Hyperparameter tuning trials
+- `src/components/TuningPanel.tsx` - Tuning configuration
+- `src/components/ServingPanel.tsx` - HTTP server controls
+- `src/components/PlaygroundPanel.tsx` - Interactive inference testing
+- `src/components/TemplateGallery.tsx` - Pipeline template selection
+- `src/components/ConfirmDialog.tsx` - State-based confirmation dialogs
+- `src/lib/tauri.ts` - Tauri IPC wrappers (80+ functions)
 
 **Backend:**
-- `src-tauri/src/commands.rs` - Tauri IPC commands (run_script, cancel_script, save/load pipeline)
-- `src-tauri/src/db.rs` - SQLite database (settings + pipelines tables)
-- `src-tauri/src/python.rs` - Python detection logic
+- `src-tauri/src/commands.rs` - Tauri IPC commands
+- `src-tauri/src/db.rs` - SQLite (settings, pipelines, runs, experiments, models, tuning)
+- `src-tauri/src/python.rs` - Python detection and bundled runtime support
+- `src-tauri/src/http_server.rs` - HTTP model serving with FastAPI
 
 **Tests:**
 - `src/stores/pipelineStore.test.ts` - Store unit tests
