@@ -835,38 +835,6 @@ export async function listenToHttpServerLog(
   });
 }
 
-// Ollama LLM Integration
-
-export async function checkOllama(host?: string): Promise<boolean> {
-  return invoke<boolean>("check_ollama", { host });
-}
-
-export async function listOllamaModels(host?: string): Promise<string[]> {
-  return invoke<string[]>("list_ollama_models", { host });
-}
-
-export async function generateCompletion(
-  requestId: string,
-  host: string | undefined,
-  model: string,
-  context: string,
-  cursorLine: string,
-  columns: string[]
-): Promise<string> {
-  return invoke<string>("generate_completion", {
-    requestId,
-    host,
-    model,
-    context,
-    cursorLine,
-    columns,
-  });
-}
-
-export async function cancelCompletion(requestId: string): Promise<void> {
-  return invoke("cancel_completion", { requestId });
-}
-
 // LSP (Language Server Protocol) Integration
 
 export interface PyrightInfo {
@@ -926,6 +894,22 @@ export interface LspLocation {
     start: { line: number; character: number };
     end: { line: number; character: number };
   };
+}
+
+// LSP Document Symbol types (for AST-based chunking)
+export interface LspDocumentSymbol {
+  name: string;
+  detail?: string;
+  kind: number; // SymbolKind: 5=Class, 6=Method, 12=Function, 13=Variable
+  range: {
+    start: { line: number; character: number };
+    end: { line: number; character: number };
+  };
+  selectionRange: {
+    start: { line: number; character: number };
+    end: { line: number; character: number };
+  };
+  children?: LspDocumentSymbol[];
 }
 
 export async function checkPyright(): Promise<PyrightInfo> {

@@ -14,13 +14,12 @@ import {
   registerPythonCompletions,
   PipelineContext,
 } from "@/lib/monacoCompletions";
-import { registerOllamaInlineCompletions } from "@/lib/ollamaCompletions";
 import { registerLspProviders } from "@/lib/lspClient";
-import { useOllamaStore } from "@/stores/ollamaStore";
+import { providerManager } from "@/lib/completionProviderManager";
 import { useLspStore, getDocumentUri } from "@/stores/lspStore";
 import { listenToLspRestarted } from "@/lib/tauri";
 import type { Monaco } from "@monaco-editor/react";
-import type { editor, IDisposable } from "monaco-editor";
+import type { editor } from "monaco-editor";
 
 const Editor = lazy(() => import("@monaco-editor/react"));
 
@@ -177,12 +176,9 @@ function EditorModal({
   const [cursorPos, setCursorPos] = useState({ line: 1, col: 1 });
   const [charCount, setCharCount] = useState(code.length);
   const [contextExpanded, setContextExpanded] = useState(true);
+  const [editorReady, setEditorReady] = useState(false);
   const monacoRef = useRef<Monaco | null>(null);
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
-  const completionDisposable = useRef<IDisposable | null>(null);
-  const ollamaDisposable = useRef<IDisposable | null>(null);
-  const lspDisposable = useRef<IDisposable | null>(null);
-  const ollamaAvailable = useOllamaStore((s) => s.isAvailable);
   const lspConnected = useLspStore((s) => s.isConnected);
 
   const handleEditorMount = useCallback(
@@ -208,70 +204,41 @@ function EditorModal({
       });
 
       setCharCount(editorInstance.getValue().length);
-
-      // Register Python completions
-      completionDisposable.current?.dispose();
-      completionDisposable.current = registerPythonCompletions(monaco, context);
-
-      // Register LSP providers
-      lspDisposable.current?.dispose();
-      if (useLspStore.getState().isConnected) {
-        lspDisposable.current = registerLspProviders(monaco, editorInstance);
-      }
-
-      // Register Ollama inline completions if available
-      ollamaDisposable.current?.dispose();
-      if (useOllamaStore.getState().isAvailable) {
-        ollamaDisposable.current = registerOllamaInlineCompletions(
-          monaco,
-          editorInstance,
-          { columns: context.columns || [] }
-        );
-      }
+      setEditorReady(true);
 
       // Focus the editor
       editorInstance.focus();
     },
-    [context, code]
+    [code]
   );
 
-  // Re-register completions when context or Ollama availability changes
+  // Register providers using the provider manager
   useEffect(() => {
-    if (monacoRef.current) {
-      completionDisposable.current?.dispose();
-      completionDisposable.current = registerPythonCompletions(
-        monacoRef.current,
-        context
+    if (!editorReady || !monacoRef.current || !editorRef.current) return;
+
+    const pipelineState = usePipelineStore.getState();
+    // Use stable context key without pipelineId - it's fetched at call time
+    const contextKey = `modal:${pipelineState.selectedNodeId}`;
+
+    // Register static Python completions
+    providerManager.register("static", contextKey, () =>
+      registerPythonCompletions(monacoRef.current!, context)
+    );
+
+    // Register LSP providers
+    if (lspConnected) {
+      providerManager.register("lsp", contextKey, () =>
+        registerLspProviders(monacoRef.current!, editorRef.current!)
       );
     }
-    if (monacoRef.current && editorRef.current) {
-      ollamaDisposable.current?.dispose();
-      if (ollamaAvailable) {
-        ollamaDisposable.current = registerOllamaInlineCompletions(
-          monacoRef.current,
-          editorRef.current,
-          { columns: context.columns || [] }
-        );
-      }
-    }
-  }, [context.columns, context.inputFilePath, ollamaAvailable]);
 
-  // Re-register LSP providers when connection changes
-  useEffect(() => {
-    if (monacoRef.current && editorRef.current) {
-      lspDisposable.current?.dispose();
-      if (lspConnected) {
-        lspDisposable.current = registerLspProviders(monacoRef.current, editorRef.current);
-      }
-    }
-  }, [lspConnected]);
+    // Ollama inline completions disabled - too slow and low quality with local models
+  }, [editorReady, context.columns, context.inputFilePath, lspConnected]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      completionDisposable.current?.dispose();
-      ollamaDisposable.current?.dispose();
-      lspDisposable.current?.dispose();
+      setEditorReady(false);
     };
   }, []);
 
@@ -373,14 +340,11 @@ export function PropertiesPanel() {
   const [charCount, setCharCount] = useState(0);
   const [contextExpanded, setContextExpanded] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
+  const [editorReady, setEditorReady] = useState(false);
 
-  // Refs for Monaco instance and completion disposal
+  // Refs for Monaco instance
   const monacoRef = useRef<Monaco | null>(null);
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
-  const completionDisposable = useRef<IDisposable | null>(null);
-  const ollamaDisposable = useRef<IDisposable | null>(null);
-  const lspDisposable = useRef<IDisposable | null>(null);
-  const ollamaAvailable = useOllamaStore((s) => s.isAvailable);
 
   // LSP state
   const lspStore = useLspStore();
@@ -502,68 +466,52 @@ export function PropertiesPanel() {
 
       setCharCount(editorInstance.getValue().length);
 
-      // Register Python completions (static)
-      completionDisposable.current?.dispose();
-      completionDisposable.current = registerPythonCompletions(monaco, context);
-
-      // Register LSP providers
-      lspDisposable.current?.dispose();
-      if (useLspStore.getState().isConnected) {
-        lspDisposable.current = registerLspProviders(monaco, editorInstance);
-      }
-
-      // Register Ollama inline completions if available
-      ollamaDisposable.current?.dispose();
-      if (useOllamaStore.getState().isAvailable) {
-        ollamaDisposable.current = registerOllamaInlineCompletions(
-          monaco,
-          editorInstance,
-          { columns: context.columns || [] }
-        );
-      }
+      // Signal that editor is ready - this triggers useEffect to register providers
+      setEditorReady(true);
     },
-    [] // No deps - we re-register in useEffect when context changes
+    []
   );
 
-  // Re-register completions when context or Ollama availability changes
+  // Register providers using the provider manager
   useEffect(() => {
-    if (monacoRef.current) {
-      completionDisposable.current?.dispose();
-      completionDisposable.current = registerPythonCompletions(
-        monacoRef.current,
-        context
+    // Wait for editor to be ready
+    if (!editorReady || !monacoRef.current || !editorRef.current) return;
+
+    // Context key only includes node ID - pipelineId is fetched at call time from store
+    const contextKey = `panel:${selectedNodeId}`;
+
+    // Register static Python completions
+    providerManager.register("static", contextKey, () =>
+      registerPythonCompletions(monacoRef.current!, context)
+    );
+
+    // Register LSP providers
+    if (lspStore.isConnected) {
+      providerManager.register("lsp", contextKey, () =>
+        registerLspProviders(monacoRef.current!, editorRef.current!)
       );
     }
-    if (monacoRef.current && editorRef.current) {
-      ollamaDisposable.current?.dispose();
-      if (ollamaAvailable) {
-        ollamaDisposable.current = registerOllamaInlineCompletions(
-          monacoRef.current,
-          editorRef.current,
-          { columns: context.columns || [] }
-        );
-      }
-    }
-  }, [context.columns, context.inputFilePath, ollamaAvailable]);
 
-  // Re-register LSP providers when connection changes
-  useEffect(() => {
-    if (monacoRef.current && editorRef.current) {
-      lspDisposable.current?.dispose();
-      if (lspStore.isConnected) {
-        lspDisposable.current = registerLspProviders(monacoRef.current, editorRef.current);
-      }
-    }
-  }, [lspStore.isConnected]);
+    // Ollama inline completions disabled - too slow and low quality with local models
+    // To re-enable in future with better models, uncomment below:
+    // if (ollamaAvailable) {
+    //   providerManager.register("ollama", contextKey, () =>
+    //     registerOllamaInlineCompletions(monacoRef.current!, editorRef.current!, {
+    //       columns: context.columns || [],
+    //       pipelineId: undefined,
+    //       currentNodeId: selectedNodeId ?? undefined,
+    //     })
+    //   );
+    // }
+  }, [editorReady, context.columns, context.inputFilePath, lspStore.isConnected, selectedNodeId]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount or when node changes
   useEffect(() => {
     return () => {
-      completionDisposable.current?.dispose();
-      ollamaDisposable.current?.dispose();
-      lspDisposable.current?.dispose();
+      providerManager.dispose();
+      setEditorReady(false);
     };
-  }, []);
+  }, [selectedNodeId]);
 
   const handleClear = useCallback(() => {
     if (selectedNodeId) {
