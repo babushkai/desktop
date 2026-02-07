@@ -118,6 +118,13 @@ pub fn run() {
             lsp::lsp_notify,
             lsp::lsp_cancel_request,
             lsp::get_lsp_status,
+            // Chunk Embeddings (RAG)
+            commands::upsert_chunk_embedding,
+            commands::get_chunk_embedding_hash,
+            commands::list_chunk_embeddings_for_pipeline,
+            commands::delete_orphan_chunks,
+            commands::delete_chunks_for_node,
+            commands::delete_chunks_for_pipeline,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

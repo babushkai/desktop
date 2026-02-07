@@ -1754,3 +1754,63 @@ pub async fn generate_completion(
 pub fn cancel_completion(request_id: String) {
     crate::ollama::cancel_request(&request_id);
 }
+
+// Chunk Embedding commands (v8 - RAG)
+
+#[derive(Clone, Serialize, Deserialize)]
+pub struct ChunkEmbeddingInput {
+    pub node_id: String,
+    pub pipeline_id: String,
+    pub chunk_id: String,
+    pub content_hash: String,
+    pub embedding: Vec<u8>,
+    pub embedding_model: String,
+    pub embedding_dim: i32,
+    pub symbol_name: Option<String>,
+    pub symbol_type: Option<String>,
+    pub start_line: Option<i32>,
+    pub end_line: Option<i32>,
+}
+
+#[tauri::command]
+pub fn upsert_chunk_embedding(input: ChunkEmbeddingInput) -> Result<(), String> {
+    db::upsert_chunk_embedding(
+        &input.node_id,
+        &input.pipeline_id,
+        &input.chunk_id,
+        &input.content_hash,
+        &input.embedding,
+        &input.embedding_model,
+        input.embedding_dim,
+        input.symbol_name.as_deref(),
+        input.symbol_type.as_deref(),
+        input.start_line,
+        input.end_line,
+    )
+    .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_chunk_embedding_hash(node_id: String, chunk_id: String) -> Result<Option<String>, String> {
+    db::get_chunk_embedding_hash(&node_id, &chunk_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn list_chunk_embeddings_for_pipeline(pipeline_id: String) -> Result<Vec<db::ChunkEmbedding>, String> {
+    db::list_chunk_embeddings_for_pipeline(&pipeline_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_orphan_chunks(node_id: String, keep_chunk_ids: Vec<String>) -> Result<usize, String> {
+    db::delete_orphan_chunks(&node_id, keep_chunk_ids).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_chunks_for_node(node_id: String) -> Result<usize, String> {
+    db::delete_chunks_for_node(&node_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn delete_chunks_for_pipeline(pipeline_id: String) -> Result<usize, String> {
+    db::delete_chunks_for_pipeline(&pipeline_id).map_err(|e| e.to_string())
+}

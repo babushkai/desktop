@@ -4,6 +4,9 @@
  * Prevents duplicate provider registration when context changes
  * (node selection, pipeline change, Ollama/LSP availability).
  *
+ * Uses a generation counter to handle race conditions when users
+ * rapidly switch between nodes (A → B → A in 100ms).
+ *
  * Manages three provider types:
  * - static: Python completions (pandas, numpy, etc.)
  * - lsp: Pyright language server completions
@@ -16,6 +19,7 @@ type ProviderKey = "static" | "lsp" | "ollama";
 
 class CompletionProviderManager {
   private static instance: CompletionProviderManager | null = null;
+  private generation = 0;
   private disposables: Map<ProviderKey, IDisposable> = new Map();
   private contextKeys: Map<ProviderKey, string> = new Map();
 
@@ -39,12 +43,19 @@ class CompletionProviderManager {
    *
    * If the provider is already registered for the same context, this is a no-op.
    * If context changed, disposes the old provider and registers a new one.
+   *
+   * Uses a generation counter to prevent race conditions during rapid context
+   * switches. If another registration starts while factory() is executing,
+   * the stale registration is discarded.
    */
   register(
     key: ProviderKey,
     contextKey: string,
     factory: () => IDisposable
   ): void {
+    // Increment generation for this registration attempt
+    const myGeneration = ++this.generation;
+
     // Skip if already registered for same context
     if (this.contextKeys.get(key) === contextKey && this.disposables.has(key)) {
       console.log(
@@ -59,10 +70,21 @@ class CompletionProviderManager {
       console.log(`[ProviderManager] Disposing previous ${key} provider`);
       existing.dispose();
     }
+    this.disposables.delete(key);
+    this.contextKeys.delete(key);
 
-    // Register new
+    // Create new provider
     console.log(`[ProviderManager] Registering ${key} provider for context ${contextKey}`);
-    this.disposables.set(key, factory());
+    const disposable = factory();
+
+    // Verify we're still the active registration (handles A→B→A race)
+    if (this.generation !== myGeneration) {
+      console.log(`[ProviderManager] Discarding stale ${key} registration (generation ${myGeneration} vs ${this.generation})`);
+      disposable.dispose();
+      return;
+    }
+
+    this.disposables.set(key, disposable);
     this.contextKeys.set(key, contextKey);
   }
 

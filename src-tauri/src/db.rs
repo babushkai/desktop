@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Mutex;
 
-const DB_VERSION: i32 = 7; // v1 = settings+pipelines, v2 = +runs+metrics, v3 = +models+model_versions, v4 = +feature_names, v5 = +tuning_sessions+tuning_trials, v6 = +experiments+run_annotations, v7 = +model_metadata+model_tags+export_paths
+const DB_VERSION: i32 = 8; // v1 = settings+pipelines, v2 = +runs+metrics, v3 = +models+model_versions, v4 = +feature_names, v5 = +tuning_sessions+tuning_trials, v6 = +experiments+run_annotations, v7 = +model_metadata+model_tags+export_paths, v8 = +chunk_embeddings
 
 #[derive(Serialize, Deserialize)]
 pub struct PipelineMetadata {
@@ -108,6 +108,23 @@ pub struct TuningTrial {
     pub duration_ms: Option<i64>,
     pub status: String,
     pub error_message: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ChunkEmbedding {
+    pub id: i64,
+    pub node_id: String,
+    pub pipeline_id: String,
+    pub chunk_id: String,          // e.g., "func:train_model" or "toplevel:0"
+    pub content_hash: String,      // SHA-256 of chunk content
+    pub embedding: Vec<u8>,        // Pre-normalized BLOB
+    pub embedding_model: String,
+    pub embedding_dim: i32,
+    pub symbol_name: Option<String>,
+    pub symbol_type: Option<String>, // function, class, method, toplevel
+    pub start_line: Option<i32>,
+    pub end_line: Option<i32>,
     pub created_at: String,
 }
 
@@ -381,6 +398,45 @@ pub fn init_db(app_data_dir: &Path) -> Result<()> {
         // Indexes for model queries
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_model_tags_tag ON model_tags(tag)",
+            [],
+        )?;
+    }
+
+    // v8 migration (chunk_embeddings for RAG)
+    if version < 8 {
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS chunk_embeddings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                node_id TEXT NOT NULL,
+                pipeline_id TEXT NOT NULL,
+                chunk_id TEXT NOT NULL,
+                content_hash TEXT NOT NULL,
+                embedding BLOB NOT NULL,
+                embedding_model TEXT NOT NULL,
+                embedding_dim INTEGER NOT NULL,
+                symbol_name TEXT,
+                symbol_type TEXT,
+                start_line INTEGER,
+                end_line INTEGER,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(node_id, chunk_id)
+            )",
+            [],
+        )?;
+
+        // Indexes for chunk queries
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_chunk_pipeline ON chunk_embeddings(pipeline_id)",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_chunk_node ON chunk_embeddings(node_id)",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_chunk_hash ON chunk_embeddings(content_hash)",
             [],
         )?;
     }
@@ -1701,6 +1757,154 @@ pub fn get_model_versions_for_comparison(version_ids: &[String]) -> Result<Model
 // Get versions that can be compared (same model_id for grouping)
 pub fn get_comparable_versions(model_id: &str) -> Result<Vec<ModelVersion>> {
     list_model_versions(model_id)
+}
+
+// Chunk Embedding CRUD operations (v8)
+
+pub fn upsert_chunk_embedding(
+    node_id: &str,
+    pipeline_id: &str,
+    chunk_id: &str,
+    content_hash: &str,
+    embedding: &[u8],
+    embedding_model: &str,
+    embedding_dim: i32,
+    symbol_name: Option<&str>,
+    symbol_type: Option<&str>,
+    start_line: Option<i32>,
+    end_line: Option<i32>,
+) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    conn.execute(
+        "INSERT INTO chunk_embeddings (node_id, pipeline_id, chunk_id, content_hash, embedding, embedding_model, embedding_dim, symbol_name, symbol_type, start_line, end_line, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, datetime('now'))
+         ON CONFLICT(node_id, chunk_id) DO UPDATE SET
+           content_hash = ?4,
+           embedding = ?5,
+           embedding_model = ?6,
+           embedding_dim = ?7,
+           symbol_name = ?8,
+           symbol_type = ?9,
+           start_line = ?10,
+           end_line = ?11,
+           created_at = datetime('now')",
+        rusqlite::params![
+            node_id, pipeline_id, chunk_id, content_hash, embedding,
+            embedding_model, embedding_dim, symbol_name, symbol_type,
+            start_line, end_line
+        ],
+    )?;
+    Ok(())
+}
+
+pub fn get_chunk_embedding_hash(node_id: &str, chunk_id: &str) -> Result<Option<String>> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    let result = conn.query_row(
+        "SELECT content_hash FROM chunk_embeddings WHERE node_id = ?1 AND chunk_id = ?2",
+        [node_id, chunk_id],
+        |row| row.get(0),
+    );
+    match result {
+        Ok(hash) => Ok(Some(hash)),
+        Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+        Err(e) => Err(e),
+    }
+}
+
+pub fn list_chunk_embeddings_for_pipeline(pipeline_id: &str) -> Result<Vec<ChunkEmbedding>> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    let mut stmt = conn.prepare(
+        "SELECT id, node_id, pipeline_id, chunk_id, content_hash, embedding, embedding_model, embedding_dim, symbol_name, symbol_type, start_line, end_line, created_at
+         FROM chunk_embeddings WHERE pipeline_id = ?1"
+    )?;
+    let rows = stmt.query_map([pipeline_id], |row| {
+        Ok(ChunkEmbedding {
+            id: row.get(0)?,
+            node_id: row.get(1)?,
+            pipeline_id: row.get(2)?,
+            chunk_id: row.get(3)?,
+            content_hash: row.get(4)?,
+            embedding: row.get(5)?,
+            embedding_model: row.get(6)?,
+            embedding_dim: row.get(7)?,
+            symbol_name: row.get(8)?,
+            symbol_type: row.get(9)?,
+            start_line: row.get(10)?,
+            end_line: row.get(11)?,
+            created_at: row.get(12)?,
+        })
+    })?;
+    rows.collect()
+}
+
+pub fn delete_orphan_chunks(node_id: &str, keep_chunk_ids: Vec<String>) -> Result<usize> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+
+    if keep_chunk_ids.is_empty() {
+        // Delete all chunks for this node
+        let deleted = conn.execute(
+            "DELETE FROM chunk_embeddings WHERE node_id = ?1",
+            [node_id],
+        )?;
+        return Ok(deleted);
+    }
+
+    // Build placeholders for the IN clause
+    let placeholders: String = keep_chunk_ids
+        .iter()
+        .enumerate()
+        .map(|(i, _)| format!("?{}", i + 2))
+        .collect::<Vec<_>>()
+        .join(",");
+
+    // Build the query
+    let query = format!(
+        "DELETE FROM chunk_embeddings WHERE node_id = ?1 AND chunk_id NOT IN ({})",
+        placeholders
+    );
+
+    // Build params vector
+    let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+    params.push(Box::new(node_id.to_string()));
+    for id in keep_chunk_ids {
+        params.push(Box::new(id));
+    }
+
+    // Execute with dynamic params
+    let param_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+    let deleted = conn.execute(&query, param_refs.as_slice())?;
+
+    Ok(deleted)
+}
+
+pub fn delete_chunks_for_node(node_id: &str) -> Result<usize> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    let deleted = conn.execute(
+        "DELETE FROM chunk_embeddings WHERE node_id = ?1",
+        [node_id],
+    )?;
+    Ok(deleted)
+}
+
+pub fn delete_chunks_for_pipeline(pipeline_id: &str) -> Result<usize> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+    let deleted = conn.execute(
+        "DELETE FROM chunk_embeddings WHERE pipeline_id = ?1",
+        [pipeline_id],
+    )?;
+    Ok(deleted)
 }
 
 #[cfg(test)]
