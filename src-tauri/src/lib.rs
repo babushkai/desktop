@@ -118,6 +118,17 @@ pub fn run() {
             lsp::lsp_notify,
             lsp::lsp_cancel_request,
             lsp::get_lsp_status,
+            // RAG
+            commands::generate_embedding,
+            commands::index_pipeline_nodes,
+            commands::index_node_chunks,
+            commands::delete_orphan_chunks,
+            commands::check_chunk_needs_reindex,
+            commands::search_similar_nodes,
+            commands::search_similar_with_embedding,
+            commands::get_rag_status,
+            commands::delete_node_embedding,
+            commands::delete_pipeline_embeddings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

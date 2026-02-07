@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::sync::Mutex;
 
-const DB_VERSION: i32 = 7; // v1 = settings+pipelines, v2 = +runs+metrics, v3 = +models+model_versions, v4 = +feature_names, v5 = +tuning_sessions+tuning_trials, v6 = +experiments+run_annotations, v7 = +model_metadata+model_tags+export_paths
+const DB_VERSION: i32 = 9; // v1 = settings+pipelines, v2 = +runs+metrics, v3 = +models+model_versions, v4 = +feature_names, v5 = +tuning_sessions+tuning_trials, v6 = +experiments+run_annotations, v7 = +model_metadata+model_tags+export_paths, v8 = +node_embeddings, v9 = +chunk_embeddings
 
 #[derive(Serialize, Deserialize)]
 pub struct PipelineMetadata {
@@ -381,6 +381,93 @@ pub fn init_db(app_data_dir: &Path) -> Result<()> {
         // Indexes for model queries
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_model_tags_tag ON model_tags(tag)",
+            [],
+        )?;
+    }
+
+    // v8 tables (node_embeddings for RAG)
+    if version < 8 {
+        // Node embeddings table for RAG-enhanced code completions
+        // Stores pre-normalized embeddings as BLOBs for fast similarity search
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS node_embeddings (
+                node_id TEXT PRIMARY KEY,
+                pipeline_id TEXT NOT NULL,
+                content_hash TEXT NOT NULL,
+                embedding BLOB NOT NULL,
+                embedding_model TEXT NOT NULL,
+                embedding_dim INTEGER NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )",
+            [],
+        )?;
+
+        // Index for fast lookup by pipeline
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_embeddings_pipeline ON node_embeddings(pipeline_id)",
+            [],
+        )?;
+    }
+
+    // v9 migration: chunk_embeddings for fine-grained RAG (AST-based chunking)
+    if version < 9 {
+        // Create new chunk_embeddings table with per-chunk granularity
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS chunk_embeddings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                node_id TEXT NOT NULL,
+                pipeline_id TEXT NOT NULL,
+                chunk_id TEXT NOT NULL,
+                content_hash TEXT NOT NULL,
+                embedding BLOB NOT NULL,
+                embedding_model TEXT NOT NULL,
+                embedding_dim INTEGER NOT NULL,
+                symbol_name TEXT,
+                symbol_type TEXT,
+                start_line INTEGER,
+                end_line INTEGER,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(node_id, chunk_id)
+            )",
+            [],
+        )?;
+
+        // Migrate existing node_embeddings as toplevel chunks (preserve existing embeddings)
+        // Check if old table exists and has data before migrating
+        let has_old_data: bool = conn
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM node_embeddings LIMIT 1)",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(false);
+
+        if has_old_data {
+            conn.execute(
+                "INSERT INTO chunk_embeddings (
+                    node_id, pipeline_id, chunk_id, content_hash, embedding,
+                    embedding_model, embedding_dim, symbol_name, symbol_type,
+                    start_line, end_line, created_at
+                )
+                SELECT
+                    node_id, pipeline_id, 'toplevel:0', content_hash, embedding,
+                    embedding_model, embedding_dim, NULL, 'toplevel',
+                    0, NULL, created_at
+                FROM node_embeddings",
+                [],
+            )?;
+        }
+
+        // Drop old table
+        conn.execute("DROP TABLE IF EXISTS node_embeddings", [])?;
+
+        // Create indexes for chunk_embeddings
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_chunk_pipeline ON chunk_embeddings(pipeline_id)",
+            [],
+        )?;
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_chunk_node ON chunk_embeddings(node_id)",
             [],
         )?;
     }
@@ -1701,6 +1788,374 @@ pub fn get_model_versions_for_comparison(version_ids: &[String]) -> Result<Model
 // Get versions that can be compared (same model_id for grouping)
 pub fn get_comparable_versions(model_id: &str) -> Result<Vec<ModelVersion>> {
     list_model_versions(model_id)
+}
+
+// RAG (Retrieval-Augmented Generation) operations
+
+/// Chunk embedding for RAG-enhanced code completions (v9+)
+/// Each chunk represents a function, class, method, or toplevel code block
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ChunkEmbedding {
+    pub id: i64,
+    pub node_id: String,
+    pub pipeline_id: String,
+    pub chunk_id: String, // e.g., "func:train_model" or "toplevel:0"
+    pub content_hash: String,
+    pub embedding: Vec<f32>,
+    pub embedding_model: String,
+    pub embedding_dim: usize,
+    pub symbol_name: Option<String>,
+    pub symbol_type: Option<String>, // function, class, method, toplevel
+    pub start_line: Option<i64>,
+    pub end_line: Option<i64>,
+    pub created_at: String,
+}
+
+/// Input for saving a chunk embedding
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ChunkToIndex {
+    pub chunk_id: String,
+    pub content: String,
+    pub content_hash: String,
+    pub symbol_name: Option<String>,
+    pub symbol_type: String,
+    pub start_line: i64,
+    pub end_line: i64,
+}
+
+/// Status of the RAG index for a pipeline
+#[derive(Serialize, Deserialize, Clone)]
+pub struct RagStatus {
+    pub pipeline_id: Option<String>,
+    pub nodes_indexed: usize,
+    pub embedding_model: Option<String>,
+    pub last_indexed_at: Option<String>,
+}
+
+/// Result of a similarity search
+#[derive(Serialize, Deserialize, Clone)]
+pub struct SearchResult {
+    pub node_id: String,
+    pub score: f32,
+}
+
+/// Convert embedding vector to BLOB bytes (little-endian f32)
+fn embedding_to_blob(embedding: &[f32]) -> Vec<u8> {
+    embedding.iter().flat_map(|&f| f.to_le_bytes()).collect()
+}
+
+/// Convert BLOB bytes back to embedding vector
+fn blob_to_embedding(blob: &[u8]) -> Vec<f32> {
+    blob.chunks(4)
+        .map(|chunk| {
+            let arr: [u8; 4] = chunk.try_into().unwrap_or([0; 4]);
+            f32::from_le_bytes(arr)
+        })
+        .collect()
+}
+
+/// Compute dot product of two pre-normalized vectors (cosine similarity)
+fn dot_product(a: &[f32], b: &[f32]) -> f32 {
+    a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
+}
+
+/// Check if a chunk needs re-embedding (content hash changed)
+pub fn rag_chunk_needs_reindex(node_id: &str, chunk_id: &str, current_hash: &str) -> Result<bool> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+
+    let result: Option<String> = conn
+        .query_row(
+            "SELECT content_hash FROM chunk_embeddings WHERE node_id = ?1 AND chunk_id = ?2",
+            [node_id, chunk_id],
+            |row| row.get(0),
+        )
+        .ok();
+
+    match result {
+        Some(stored_hash) => Ok(stored_hash != current_hash),
+        None => Ok(true),
+    }
+}
+
+/// Check if embedding model has changed (requires full re-index)
+pub fn rag_model_mismatch(pipeline_id: &str, model: &str) -> Result<bool> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+
+    let result: Option<String> = conn
+        .query_row(
+            "SELECT embedding_model FROM chunk_embeddings WHERE pipeline_id = ?1 LIMIT 1",
+            [pipeline_id],
+            |row| row.get(0),
+        )
+        .ok();
+
+    match result {
+        Some(stored_model) => Ok(stored_model != model),
+        None => Ok(false),
+    }
+}
+
+/// Save a chunk embedding to the database
+pub fn rag_save_chunk_embedding(
+    node_id: &str,
+    pipeline_id: &str,
+    chunk_id: &str,
+    content_hash: &str,
+    embedding: &[f32],
+    embedding_model: &str,
+    symbol_name: Option<&str>,
+    symbol_type: &str,
+    start_line: i64,
+    end_line: i64,
+) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+
+    let blob = embedding_to_blob(embedding);
+
+    conn.execute(
+        "INSERT OR REPLACE INTO chunk_embeddings
+         (node_id, pipeline_id, chunk_id, content_hash, embedding, embedding_model, embedding_dim,
+          symbol_name, symbol_type, start_line, end_line, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, datetime('now'))",
+        rusqlite::params![
+            node_id,
+            pipeline_id,
+            chunk_id,
+            content_hash,
+            blob,
+            embedding_model,
+            embedding.len() as i64,
+            symbol_name,
+            symbol_type,
+            start_line,
+            end_line
+        ],
+    )?;
+
+    Ok(())
+}
+
+/// Load all chunk embeddings for a pipeline
+pub fn rag_load_chunk_embeddings(pipeline_id: &str) -> Result<Vec<ChunkEmbedding>> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+
+    let mut stmt = conn.prepare(
+        "SELECT id, node_id, pipeline_id, chunk_id, content_hash, embedding, embedding_model, embedding_dim,
+                symbol_name, symbol_type, start_line, end_line, created_at
+         FROM chunk_embeddings WHERE pipeline_id = ?1"
+    )?;
+
+    let rows = stmt.query_map([pipeline_id], |row| {
+        let blob: Vec<u8> = row.get(5)?;
+        Ok(ChunkEmbedding {
+            id: row.get(0)?,
+            node_id: row.get(1)?,
+            pipeline_id: row.get(2)?,
+            chunk_id: row.get(3)?,
+            content_hash: row.get(4)?,
+            embedding: blob_to_embedding(&blob),
+            embedding_model: row.get(6)?,
+            embedding_dim: row.get::<_, i64>(7)? as usize,
+            symbol_name: row.get(8)?,
+            symbol_type: row.get(9)?,
+            start_line: row.get(10)?,
+            end_line: row.get(11)?,
+            created_at: row.get(12)?,
+        })
+    })?;
+
+    rows.collect()
+}
+
+/// Search result for chunk-level search
+#[derive(Serialize, Deserialize, Clone)]
+pub struct ChunkSearchResult {
+    pub node_id: String,
+    pub chunk_id: String,
+    pub symbol_name: Option<String>,
+    pub symbol_type: Option<String>,
+    pub score: f32,
+}
+
+/// Search for similar chunks using dot product (cosine similarity on pre-normalized vectors)
+pub fn rag_search_similar_chunks(
+    pipeline_id: &str,
+    query_embedding: &[f32],
+    exclude_node_id: Option<&str>,
+    top_k: usize,
+) -> Result<Vec<ChunkSearchResult>> {
+    let embeddings = rag_load_chunk_embeddings(pipeline_id)?;
+
+    let mut scores: Vec<ChunkSearchResult> = embeddings
+        .iter()
+        .filter(|e| exclude_node_id.map_or(true, |ex| e.node_id != ex))
+        .map(|e| ChunkSearchResult {
+            node_id: e.node_id.clone(),
+            chunk_id: e.chunk_id.clone(),
+            symbol_name: e.symbol_name.clone(),
+            symbol_type: e.symbol_type.clone(),
+            score: dot_product(query_embedding, &e.embedding),
+        })
+        .collect();
+
+    scores.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+
+    Ok(scores.into_iter().take(top_k).collect())
+}
+
+/// Legacy search function that returns node-level results (for backwards compatibility)
+pub fn rag_search_similar(
+    pipeline_id: &str,
+    query_embedding: &[f32],
+    exclude_node_id: Option<&str>,
+    top_k: usize,
+) -> Result<Vec<SearchResult>> {
+    let chunk_results = rag_search_similar_chunks(pipeline_id, query_embedding, exclude_node_id, top_k * 2)?;
+
+    // Deduplicate by node_id, keeping best score
+    let mut node_scores: std::collections::HashMap<String, f32> = std::collections::HashMap::new();
+    for result in chunk_results {
+        let entry = node_scores.entry(result.node_id.clone()).or_insert(0.0);
+        if result.score > *entry {
+            *entry = result.score;
+        }
+    }
+
+    let mut scores: Vec<SearchResult> = node_scores
+        .into_iter()
+        .map(|(node_id, score)| SearchResult { node_id, score })
+        .collect();
+
+    scores.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+
+    Ok(scores.into_iter().take(top_k).collect())
+}
+
+/// Delete all chunk embeddings for a specific node
+pub fn rag_delete_node_chunks(node_id: &str) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+
+    conn.execute("DELETE FROM chunk_embeddings WHERE node_id = ?1", [node_id])?;
+    Ok(())
+}
+
+/// Delete orphan chunks for a node (chunks not in the keep list)
+pub fn rag_delete_orphan_chunks(node_id: &str, keep_chunk_ids: &[String]) -> Result<usize> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+
+    if keep_chunk_ids.is_empty() {
+        // Delete all chunks for this node
+        let deleted = conn.execute(
+            "DELETE FROM chunk_embeddings WHERE node_id = ?1",
+            [node_id],
+        )?;
+        return Ok(deleted);
+    }
+
+    // Build IN clause with parameter placeholders
+    let placeholders: String = keep_chunk_ids
+        .iter()
+        .enumerate()
+        .map(|(i, _)| format!("?{}", i + 2))
+        .collect::<Vec<_>>()
+        .join(",");
+
+    let query = format!(
+        "DELETE FROM chunk_embeddings WHERE node_id = ?1 AND chunk_id NOT IN ({})",
+        placeholders
+    );
+
+    let mut params: Vec<&dyn rusqlite::ToSql> = vec![&node_id as &dyn rusqlite::ToSql];
+    for id in keep_chunk_ids {
+        params.push(id as &dyn rusqlite::ToSql);
+    }
+
+    let deleted = conn.execute(&query, rusqlite::params_from_iter(params.iter()))?;
+    Ok(deleted)
+}
+
+/// Delete all chunk embeddings for a pipeline
+pub fn rag_delete_pipeline_embeddings(pipeline_id: &str) -> Result<()> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+
+    conn.execute("DELETE FROM chunk_embeddings WHERE pipeline_id = ?1", [pipeline_id])?;
+    Ok(())
+}
+
+/// Get RAG status for a pipeline (counts unique nodes, not chunks)
+pub fn rag_get_status(pipeline_id: &str) -> Result<RagStatus> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+
+    // Count unique nodes (not chunks) for backwards compatibility
+    let count: i64 = conn
+        .query_row(
+            "SELECT COUNT(DISTINCT node_id) FROM chunk_embeddings WHERE pipeline_id = ?1",
+            [pipeline_id],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    let model: Option<String> = conn
+        .query_row(
+            "SELECT embedding_model FROM chunk_embeddings WHERE pipeline_id = ?1 LIMIT 1",
+            [pipeline_id],
+            |row| row.get(0),
+        )
+        .ok();
+
+    let last_indexed: Option<String> = conn
+        .query_row(
+            "SELECT MAX(created_at) FROM chunk_embeddings WHERE pipeline_id = ?1",
+            [pipeline_id],
+            |row| row.get(0),
+        )
+        .ok()
+        .flatten();
+
+    Ok(RagStatus {
+        pipeline_id: Some(pipeline_id.to_string()),
+        nodes_indexed: count as usize,
+        embedding_model: model,
+        last_indexed_at: last_indexed,
+    })
+}
+
+/// Get list of node IDs that have embeddings for a pipeline
+pub fn rag_get_indexed_node_ids(pipeline_id: &str) -> Result<Vec<String>> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+
+    let mut stmt = conn.prepare("SELECT DISTINCT node_id FROM chunk_embeddings WHERE pipeline_id = ?1")?;
+    let rows = stmt.query_map([pipeline_id], |row| row.get(0))?;
+    rows.collect()
+}
+
+/// Get list of chunk IDs for a specific node
+pub fn rag_get_node_chunk_ids(node_id: &str) -> Result<Vec<String>> {
+    let conn = DB.get().ok_or(rusqlite::Error::InvalidQuery)?.lock().map_err(|_| {
+        rusqlite::Error::InvalidQuery
+    })?;
+
+    let mut stmt = conn.prepare("SELECT chunk_id FROM chunk_embeddings WHERE node_id = ?1")?;
+    let rows = stmt.query_map([node_id], |row| row.get(0))?;
+    rows.collect()
 }
 
 #[cfg(test)]
