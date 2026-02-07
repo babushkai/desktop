@@ -834,3 +834,128 @@ export async function listenToHttpServerLog(
     callback(event.payload);
   });
 }
+
+// LSP (Language Server Protocol) Integration
+
+export interface PyrightInfo {
+  installed: boolean;
+  version: string | null;
+  python_path: string;
+}
+
+export interface LspStatus {
+  running: boolean;
+  initialized: boolean;
+  pyright_version: string | null;
+  restart_count: number;
+}
+
+export interface LspDiagnostic {
+  range: {
+    start: { line: number; character: number };
+    end: { line: number; character: number };
+  };
+  message: string;
+  severity?: number; // 1 = Error, 2 = Warning, 3 = Info, 4 = Hint
+  source?: string;
+  code?: string | number;
+}
+
+export interface LspPublishDiagnosticsParams {
+  uri: string;
+  diagnostics: LspDiagnostic[];
+}
+
+export interface LspHoverResult {
+  contents: Array<string | { language: string; value: string }>;
+  range?: {
+    start: { line: number; character: number };
+    end: { line: number; character: number };
+  };
+}
+
+export interface LspCompletionItem {
+  label: string;
+  kind?: number;
+  detail?: string;
+  documentation?: string | { kind: string; value: string };
+  insertText?: string;
+  insertTextFormat?: number;
+}
+
+export interface LspCompletionList {
+  isIncomplete: boolean;
+  items: LspCompletionItem[];
+}
+
+export interface LspLocation {
+  uri: string;
+  range: {
+    start: { line: number; character: number };
+    end: { line: number; character: number };
+  };
+}
+
+// LSP Document Symbol types (for AST-based chunking)
+export interface LspDocumentSymbol {
+  name: string;
+  detail?: string;
+  kind: number; // SymbolKind: 5=Class, 6=Method, 12=Function, 13=Variable
+  range: {
+    start: { line: number; character: number };
+    end: { line: number; character: number };
+  };
+  selectionRange: {
+    start: { line: number; character: number };
+    end: { line: number; character: number };
+  };
+  children?: LspDocumentSymbol[];
+}
+
+export async function checkPyright(): Promise<PyrightInfo> {
+  return invoke<PyrightInfo>("check_pyright");
+}
+
+export async function startLspServer(workspaceRoot?: string): Promise<void> {
+  return invoke("start_lsp_server", { workspaceRoot });
+}
+
+export async function stopLspServer(): Promise<void> {
+  return invoke("stop_lsp_server");
+}
+
+export async function lspRequest<T = unknown>(method: string, params: unknown): Promise<T> {
+  return invoke<T>("lsp_request", { method, params });
+}
+
+export async function lspNotify(method: string, params: unknown): Promise<void> {
+  return invoke("lsp_notify", { method, params });
+}
+
+export async function lspCancelRequest(requestId: number): Promise<void> {
+  return invoke("lsp_cancel_request", { requestId });
+}
+
+export async function getLspStatus(): Promise<LspStatus> {
+  return invoke<LspStatus>("get_lsp_status");
+}
+
+export async function listenToLspDiagnostics(
+  callback: (params: LspPublishDiagnosticsParams) => void
+): Promise<UnlistenFn> {
+  return listen<LspPublishDiagnosticsParams>("lsp-diagnostics", (event) => {
+    callback(event.payload);
+  });
+}
+
+export async function listenToLspRestarted(callback: () => void): Promise<UnlistenFn> {
+  return listen("lsp-restarted", () => {
+    callback();
+  });
+}
+
+export async function listenToLspFailed(callback: (message: string) => void): Promise<UnlistenFn> {
+  return listen<string>("lsp-failed", (event) => {
+    callback(event.payload);
+  });
+}

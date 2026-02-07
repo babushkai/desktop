@@ -592,6 +592,7 @@ export const usePipelineStore = create<PipelineState>((set, get) => ({
     const data = JSON.stringify({ nodes, edges, name });
     await savePipelineApi(id, name, data);
     set({ currentPipelineId: id, currentPipelineName: name, isDirty: false });
+
     return id;
   },
 

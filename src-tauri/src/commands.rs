@@ -200,6 +200,7 @@ pub fn check_python_package(app: AppHandle, package: String) -> bool {
             "slowapi",
             "onnxruntime",
             "skl2onnx",
+            "pyright",
         ];
         if bundled_packages.contains(&package.as_str()) {
             return true;
@@ -1704,4 +1705,52 @@ pub fn delete_model_version_safe(version_id: String) -> Result<(), String> {
     }
 
     db::delete_model_version(&version_id).map_err(|e| e.to_string())
+}
+
+// Ollama LLM commands
+
+#[tauri::command]
+pub async fn check_ollama(host: Option<String>) -> bool {
+    let h = host.as_deref().unwrap_or("http://localhost:11434");
+    crate::ollama::check_status(h).await
+}
+
+#[tauri::command]
+pub async fn list_ollama_models(host: Option<String>) -> Result<Vec<String>, String> {
+    let h = host.as_deref().unwrap_or("http://localhost:11434");
+    crate::ollama::list_models(h).await
+}
+
+#[tauri::command]
+pub async fn generate_completion(
+    request_id: String,
+    host: Option<String>,
+    model: String,
+    context: String,
+    cursor_line: String,
+    columns: Vec<String>,
+) -> Result<String, String> {
+    // Register request for cancellation tracking
+    crate::ollama::register_request(&request_id);
+
+    let h = host.as_deref().unwrap_or("http://localhost:11434");
+    let result = crate::ollama::generate_completion(
+        h,
+        &model,
+        &context,
+        &cursor_line,
+        &columns,
+        &request_id,
+    )
+    .await;
+
+    // Unregister request
+    crate::ollama::unregister_request(&request_id);
+
+    result
+}
+
+#[tauri::command]
+pub fn cancel_completion(request_id: String) {
+    crate::ollama::cancel_request(&request_id);
 }
