@@ -13,6 +13,7 @@ import {
   LspHoverResult,
   LspCompletionList,
   LspLocation,
+  LspDocumentSymbol,
 } from "@/lib/tauri";
 
 // Virtual document URI scheme
@@ -64,6 +65,7 @@ interface LspState {
     line: number,
     character: number
   ) => Promise<LspLocation[] | null>;
+  documentSymbol: (uri: string) => Promise<LspDocumentSymbol[]>;
 }
 
 // Initialize diagnostics listener
@@ -309,6 +311,24 @@ export const useLspStore = create<LspState>((set, get) => ({
     } catch (e) {
       console.error("[LSP] Definition request failed:", e);
       return null;
+    }
+  },
+
+  documentSymbol: async (uri: string): Promise<LspDocumentSymbol[]> => {
+    const { isConnected } = get();
+    if (!isConnected) return [];
+
+    try {
+      const result = await lspRequest<LspDocumentSymbol[] | null>(
+        "textDocument/documentSymbol",
+        {
+          textDocument: { uri },
+        }
+      );
+      return result || [];
+    } catch (e) {
+      console.error("[LSP] DocumentSymbol request failed:", e);
+      return [];
     }
   },
 }));

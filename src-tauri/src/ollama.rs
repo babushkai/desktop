@@ -46,6 +46,17 @@ struct OllamaGenerateResponse {
     done: bool,
 }
 
+#[derive(Debug, Serialize)]
+struct OllamaEmbedRequest {
+    model: String,
+    input: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct OllamaEmbedResponse {
+    embeddings: Vec<Vec<f32>>,
+}
+
 /// Check if Ollama is running and accessible
 pub async fn check_status(host: &str) -> bool {
     let client = match reqwest::Client::builder()
@@ -60,6 +71,67 @@ pub async fn check_status(host: &str) -> bool {
         Ok(resp) => resp.status().is_success(),
         Err(_) => false,
     }
+}
+
+/// Normalize a vector in place (for cosine similarity via dot product)
+fn normalize_vector(v: &mut [f32]) {
+    let norm: f32 = v.iter().map(|x| x * x).sum::<f32>().sqrt();
+    if norm > 0.0 {
+        v.iter_mut().for_each(|x| *x /= norm);
+    }
+}
+
+/// Generate an embedding using Ollama's /api/embed endpoint
+/// Returns pre-normalized vector for fast similarity search
+pub async fn generate_embedding(
+    host: &str,
+    model: &str,
+    text: &str,
+) -> Result<Vec<f32>, String> {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .map_err(|e| format!("Failed to create client: {}", e))?;
+
+    let request = OllamaEmbedRequest {
+        model: model.to_string(),
+        input: text.to_string(),
+    };
+
+    let url = format!("{}/api/embed", host);
+    let resp = client
+        .post(&url)
+        .json(&request)
+        .send()
+        .await
+        .map_err(|e| {
+            if e.is_timeout() {
+                "Embedding request timed out".to_string()
+            } else {
+                format!("Failed to connect to Ollama: {}", e)
+            }
+        })?;
+
+    if !resp.status().is_success() {
+        let status = resp.status();
+        let body = resp.text().await.unwrap_or_default();
+        return Err(format!("Ollama returned error {}: {}", status, body));
+    }
+
+    let response: OllamaEmbedResponse = resp
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse embed response: {}", e))?;
+
+    if response.embeddings.is_empty() {
+        return Err("No embeddings returned".to_string());
+    }
+
+    // Take the first embedding and normalize it
+    let mut embedding = response.embeddings.into_iter().next().unwrap();
+    normalize_vector(&mut embedding);
+
+    Ok(embedding)
 }
 
 /// List available models from Ollama
@@ -101,20 +173,29 @@ fn build_prompt(model: &str, context: &str, cursor_line: &str, columns: &[String
 
     let prefix = format!("{}{}{}", columns_comment, context, cursor_line);
 
-    // Use Fill-in-Middle (FIM) format for code models
-    if model_lower.contains("deepseek") {
-        // DeepSeek Coder FIM format
-        format!("<｜fim▁begin｜>{}<｜fim▁hole｜><｜fim▁end｜>", prefix)
-    } else if model_lower.contains("qwen") && model_lower.contains("coder") {
-        // Qwen Coder FIM format
+    // Use Fill-in-Middle (FIM) format for code models that support it
+    // Note: Some model versions may not support FIM, so we use instruction format as fallback
+    if model_lower.contains("qwen") && model_lower.contains("coder") {
+        // Qwen Coder FIM format (most reliable)
         format!("<|fim_prefix|>{}<|fim_suffix|><|fim_middle|>", prefix)
-    } else if model_lower.contains("starcoder") || model_lower.contains("codellama") {
-        // StarCoder/CodeLlama FIM format
+    } else if model_lower.contains("starcoder") {
+        // StarCoder FIM format
         format!("<fim_prefix>{}<fim_suffix><fim_middle>", prefix)
+    } else if model_lower.contains("codellama") {
+        // CodeLlama FIM format
+        format!("<PRE> {} <SUF> <MID>", prefix)
     } else {
-        // Generic instruction format for chat models
+        // For deepseek-coder and other models, use instruction format
+        // This is more reliable than FIM which may not work on all model versions
         format!(
-            "Complete this Python code. Reply with ONLY the completion, no explanation.\n\n{}\n\nCompletion:",
+            "You are a code completion assistant. Complete the following Python code.\n\
+             Rules:\n\
+             - Output ONLY the code that comes next\n\
+             - Do NOT include any explanation or comments\n\
+             - Do NOT repeat the existing code\n\
+             - Output raw code only, no markdown\n\n\
+             Code:\n{}\n\n\
+             Completion:",
             prefix
         )
     }
@@ -164,6 +245,15 @@ fn clean_response(raw: &str, model: &str) -> String {
     result = result.replace("```python", "");
     result = result.replace("```", "");
 
+    // Check if response contains mostly non-ASCII (Chinese/other languages)
+    // If so, return empty string - the model gave an explanation instead of code
+    let ascii_chars = result.chars().filter(|c| c.is_ascii()).count();
+    let total_chars = result.chars().count();
+    if total_chars > 10 && (ascii_chars as f32 / total_chars as f32) < 0.5 {
+        tracing::warn!("Response appears to be non-code (non-ASCII): {:?}", result.chars().take(50).collect::<String>());
+        return String::new();
+    }
+
     // Remove explanatory lines (only at the start)
     let lines: Vec<&str> = result.lines().collect();
     let mut start_idx = 0;
@@ -177,6 +267,8 @@ fn clean_response(raw: &str, model: &str) -> String {
             || trimmed.starts_with("Note:")
             || trimmed.starts_with("Explanation:")
             || trimmed.starts_with("Code completion:")
+            || trimmed.starts_with("Completion:")
+            || trimmed.starts_with("Output:")
         {
             start_idx = i + 1;
         } else {

@@ -1754,3 +1754,219 @@ pub async fn generate_completion(
 pub fn cancel_completion(request_id: String) {
     crate::ollama::cancel_request(&request_id);
 }
+
+// RAG (Retrieval-Augmented Generation) commands
+
+/// Input for indexing a single node
+#[derive(Deserialize)]
+pub struct NodeToIndex {
+    pub node_id: String,
+    pub code: String,
+}
+
+/// Generate embedding for text using Ollama
+#[tauri::command]
+pub async fn generate_embedding(
+    host: Option<String>,
+    model: String,
+    text: String,
+) -> Result<Vec<f32>, String> {
+    let h = host.as_deref().unwrap_or("http://localhost:11434");
+    crate::ollama::generate_embedding(h, &model, &text).await
+}
+
+/// Input for indexing a chunk
+#[derive(Deserialize)]
+pub struct ChunkToIndex {
+    pub chunk_id: String,
+    pub content: String,
+    pub content_hash: String,
+    pub symbol_name: Option<String>,
+    pub symbol_type: String,
+    pub start_line: i64,
+    pub end_line: i64,
+}
+
+/// Index chunks for a node (v9+ chunk-level indexing)
+#[tauri::command]
+pub async fn index_node_chunks(
+    host: Option<String>,
+    model: String,
+    pipeline_id: String,
+    node_id: String,
+    chunks: Vec<ChunkToIndex>,
+) -> Result<usize, String> {
+    let h = host.as_deref().unwrap_or("http://localhost:11434");
+    let mut indexed_count = 0;
+
+    // Check for model mismatch - if so, clear existing embeddings for this pipeline
+    if db::rag_model_mismatch(&pipeline_id, &model).map_err(|e| e.to_string())? {
+        db::rag_delete_pipeline_embeddings(&pipeline_id).map_err(|e| e.to_string())?;
+    }
+
+    for chunk in &chunks {
+        // Check if this chunk needs re-indexing (content hash changed)
+        let needs_index = db::rag_chunk_needs_reindex(&node_id, &chunk.chunk_id, &chunk.content_hash)
+            .map_err(|e| e.to_string())?;
+
+        if needs_index {
+            // Generate embedding
+            let embedding = crate::ollama::generate_embedding(h, &model, &chunk.content).await?;
+
+            // Save to database
+            db::rag_save_chunk_embedding(
+                &node_id,
+                &pipeline_id,
+                &chunk.chunk_id,
+                &chunk.content_hash,
+                &embedding,
+                &model,
+                chunk.symbol_name.as_deref(),
+                &chunk.symbol_type,
+                chunk.start_line,
+                chunk.end_line,
+            )
+            .map_err(|e| e.to_string())?;
+
+            indexed_count += 1;
+        }
+    }
+
+    Ok(indexed_count)
+}
+
+/// Delete orphan chunks for a node (chunks that no longer exist in source)
+#[tauri::command]
+pub fn delete_orphan_chunks(
+    node_id: String,
+    keep_chunk_ids: Vec<String>,
+) -> Result<usize, String> {
+    db::rag_delete_orphan_chunks(&node_id, &keep_chunk_ids).map_err(|e| e.to_string())
+}
+
+/// Check if a chunk needs re-indexing
+#[tauri::command]
+pub fn check_chunk_needs_reindex(
+    node_id: String,
+    chunk_id: String,
+    content_hash: String,
+) -> Result<bool, String> {
+    db::rag_chunk_needs_reindex(&node_id, &chunk_id, &content_hash).map_err(|e| e.to_string())
+}
+
+/// Index multiple nodes for a pipeline (legacy compatibility - indexes as toplevel chunks)
+#[tauri::command]
+pub async fn index_pipeline_nodes(
+    host: Option<String>,
+    model: String,
+    pipeline_id: String,
+    nodes: Vec<NodeToIndex>,
+) -> Result<usize, String> {
+    use sha2::{Digest, Sha256};
+
+    let h = host.as_deref().unwrap_or("http://localhost:11434");
+    let mut indexed_count = 0;
+
+    // Check for model mismatch - if so, clear existing embeddings
+    if db::rag_model_mismatch(&pipeline_id, &model).map_err(|e| e.to_string())? {
+        db::rag_delete_pipeline_embeddings(&pipeline_id).map_err(|e| e.to_string())?;
+    }
+
+    for node in nodes {
+        // Compute content hash
+        let mut hasher = Sha256::new();
+        hasher.update(node.code.as_bytes());
+        let content_hash = format!("{:x}", hasher.finalize());
+
+        // Check if needs re-indexing (use toplevel:0 as the chunk_id for legacy)
+        let needs_index = db::rag_chunk_needs_reindex(&node.node_id, "toplevel:0", &content_hash)
+            .map_err(|e| e.to_string())?;
+
+        if needs_index {
+            // Generate embedding
+            let embedding = crate::ollama::generate_embedding(h, &model, &node.code).await?;
+
+            // Count lines for end_line
+            let line_count = node.code.lines().count() as i64;
+
+            // Save to database as toplevel chunk
+            db::rag_save_chunk_embedding(
+                &node.node_id,
+                &pipeline_id,
+                "toplevel:0",
+                &content_hash,
+                &embedding,
+                &model,
+                None,
+                "toplevel",
+                0,
+                line_count.saturating_sub(1),
+            )
+            .map_err(|e| e.to_string())?;
+
+            indexed_count += 1;
+        }
+    }
+
+    Ok(indexed_count)
+}
+
+/// Search for similar nodes in a pipeline
+#[tauri::command]
+pub async fn search_similar_nodes(
+    host: Option<String>,
+    model: String,
+    pipeline_id: String,
+    query_text: String,
+    exclude_node_id: Option<String>,
+    top_k: usize,
+) -> Result<Vec<db::SearchResult>, String> {
+    let h = host.as_deref().unwrap_or("http://localhost:11434");
+
+    // Generate query embedding
+    let query_embedding = crate::ollama::generate_embedding(h, &model, &query_text).await?;
+
+    // Search in database
+    db::rag_search_similar(
+        &pipeline_id,
+        &query_embedding,
+        exclude_node_id.as_deref(),
+        top_k,
+    )
+    .map_err(|e| e.to_string())
+}
+
+/// Search for similar nodes using a pre-computed embedding (for frontend caching)
+#[tauri::command]
+pub fn search_similar_with_embedding(
+    pipeline_id: String,
+    query_embedding: Vec<f32>,
+    exclude_node_id: Option<String>,
+    top_k: usize,
+) -> Result<Vec<db::SearchResult>, String> {
+    db::rag_search_similar(
+        &pipeline_id,
+        &query_embedding,
+        exclude_node_id.as_deref(),
+        top_k,
+    )
+    .map_err(|e| e.to_string())
+}
+
+/// Get RAG status for a pipeline
+#[tauri::command]
+pub fn get_rag_status(pipeline_id: String) -> Result<db::RagStatus, String> {
+    db::rag_get_status(&pipeline_id).map_err(|e| e.to_string())
+}
+
+/// Delete all chunks for a specific node
+#[tauri::command]
+pub fn delete_node_embedding(node_id: String) -> Result<(), String> {
+    db::rag_delete_node_chunks(&node_id).map_err(|e| e.to_string())
+}
+
+/// Delete all embeddings for a pipeline
+#[tauri::command]
+pub fn delete_pipeline_embeddings(pipeline_id: String) -> Result<(), String> {
+    db::rag_delete_pipeline_embeddings(&pipeline_id).map_err(|e| e.to_string())
+}
