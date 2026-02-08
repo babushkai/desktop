@@ -1,0 +1,196 @@
+---
+title: Evaluator Node
+description: Compute metrics, generate SHAP explanations, and visualize model performance.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+The Evaluator node automatically detects your model type and computes appropriate metrics. It also provides comprehensive model explainability with SHAP values, feature importance, and partial dependence plots.
+
+## Overview
+
+| Property | Value |
+|----------|-------|
+| **Type** | Analysis node |
+| **Inputs** | Trained model (from Trainer) |
+| **Outputs** | Metrics, visualizations, explanations |
+| **Auto-detect** | Classification vs Regression |
+
+## Metrics
+
+The Evaluator auto-detects model type and shows appropriate metrics in the **Metrics** tab.
+
+<Tabs>
+  <TabItem label="Classification">
+    | Metric | Description |
+    |--------|-------------|
+    | **Accuracy** | Percentage of correct predictions |
+    | **Precision** | True positives / (True positives + False positives) |
+    | **Recall** | True positives / (True positives + False negatives) |
+    | **F1 Score** | Harmonic mean of precision and recall |
+    | **Confusion Matrix** | Visual heatmap of predictions vs actual |
+
+    Metrics are displayed as a bar chart with values labeled.
+  </TabItem>
+  <TabItem label="Regression">
+    | Metric | Description |
+    |--------|-------------|
+    | **R²** | Coefficient of determination (variance explained) |
+    | **MSE** | Mean Squared Error |
+    | **RMSE** | Root Mean Squared Error |
+    | **MAE** | Mean Absolute Error |
+
+    Lower error metrics are better; higher R² is better.
+  </TabItem>
+</Tabs>
+
+## Model Explainability
+
+Click the **Explain** button in the Metrics tab to generate explanations. The Evaluator provides three types of explainability:
+
+### 1. Feature Importance (Permutation)
+
+Shows how much each feature contributes to model predictions by measuring accuracy drop when the feature is shuffled.
+
+**Visualization:**
+- Horizontal bar chart
+- Error bars show ±standard deviation
+- Top 10 features displayed
+- Positive values = feature helps; negative = feature hurts
+
+### 2. SHAP Values
+
+SHAP (SHapley Additive exPlanations) explains individual predictions by attributing contribution to each feature.
+
+**Smart Explainer Selection:**
+
+| Model Type | Explainer | Speed |
+|-----------|-----------|-------|
+| Random Forest, Gradient Boosting | **TreeExplainer** | Fast |
+| Linear/Logistic Regression | **LinearExplainer** | Fast |
+| SVM, KNN, MLP | **KernelExplainer** | Slow (limited to 50 samples) |
+
+<Aside type="caution">
+KernelExplainer is O(n²) complexity. For SVM, KNN, and MLP models, SHAP analysis uses only 50 samples to keep runtime reasonable.
+</Aside>
+
+**Beeswarm Chart:**
+- Each dot = one sample
+- X-axis = SHAP value (impact on prediction)
+- Y-axis = Features (sorted by importance)
+- Color = Feature value (red=high, blue=low)
+- Class selector for multiclass classification
+
+### 3. Partial Dependence Plots (PDP)
+
+Shows how changing one feature affects predictions while holding others constant.
+
+**Features:**
+- Line plot showing prediction vs feature value
+- ICE (Individual Conditional Expectation) lines for individual samples
+- Limited to 50 ICE lines for performance
+- Top 5 features selectable
+- For classification: shows probability per class
+
+## Explain Panel
+
+The Explain section shows:
+
+1. **Progress bar** — Three stages: Permutation → SHAP → PDP
+2. **Feature Importance chart** — Permutation-based importance
+3. **SHAP Beeswarm** — Impact distribution per feature
+4. **Partial Dependence** — Feature relationship plots
+5. **Summary insights** — Human-readable interpretation
+
+### Summary Insights
+
+The Evaluator generates natural language insights:
+
+> "Your model relies heavily on 'petal_length', which accounts for 45% of the prediction impact."
+
+> "Your model's predictions are primarily driven by 3 features: petal_length, petal_width, sepal_length, together accounting for 87% of the impact."
+
+Insights also flag potential issues:
+- High variance in importance scores (model instability)
+- Single feature dominance (potential data leakage)
+
+## Visualizations
+
+All charts use **ECharts** for interactive visualization:
+
+| Chart | Location | Features |
+|-------|----------|----------|
+| Metrics Bar Chart | Metrics tab | Side-by-side comparison |
+| Confusion Matrix | Metrics tab | Heatmap with counts |
+| Feature Importance | Explain section | Horizontal bars with error |
+| SHAP Beeswarm | Explain section | Interactive dots with tooltip |
+| PDP Line Chart | Explain section | ICE lines, class selector |
+
+## Connections
+
+| Direction | Node Types |
+|-----------|-----------|
+| **Input from** | Trainer, Script (if it saves MODEL_FILE) |
+| **Output to** | ModelExporter |
+
+## Data Persistence
+
+Evaluation results persist to the database:
+
+- **Metrics** — Stored in `run_metrics` table with run ID
+- **Explain data** — Stored as JSON in metrics table
+- **Historical access** — View past runs via Runs tab
+
+You can click on any past run to view its metrics and regenerate explanations.
+
+## Dependencies
+
+The Evaluator requires these Python packages:
+
+| Package | Purpose |
+|---------|---------|
+| `scikit-learn` | Metrics, permutation importance |
+| `shap` | SHAP value computation |
+| `pandas`, `numpy` | Data handling |
+
+If SHAP is not installed, the Evaluator falls back to permutation importance only.
+
+## Common Issues
+
+### "SHAP not available"
+
+Install SHAP:
+```bash
+pip install shap
+```
+
+If installation fails (compilation error):
+```bash
+xcode-select --install  # Install Xcode CLI tools first
+pip install shap
+```
+
+### SHAP is very slow
+
+For SVM, KNN, and MLP models, SHAP uses KernelExplainer which is slow. The system automatically limits to 50 samples. If still slow:
+- Use a tree-based model (Random Forest, Gradient Boosting)
+- Skip SHAP and use only permutation importance
+
+### Confusion matrix is hard to read
+
+For many classes, the matrix can be large. Focus on:
+- Diagonal values (correct predictions)
+- Off-diagonal clusters (common misclassifications)
+
+### Metrics seem wrong
+
+Check that:
+- Target column is correctly specified
+- Data doesn't have leakage (features correlated with target)
+- Train/test split is properly randomized
+
+## Related Nodes
+
+- [Trainer](/reference/nodes/trainer/) — Train the model to evaluate
+- [DataSplit](/reference/nodes/datasplit/) — Ensure proper train/test separation
+- [ModelExporter](/reference/nodes/exporter/) — Export after evaluation

@@ -1,0 +1,190 @@
+---
+title: Quickstart
+description: Build your first ML pipeline in 5 minutes.
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+In this quickstart, you'll build a complete ML pipeline that:
+
+1. Loads the Titanic dataset
+2. Splits into train/test sets
+3. Trains a Random Forest classifier
+4. Evaluates accuracy and generates explanations
+
+**Time to complete:** ~5 minutes
+
+## Prerequisites
+
+Before starting, make sure you have:
+
+- Kissaten AI [installed](/getting-started/installation/)
+- Python 3.9+ with packages: `pip install scikit-learn pandas shap`
+
+## Create a Pipeline
+
+<Steps>
+1. **Open Kissaten AI**
+
+   Launch the app. You'll see an empty canvas with a toolbar at the top and a node palette on the left.
+
+2. **Add a DataLoader node**
+
+   From the **Components** panel on the left, drag **DataLoader** onto the canvas.
+
+   Click the node to select it. In the node, click **Browse** and select a CSV file. For this tutorial, use any classification dataset (or see "Sample Dataset" below).
+
+3. **Add a DataSplit node**
+
+   Drag **Data Split** from the Components panel onto the canvas.
+
+   Connect the DataLoader's **right handle** to the DataSplit's **left handle**.
+
+   Configure DataSplit:
+   - **Test Split:** 20% (default)
+   - **Random State:** 42
+   - **Stratify:** Enable, set column to `Survived` (or your target)
+
+4. **Add a Trainer node**
+
+   Drag **Trainer** onto the canvas and connect from DataSplit.
+
+   Configure Trainer:
+   - **Mode:** Train (default)
+   - **Model Type:** Random Forest Classifier
+   - **Target Column:** `Survived`
+
+5. **Add an Evaluator node**
+
+   Drag **Evaluator** onto the canvas and connect from Trainer.
+
+   No configuration needed—it auto-detects the model type.
+
+6. **Run the pipeline**
+
+   Click the **Run** button in the toolbar.
+
+   Watch the **Logs** tab as each node executes:
+   ```
+   [DataLoader] Loaded titanic.csv: 891 rows, 12 columns
+   [DataSplit] Split: 712 train, 179 test (stratified by Survived)
+   [Trainer] Training RandomForestClassifier...
+   [Trainer] Training complete
+   [Evaluator] Accuracy: 0.821, F1: 0.756
+   ```
+
+7. **View results**
+
+   Click the **Metrics** tab to see:
+   - Bar chart with Accuracy, Precision, Recall, F1
+   - Confusion matrix heatmap
+
+   Click **Explain** to generate:
+   - Feature importance chart
+   - SHAP beeswarm plot
+   - Partial dependence plots
+</Steps>
+
+## Sample Dataset
+
+If you don't have a CSV file, create the Titanic dataset:
+
+```python
+import pandas as pd
+from sklearn.datasets import fetch_openml
+
+titanic = fetch_openml('titanic', version=1, as_frame=True)
+df = titanic.frame
+df.to_csv("titanic.csv", index=False)
+print(f"Saved titanic.csv with {len(df)} rows")
+```
+
+Or use the Iris dataset for a simpler example:
+
+```python
+from sklearn.datasets import load_iris
+import pandas as pd
+
+iris = load_iris(as_frame=True)
+df = iris.frame
+df.to_csv("iris.csv", index=False)
+print("Saved iris.csv")
+```
+
+For Iris, set **Target Column** to `target` in the Trainer.
+
+## Understanding the Results
+
+### Metrics Tab
+
+| Metric | What It Means |
+|--------|---------------|
+| **Accuracy** | Overall correctness (correct / total) |
+| **Precision** | When we predict positive, how often are we right? |
+| **Recall** | Of all actual positives, how many did we find? |
+| **F1 Score** | Balance of precision and recall |
+
+### Confusion Matrix
+
+```
+              Predicted
+            Died  Survived
+Actual Died   98      12
+     Survived 21      48
+```
+
+- **Diagonal** = correct predictions
+- **Off-diagonal** = errors
+
+### Explain Section
+
+Click **Explain** to see why your model makes predictions:
+
+- **Feature Importance** — Which features matter most
+- **SHAP Beeswarm** — How each feature pushes predictions up/down
+- **Partial Dependence** — How changing a feature affects predictions
+
+## Output Panel Tabs
+
+Explore the other tabs at the bottom:
+
+| Tab | Purpose |
+|-----|---------|
+| **Logs** | Execution output and errors |
+| **Data Profile** | Dataset statistics |
+| **Metrics** | Model performance charts |
+| **Runs** | History of all pipeline runs |
+| **Models** | Registered models with versioning |
+| **Trials** | Hyperparameter tuning results |
+| **Serving** | HTTP model server |
+
+## Save Your Pipeline
+
+Click **Save** in the toolbar:
+
+1. Enter a name (e.g., "titanic-classifier")
+2. Click **Save**
+
+Your pipeline is stored locally and appears in the **Load** dropdown.
+
+## Next Steps
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem;">
+  <a href="/tutorials/tune-hyperparameters/" style="display: block; padding: 1rem; background: var(--surface-2); border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); text-decoration: none;">
+    <strong>Tune Hyperparameters</strong>
+    <p style="color: #94a3b8; margin: 0.5rem 0 0 0; font-size: 0.875rem;">Use Optuna to find optimal model settings</p>
+  </a>
+  <a href="/tutorials/explain-predictions/" style="display: block; padding: 1rem; background: var(--surface-2); border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); text-decoration: none;">
+    <strong>Explain Predictions</strong>
+    <p style="color: #94a3b8; margin: 0.5rem 0 0 0; font-size: 0.875rem;">Understand models with SHAP and feature importance</p>
+  </a>
+</div>
+
+---
+
+**Troubleshooting:**
+
+- **"No Python found"** — See [Python Setup](/getting-started/python-setup/)
+- **"Module not found: sklearn"** — Run `pip install scikit-learn`
+- **"Target column not found"** — Check column name matches exactly (case-sensitive)
+- **Pipeline stuck** — Check the Logs tab for error messages

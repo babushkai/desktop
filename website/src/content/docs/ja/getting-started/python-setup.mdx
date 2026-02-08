@@ -1,0 +1,235 @@
+---
+title: Pythonセットアップ
+description: Kissaten AI用にPythonと必要なパッケージを設定
+---
+
+import { Tabs, TabItem, Steps, Aside } from '@astrojs/starlight/components';
+
+Kissaten AIは、システムにインストールされたPythonを使用してMLパイプラインを実行します。
+
+## Pythonの確認
+
+ターミナルで以下を実行します。
+
+```bash
+python3 --version
+```
+
+`Python 3.9`以降が表示されれば問題ありません。インストールされていない場合は、以下の手順に従ってください。
+
+## Pythonのインストール
+
+<Tabs>
+  <TabItem label="Homebrew（推奨）">
+    macOSでPythonを管理する最も簡単な方法です。
+
+    ```bash
+    # Homebrewがインストールされていない場合
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+    # Pythonをインストール
+    brew install python@3.11
+
+    # 確認
+    python3 --version
+    ```
+  </TabItem>
+  <TabItem label="公式インストーラー">
+    [python.org](https://www.python.org/downloads/)からダウンロードします。
+
+    1. Python 3.11以降のインストーラーをダウンロード
+    2. `.pkg`インストーラーを実行
+    3. インストールの指示に従う
+    4. 新しいターミナルを開いて確認：`python3 --version`
+  </TabItem>
+  <TabItem label="pyenv">
+    複数のPythonバージョンを管理する場合に適しています。
+
+    ```bash
+    # pyenvをインストール
+    brew install pyenv
+
+    # シェル設定に追加（~/.zshrc）
+    echo 'eval "$(pyenv init -)"' >> ~/.zshrc
+    source ~/.zshrc
+
+    # Pythonをインストール
+    pyenv install 3.11.0
+    pyenv global 3.11.0
+
+    # 確認
+    python3 --version
+    ```
+  </TabItem>
+</Tabs>
+
+## 必要なパッケージ
+
+Kissaten AIを使用するには、以下のPythonパッケージが必要です。
+
+| パッケージ | 用途 |
+|-----------|------|
+| `scikit-learn` | 機械学習アルゴリズム |
+| `pandas` | データの読み込みと加工 |
+| `numpy` | 数値計算 |
+| `optuna` | ハイパーパラメータ探索 |
+| `shap` | モデルの説明可能性 |
+| `matplotlib` | 可視化 |
+
+### 全パッケージをインストール
+
+```bash
+pip3 install scikit-learn pandas numpy optuna shap matplotlib
+```
+
+<Aside type="caution">
+Homebrew版Pythonを使用している場合、`--break-system-packages`フラグが必要なことがあります。
+
+```bash
+pip3 install --break-system-packages scikit-learn pandas numpy optuna shap matplotlib
+```
+</Aside>
+
+### インストールの確認
+
+```bash
+python3 -c "import sklearn, pandas, numpy, optuna, shap; print('全パッケージがインストールされました')"
+```
+
+## Kissaten AIでのPython設定
+
+<Steps>
+1. **Kissaten AIを開く**
+
+2. **検出されたPythonパスを確認**
+
+   ツールバーにPythonのパスが表示されます。クリックすると詳細を確認できます。
+
+3. **パスの変更（必要な場合）**
+
+   異なるPythonを使用する場合：
+   - ツールバーのPythonパスをクリック
+   - 正しいパスを入力（例：`/opt/homebrew/bin/python3`）
+   - Enterで保存
+
+4. **動作確認**
+
+   簡単なパイプラインを実行して、パッケージが正しく読み込まれることを確認します。
+</Steps>
+
+## Pythonパスの確認方法
+
+どのPythonを使用しているか不明な場合：
+
+```bash
+# 利用可能なPythonを表示
+which -a python3
+
+# Homebrew Python
+/opt/homebrew/bin/python3 --version
+
+# システムPython（非推奨）
+/usr/bin/python3 --version
+```
+
+一般的なパス：
+
+| インストール方法 | パス |
+|-----------------|------|
+| Homebrew（Apple Silicon） | `/opt/homebrew/bin/python3` |
+| Homebrew（Intel） | `/usr/local/bin/python3` |
+| 公式インストーラー | `/Library/Frameworks/Python.framework/Versions/3.X/bin/python3` |
+| pyenv | `~/.pyenv/shims/python3` |
+
+## 仮想環境（任意）
+
+<Aside type="tip">
+仮想環境はオプションですが、プロジェクトごとに依存関係を分離する場合に推奨されます。
+</Aside>
+
+### venvを使用
+
+```bash
+# 仮想環境を作成
+python3 -m venv ~/.mlops-env
+
+# アクティベート
+source ~/.mlops-env/bin/activate
+
+# パッケージをインストール
+pip install scikit-learn pandas numpy optuna shap matplotlib
+
+# Kissaten AI用のパスを確認
+which python
+# → /Users/yourname/.mlops-env/bin/python
+```
+
+このパスをKissaten AIで設定すると、パッケージのバージョンが固定されます。
+
+### condaを使用
+
+```bash
+# 環境を作成
+conda create -n mlops python=3.11
+
+# アクティベート
+conda activate mlops
+
+# パッケージをインストール
+conda install scikit-learn pandas numpy optuna shap matplotlib
+
+# パスを確認
+which python
+# → /opt/homebrew/anaconda3/envs/mlops/bin/python
+```
+
+## トラブルシューティング
+
+### 「sklearn が見つかりません」
+
+パッケージ名は`scikit-learn`ですが、インポート時は`sklearn`です。
+
+```bash
+pip3 install scikit-learn
+```
+
+### 「pip: command not found」
+
+`pip`の代わりに`pip3`を使用してください。
+
+```bash
+pip3 install パッケージ名
+```
+
+### パッケージをインストールしたのに見つからない
+
+複数のPythonがインストールされている可能性があります。使用しているpipを確認してください。
+
+```bash
+which pip3
+# Kissaten AIで設定したPythonと一致しているか確認
+```
+
+### SHAPのインストールに失敗する
+
+SHAPにはCコンパイラが必要です。Xcodeコマンドラインツールをインストールしてください。
+
+```bash
+xcode-select --install
+```
+
+その後、再度`pip3 install shap`を実行します。
+
+### 権限エラー
+
+最近のmacOSでは`--user`または`--break-system-packages`が必要な場合があります。
+
+```bash
+pip3 install --user scikit-learn
+# または
+pip3 install --break-system-packages scikit-learn
+```
+
+---
+
+次へ：[クイックスタート](/ja/getting-started/quickstart/)

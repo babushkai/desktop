@@ -1,0 +1,224 @@
+---
+title: Trainer Node
+description: Train ML models, load pre-trained models, or tune hyperparameters with Optuna.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+The Trainer node is the core of model training in Kissaten AI. It supports three modes: training new models, loading pre-trained models, and hyperparameter tuning with Optuna.
+
+## Overview
+
+| Property | Value |
+|----------|-------|
+| **Type** | Processing node |
+| **Inputs** | DataFrame (from DataLoader or DataSplit) |
+| **Outputs** | Trained model |
+| **Library** | scikit-learn |
+| **Modes** | Train, Load, Tune |
+
+## Operating Modes
+
+The Trainer node has **three modes**, selected via toggle buttons:
+
+<Tabs>
+  <TabItem label="Train">
+    Train a new model from scratch.
+
+    **Configuration:**
+    - **Model Type** — Select from 12 algorithms
+    - **Target Column** — Column to predict
+    - **Test Split** — Ratio for train/test split (if not using DataSplit node)
+
+    Best for initial model development and quick experiments.
+  </TabItem>
+  <TabItem label="Load">
+    Load a pre-trained model from disk.
+
+    **Configuration:**
+    - **Model File Path** — Path to `.joblib`, `.pkl`, or `.pickle` file
+
+    <Aside type="caution">
+    A security warning appears before loading pickle files, as they can execute arbitrary code.
+    </Aside>
+
+    Best for using models trained elsewhere or resuming work.
+  </TabItem>
+  <TabItem label="Tune">
+    Automatically find optimal hyperparameters with Optuna.
+
+    **Configuration:**
+    - **Model Type** — Model to tune (Linear Regression disabled—no tunable params)
+    - **Target Column** — Column to predict
+    - **Tuning Config** — Search strategy, trials, CV folds, search space
+
+    Best for maximizing model performance before production.
+  </TabItem>
+</Tabs>
+
+## Supported Models
+
+### Classification Models (6)
+
+| Model | Description | Key Hyperparameters |
+|-------|-------------|---------------------|
+| **Logistic Regression** | Linear classifier, interpretable | `C`, `max_iter` |
+| **Random Forest Classifier** | Ensemble of decision trees | `n_estimators`, `max_depth`, `min_samples_split` |
+| **Gradient Boosting Classifier** | Sequential boosting, high accuracy | `n_estimators`, `learning_rate`, `max_depth` |
+| **SVM (SVC)** | Support vector machine | `C`, `kernel`, `gamma` |
+| **KNN Classifier** | Distance-based classification | `n_neighbors`, `weights`, `metric` |
+| **MLP Classifier** | Neural network | `hidden_layer_sizes`, `alpha`, `learning_rate_init` |
+
+### Regression Models (6)
+
+| Model | Description | Key Hyperparameters |
+|-------|-------------|---------------------|
+| **Linear Regression** | Simple linear model | None (no tuning) |
+| **Random Forest Regressor** | Ensemble for regression | `n_estimators`, `max_depth`, `min_samples_split` |
+| **Gradient Boosting Regressor** | Boosted trees for regression | `n_estimators`, `learning_rate`, `max_depth` |
+| **SVM (SVR)** | Support vector regression | `C`, `kernel`, `gamma` |
+| **KNN Regressor** | Distance-based regression | `n_neighbors`, `weights`, `metric` |
+| **MLP Regressor** | Neural network for regression | `hidden_layer_sizes`, `alpha`, `learning_rate_init` |
+
+## Hyperparameter Tuning
+
+When **Tune** mode is selected, click the tuning config button to open the TuningPanel.
+
+### Search Strategies
+
+| Strategy | Description | Best For |
+|----------|-------------|----------|
+| **Bayesian (TPE)** | Tree-structured Parzen Estimator, learns from past trials | Most cases (default) |
+| **Random** | Uniform random sampling | Baseline comparison |
+| **Grid** | Exhaustive enumeration of all combinations | Small, discrete spaces |
+
+### Tuning Configuration
+
+| Setting | Range | Default | Description |
+|---------|-------|---------|-------------|
+| **Number of Trials** | 1-1000 | 50 | How many configurations to try |
+| **CV Folds** | 2-10 | 3 | Cross-validation folds |
+| **Scoring Metric** | varies | accuracy/r2 | Metric to optimize |
+
+### Search Spaces by Model
+
+Each model has predefined search ranges:
+
+**Random Forest:**
+```yaml
+n_estimators: 50-300 (step 50)
+max_depth: [null, 10, 15, 20, 30]
+min_samples_split: 2-10 (step 2)
+min_samples_leaf: 1-4 (step 1)
+```
+
+**Gradient Boosting:**
+```yaml
+n_estimators: 50-300 (step 50)
+learning_rate: 0.01-0.3 (log scale)
+max_depth: 3-8 (step 1)
+subsample: 0.7-1.0 (uniform)
+```
+
+**SVM (SVC/SVR):**
+```yaml
+C: 0.1-100 (log scale)
+kernel: [rbf, linear, poly]
+gamma: [scale, auto]
+```
+
+**KNN:**
+```yaml
+n_neighbors: 3-21 (step 2)
+weights: [uniform, distance]
+metric: [euclidean, manhattan, minkowski]
+```
+
+**MLP Neural Network:**
+```yaml
+hidden_layer_sizes: [(50,), (100,), (100,50), (100,100)]
+alpha: 0.0001-0.1 (log scale)
+learning_rate_init: 0.0001-0.1 (log scale)
+max_iter: 200-1000 (step 100)
+```
+
+### Scoring Metrics
+
+**Classification:**
+- Accuracy
+- F1 Score
+- Precision
+- Recall
+- ROC AUC
+
+**Regression:**
+- R² Score
+- Neg MSE
+- Neg MAE
+- Neg RMSE
+
+## Automatic Preprocessing
+
+The Trainer automatically handles:
+
+- **Missing Values** — Numeric columns filled with median, categorical with mode
+- **Categorical Encoding** — Label encoding for all categorical columns
+- **ID Column Filtering** — Drops columns like `id`, `index`, `name`, `ticket`, `cabin`
+- **High-Cardinality Columns** — Drops columns with >50 unique values
+
+## Connections
+
+| Direction | Node Types |
+|-----------|-----------|
+| **Input from** | DataLoader, DataSplit |
+| **Output to** | Evaluator, ModelExporter |
+
+Typical pipeline:
+```
+DataLoader → DataSplit → Trainer → Evaluator
+```
+
+## Trials Panel
+
+When tuning, results appear in the **Trials** tab:
+
+| Column | Description |
+|--------|-------------|
+| **Trial #** | Trial number |
+| **Score** | Cross-validation score |
+| **Parameters** | Hyperparameter values used |
+| **Duration** | Time taken |
+| **Status** | Complete, Pruned, or Failed |
+
+The best trial is highlighted with a star icon.
+
+## Common Issues
+
+### "Linear Regression cannot be tuned"
+
+Linear Regression has no tunable hyperparameters. Use Train mode instead, or select a different model.
+
+### "Optuna not installed"
+
+Install Optuna:
+```bash
+pip install optuna
+```
+
+### Tuning is slow
+
+- Reduce number of trials
+- Use Random search instead of Grid
+- Reduce CV folds (minimum 2)
+- Use a faster model (Logistic Regression vs MLP)
+
+### "Target column not found"
+
+Check that the column name matches exactly (case-sensitive). Use the DataLoader preview to verify column names.
+
+## Related Nodes
+
+- [DataLoader](/reference/nodes/dataloader/) — Load training data
+- [DataSplit](/reference/nodes/datasplit/) — Split into train/test sets
+- [Evaluator](/reference/nodes/evaluator/) — Evaluate trained models
+- [ModelExporter](/reference/nodes/exporter/) — Export models

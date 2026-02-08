@@ -1,0 +1,272 @@
+---
+title: Scriptノード
+description: データ処理と分析用のカスタムPythonコードを記述
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+Scriptノードでは、パイプライン内でカスタムPythonコードを記述できます。データ前処理、特徴量エンジニアリング、カスタム分析に使用します。
+
+## 概要
+
+| プロパティ | 値 |
+|-----------|-----|
+| **タイプ** | 処理ノード |
+| **入力** | DataFrameまたはModel（オプション） |
+| **出力** | DataFrameまたはModel |
+| **エディタ** | Monaco（VS Code風） |
+
+## エディタ機能
+
+ScriptノードはMonaco Editorを使用：
+
+- Pythonシンタックスハイライト
+- オートコンプリート
+- エラーハイライト
+- 行番号
+- マルチカーソル
+
+## 利用可能な変数
+
+スクリプト内で以下の変数が利用可能：
+
+| 変数 | 型 | 説明 |
+|------|-----|------|
+| `df` | DataFrame | 入力データ（DataLoaderに接続時） |
+| `model` | sklearnモデル | 入力モデル（Trainerに接続時） |
+| `np` | module | NumPy（事前インポート済み） |
+| `pd` | module | Pandas（事前インポート済み） |
+
+## 出力要件
+
+スクリプトは結果を特定の出力変数に代入する必要があります：
+
+### データを出力
+
+```python
+# 入力: df（DataLoaderから）
+# 出力: df（変更されたDataFrame）
+
+# 行をフィルタ
+df = df[df['age'] > 18]
+
+# 新しいカラムを追加
+df['age_group'] = pd.cut(df['age'], bins=[0, 30, 50, 100], labels=['young', 'mid', 'senior'])
+
+# 最終的な`df`の値が次のノードに渡される
+```
+
+### モデルを出力
+
+```python
+# 入力: model（Trainerから）
+# 出力: model（変更またはラップされたモデル）
+
+# モデルプロパティにアクセス
+print(f"Model type: {type(model).__name__}")
+print(f"Feature importances: {model.feature_importances_}")
+
+# モデルを変更せずに通過
+# model = model（暗黙的）
+```
+
+## 一般的なユースケース
+
+### データ前処理
+
+<Tabs>
+  <TabItem label="欠損値">
+    ```python
+    # 欠損値を補完
+    df['age'].fillna(df['age'].median(), inplace=True)
+    df['category'].fillna('unknown', inplace=True)
+
+    # または欠損値のある行を削除
+    df = df.dropna()
+    ```
+  </TabItem>
+  <TabItem label="特徴量エンジニアリング">
+    ```python
+    # 派生特徴量を作成
+    df['total_spend'] = df['price'] * df['quantity']
+    df['log_income'] = np.log1p(df['income'])
+    df['name_length'] = df['name'].str.len()
+
+    # 日付特徴量
+    df['date'] = pd.to_datetime(df['date'])
+    df['day_of_week'] = df['date'].dt.dayofweek
+    df['month'] = df['date'].dt.month
+    ```
+  </TabItem>
+  <TabItem label="エンコーディング">
+    ```python
+    # ワンホットエンコーディング
+    df = pd.get_dummies(df, columns=['category', 'region'])
+
+    # ラベルエンコーディング
+    from sklearn.preprocessing import LabelEncoder
+    le = LabelEncoder()
+    df['category_encoded'] = le.fit_transform(df['category'])
+    ```
+  </TabItem>
+</Tabs>
+
+### データフィルタリング
+
+```python
+# 条件でフィルタ
+df = df[df['status'] == 'active']
+
+# 日付範囲でフィルタ
+df['date'] = pd.to_datetime(df['date'])
+df = df[(df['date'] >= '2024-01-01') & (df['date'] <= '2024-12-31')]
+
+# ランダム行をサンプリング
+df = df.sample(frac=0.1, random_state=42)  # 10%サンプル
+```
+
+### データ変換
+
+```python
+# 数値カラムを正規化
+from sklearn.preprocessing import StandardScaler
+scaler = StandardScaler()
+numeric_cols = ['age', 'income', 'score']
+df[numeric_cols] = scaler.fit_transform(df[numeric_cols])
+
+# 対数変換
+df['log_revenue'] = np.log1p(df['revenue'])
+```
+
+### カスタム分析
+
+```python
+# サマリー統計を生成
+print("Dataset Summary:")
+print(f"Rows: {len(df)}")
+print(f"Columns: {list(df.columns)}")
+print("\nNumeric stats:")
+print(df.describe())
+
+print("\nMissing values:")
+print(df.isnull().sum())
+
+print("\nClass distribution:")
+print(df['target'].value_counts())
+```
+
+## エラー処理
+
+スクリプトは分離されたPythonサブプロセスで実行されます。スクリプトが失敗した場合：
+
+1. エラーメッセージが出力パネルに表示
+2. パイプラインはこのノードで停止
+3. エラーを修正して再実行
+
+<Aside type="tip">
+デバッグには`print()`文を使用。全ての出力がパネルに表示されます。
+</Aside>
+
+### よくあるエラー
+
+| エラー | 原因 | 修正 |
+|--------|------|------|
+| `NameError: name 'df' is not defined` | DataLoaderが接続されていない | まずDataLoaderを接続 |
+| `KeyError: 'column_name'` | カラムが存在しない | `df.columns`を確認 |
+| `ModuleNotFoundError` | パッケージがインストールされていない | `pip install package`でインストール |
+
+## print出力
+
+全ての`print()`出力はノードの出力パネルに表示：
+
+```python
+print("Processing data...")
+print(f"Input shape: {df.shape}")
+
+# 処理コード
+
+print(f"Output shape: {df.shape}")
+print("Done!")
+```
+
+出力：
+```
+Processing data...
+Input shape: (1000, 10)
+Output shape: (950, 12)
+Done!
+```
+
+## 制限
+
+- **GUI不可**: matplotlibプロットは表示不可（可視化にはEvaluatorを使用）
+- **入力不可**: stdinからの読み取りやユーザー入力のプロンプト不可
+- **タイムアウト**: スクリプトはデフォルトで5分後にタイムアウト
+- **メモリ**: 利用可能なシステムメモリに制限
+
+## 外部パッケージ
+
+インストール済みの任意のPythonパッケージをインポート可能：
+
+```python
+import numpy as np           # 事前インポート済み
+import pandas as pd          # 事前インポート済み
+from sklearn.preprocessing import StandardScaler
+from scipy import stats
+import re
+```
+
+<Aside type="caution">
+アプリで設定されたのと同じPython環境にパッケージがインストールされていることを確認してください。
+</Aside>
+
+## ベストプラクティス
+
+1. **スクリプトを集中させる** — 明確さのため1スクリプトに1つの変換
+2. **コメントを追加** — スクリプトの動作を文書化
+3. **進行状況を表示** — `print()`で何が起きているか表示
+4. **エラーを処理** — リスクのある操作にはtry/exceptを使用
+5. **段階的にテスト** — 各変更後に実行
+
+## 例：完全な前処理スクリプト
+
+```python
+"""
+データ前処理スクリプト
+- 欠損値を処理
+- カテゴリカルをエンコード
+- 特徴量を作成
+- 数値をスケーリング
+"""
+
+print("Starting preprocessing...")
+
+# 1. 欠損値を処理
+print(f"Missing before: {df.isnull().sum().sum()}")
+df['age'].fillna(df['age'].median(), inplace=True)
+df['income'].fillna(df['income'].mean(), inplace=True)
+df = df.dropna(subset=['target'])
+print(f"Missing after: {df.isnull().sum().sum()}")
+
+# 2. 特徴量エンジニアリング
+df['income_per_age'] = df['income'] / (df['age'] + 1)
+df['is_high_income'] = (df['income'] > df['income'].median()).astype(int)
+
+# 3. カテゴリカルをエンコード
+df = pd.get_dummies(df, columns=['region', 'category'], drop_first=True)
+
+# 4. 数値をスケーリング
+from sklearn.preprocessing import StandardScaler
+scaler = StandardScaler()
+numeric_cols = ['age', 'income', 'score', 'income_per_age']
+df[numeric_cols] = scaler.fit_transform(df[numeric_cols])
+
+print(f"Final shape: {df.shape}")
+print(f"Columns: {list(df.columns)}")
+print("Preprocessing complete!")
+```
+
+## 関連ノード
+
+- [DataLoader](/ja/reference/nodes/dataloader/) — 処理するデータを読み込み
+- [Trainer](/ja/reference/nodes/trainer/) — 処理したデータで学習

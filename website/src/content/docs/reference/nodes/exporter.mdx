@@ -1,0 +1,270 @@
+---
+title: Exporter Node
+description: Save trained models for deployment.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+The Exporter node saves trained models to disk in various formats for deployment or later use.
+
+## Overview
+
+| Property | Value |
+|----------|-------|
+| **Type** | Terminal node |
+| **Inputs** | Trained model (from Trainer) |
+| **Outputs** | Model file(s) on disk |
+| **Formats** | joblib, pickle, ONNX (coming soon) |
+
+## Configuration
+
+### Output Path
+
+Where to save the model file.
+
+```
+~/Desktop/my_model.joblib
+/path/to/models/classifier_v1.pkl
+```
+
+<Aside type="tip">
+Use descriptive names with version numbers: `churn_model_v2_rf_tuned.joblib`
+</Aside>
+
+### Export Format
+
+<Tabs>
+  <TabItem label="joblib (Recommended)">
+    **Best for:** Python applications
+
+    - Efficient for NumPy arrays
+    - Smaller file sizes for large models
+    - Fast loading
+
+    ```python
+    import joblib
+    model = joblib.load("model.joblib")
+    ```
+  </TabItem>
+  <TabItem label="pickle">
+    **Best for:** Python applications (built-in)
+
+    - No extra dependencies
+    - Standard Python format
+    - Works everywhere
+
+    ```python
+    import pickle
+    with open("model.pkl", "rb") as f:
+        model = pickle.load(f)
+    ```
+  </TabItem>
+  <TabItem label="ONNX (Coming Soon)">
+    **Best for:** Cross-platform deployment
+
+    - Run in any language
+    - Optimized inference
+    - GPU acceleration
+
+    ```python
+    import onnxruntime as ort
+    session = ort.InferenceSession("model.onnx")
+    ```
+  </TabItem>
+</Tabs>
+
+### Include Metadata
+
+When enabled, saves a companion `.json` file with:
+
+```json
+{
+  "model_type": "RandomForestClassifier",
+  "sklearn_version": "1.3.0",
+  "feature_names": ["sepal_length", "sepal_width", "petal_length", "petal_width"],
+  "target_names": ["setosa", "versicolor", "virginica"],
+  "n_features": 4,
+  "n_classes": 3,
+  "training_date": "2024-01-15T10:30:00Z",
+  "metrics": {
+    "accuracy": 0.967,
+    "f1_weighted": 0.965
+  },
+  "hyperparameters": {
+    "n_estimators": 100,
+    "max_depth": 10
+  }
+}
+```
+
+## Output Files
+
+When you export `model.joblib` with metadata:
+
+| File | Contents |
+|------|----------|
+| `model.joblib` | The trained model |
+| `model_meta.json` | Metadata (features, metrics, etc.) |
+
+## Loading Exported Models
+
+### In Python
+
+```python
+import joblib
+import json
+
+# Load model
+model = joblib.load("model.joblib")
+
+# Load metadata
+with open("model_meta.json") as f:
+    meta = json.load(f)
+
+# Validate input
+expected_features = meta["feature_names"]
+print(f"Model expects {len(expected_features)} features: {expected_features}")
+
+# Make predictions
+import numpy as np
+X_new = np.array([[5.1, 3.5, 1.4, 0.2]])
+prediction = model.predict(X_new)
+print(f"Predicted: {meta['target_names'][prediction[0]]}")
+```
+
+### In a Flask API
+
+```python
+from flask import Flask, request, jsonify
+import joblib
+import numpy as np
+
+app = Flask(__name__)
+model = joblib.load("model.joblib")
+
+@app.route("/predict", methods=["POST"])
+def predict():
+    data = request.json
+    X = np.array(data["features"])
+    predictions = model.predict(X)
+    return jsonify({"predictions": predictions.tolist()})
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
+```
+
+## Model Versioning
+
+Best practices for managing model versions:
+
+### File Naming Convention
+
+```
+{model_name}_v{version}_{algorithm}_{date}.joblib
+```
+
+Examples:
+- `churn_model_v1_rf_2024-01-15.joblib`
+- `churn_model_v2_gb_tuned_2024-01-20.joblib`
+
+### Directory Structure
+
+```
+models/
+├── production/
+│   └── churn_model_current.joblib -> ../v2/churn_model.joblib
+├── v1/
+│   ├── churn_model.joblib
+│   └── churn_model_meta.json
+└── v2/
+    ├── churn_model.joblib
+    └── churn_model_meta.json
+```
+
+### Git LFS for Large Models
+
+For models > 100MB, use Git LFS:
+
+```bash
+git lfs install
+git lfs track "*.joblib"
+git add .gitattributes
+git add models/
+git commit -m "Add trained model"
+```
+
+## Common Issues
+
+### "Incompatible sklearn version"
+
+Models saved with one scikit-learn version may not load with another.
+
+**Solution:** Check the `sklearn_version` in metadata and install the matching version:
+
+```bash
+pip install scikit-learn==1.3.0
+```
+
+### Model file is too large
+
+Large models (especially Random Forest with many trees) can be big.
+
+**Solutions:**
+- Reduce `n_estimators`
+- Use compression: `joblib.dump(model, "model.joblib", compress=3)`
+- Export to ONNX for smaller files (coming soon)
+
+### "ModuleNotFoundError" when loading
+
+The loading environment must have the same packages as the training environment.
+
+**Solution:** Include a `requirements.txt`:
+
+```
+scikit-learn==1.3.0
+pandas==2.0.0
+numpy==1.24.0
+```
+
+## Security Considerations
+
+<Aside type="caution">
+Never load pickle/joblib files from untrusted sources. They can execute arbitrary code.
+</Aside>
+
+Best practices:
+- Only load models you created or trust
+- Verify file integrity with checksums
+- Use ONNX for sharing models publicly (safer format)
+
+## Generated Code
+
+```python
+import joblib
+import json
+from datetime import datetime
+
+# Save model
+joblib.dump(model, "/path/to/model.joblib")
+
+# Save metadata
+metadata = {
+    "model_type": type(model).__name__,
+    "feature_names": list(X.columns),
+    "training_date": datetime.now().isoformat(),
+    "metrics": {
+        "accuracy": accuracy,
+        "f1_score": f1
+    }
+}
+
+with open("/path/to/model_meta.json", "w") as f:
+    json.dump(metadata, f, indent=2)
+
+print(f"Model saved to /path/to/model.joblib")
+```
+
+## Related Nodes
+
+- [Trainer](/reference/nodes/trainer/) — Train the model to export
+- [Evaluator](/reference/nodes/evaluator/) — Evaluate before exporting

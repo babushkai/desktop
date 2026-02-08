@@ -1,0 +1,272 @@
+---
+title: Script Node
+description: Write custom Python code for data processing and analysis.
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+The Script node lets you write custom Python code within your pipeline. Use it for data preprocessing, feature engineering, or custom analysis.
+
+## Overview
+
+| Property | Value |
+|----------|-------|
+| **Type** | Processing node |
+| **Inputs** | DataFrame or Model (optional) |
+| **Outputs** | DataFrame or Model |
+| **Editor** | Monaco (VS Code-like) |
+
+## Editor Features
+
+The Script node uses Monaco Editor with:
+
+- Python syntax highlighting
+- Auto-completion
+- Error highlighting
+- Line numbers
+- Multiple cursors
+
+## Available Variables
+
+Inside your script, these variables are available:
+
+| Variable | Type | Description |
+|----------|------|-------------|
+| `df` | DataFrame | Input data (if connected to DataLoader) |
+| `model` | sklearn model | Input model (if connected to Trainer) |
+| `np` | module | NumPy (pre-imported) |
+| `pd` | module | Pandas (pre-imported) |
+
+## Output Requirements
+
+Your script must assign results to specific output variables:
+
+### Outputting Data
+
+```python
+# Input: df (from DataLoader)
+# Output: df (modified DataFrame)
+
+# Filter rows
+df = df[df['age'] > 18]
+
+# Add new column
+df['age_group'] = pd.cut(df['age'], bins=[0, 30, 50, 100], labels=['young', 'mid', 'senior'])
+
+# The final value of `df` is passed to the next node
+```
+
+### Outputting a Model
+
+```python
+# Input: model (from Trainer)
+# Output: model (modified or wrapped model)
+
+# Access model properties
+print(f"Model type: {type(model).__name__}")
+print(f"Feature importances: {model.feature_importances_}")
+
+# Pass model through unchanged
+# model = model (implicit)
+```
+
+## Common Use Cases
+
+### Data Preprocessing
+
+<Tabs>
+  <TabItem label="Missing Values">
+    ```python
+    # Fill missing values
+    df['age'].fillna(df['age'].median(), inplace=True)
+    df['category'].fillna('unknown', inplace=True)
+
+    # Or drop rows with any missing values
+    df = df.dropna()
+    ```
+  </TabItem>
+  <TabItem label="Feature Engineering">
+    ```python
+    # Create derived features
+    df['total_spend'] = df['price'] * df['quantity']
+    df['log_income'] = np.log1p(df['income'])
+    df['name_length'] = df['name'].str.len()
+
+    # Date features
+    df['date'] = pd.to_datetime(df['date'])
+    df['day_of_week'] = df['date'].dt.dayofweek
+    df['month'] = df['date'].dt.month
+    ```
+  </TabItem>
+  <TabItem label="Encoding">
+    ```python
+    # One-hot encoding
+    df = pd.get_dummies(df, columns=['category', 'region'])
+
+    # Label encoding
+    from sklearn.preprocessing import LabelEncoder
+    le = LabelEncoder()
+    df['category_encoded'] = le.fit_transform(df['category'])
+    ```
+  </TabItem>
+</Tabs>
+
+### Data Filtering
+
+```python
+# Filter by condition
+df = df[df['status'] == 'active']
+
+# Filter by date range
+df['date'] = pd.to_datetime(df['date'])
+df = df[(df['date'] >= '2024-01-01') & (df['date'] <= '2024-12-31')]
+
+# Sample random rows
+df = df.sample(frac=0.1, random_state=42)  # 10% sample
+```
+
+### Data Transformation
+
+```python
+# Normalize numeric columns
+from sklearn.preprocessing import StandardScaler
+scaler = StandardScaler()
+numeric_cols = ['age', 'income', 'score']
+df[numeric_cols] = scaler.fit_transform(df[numeric_cols])
+
+# Log transform
+df['log_revenue'] = np.log1p(df['revenue'])
+```
+
+### Custom Analysis
+
+```python
+# Generate summary statistics
+print("Dataset Summary:")
+print(f"Rows: {len(df)}")
+print(f"Columns: {list(df.columns)}")
+print("\nNumeric stats:")
+print(df.describe())
+
+print("\nMissing values:")
+print(df.isnull().sum())
+
+print("\nClass distribution:")
+print(df['target'].value_counts())
+```
+
+## Error Handling
+
+Scripts run in an isolated Python subprocess. If your script fails:
+
+1. Error messages appear in the output panel
+2. The pipeline stops at this node
+3. Fix the error and re-run
+
+<Aside type="tip">
+Use `print()` statements to debug. All output appears in the panel.
+</Aside>
+
+### Common Errors
+
+| Error | Cause | Fix |
+|-------|-------|-----|
+| `NameError: name 'df' is not defined` | No DataLoader connected | Connect a DataLoader first |
+| `KeyError: 'column_name'` | Column doesn't exist | Check `df.columns` |
+| `ModuleNotFoundError` | Package not installed | Install with `pip install package` |
+
+## Print Output
+
+All `print()` output appears in the node's output panel:
+
+```python
+print("Processing data...")
+print(f"Input shape: {df.shape}")
+
+# Your processing code here
+
+print(f"Output shape: {df.shape}")
+print("Done!")
+```
+
+Output:
+```
+Processing data...
+Input shape: (1000, 10)
+Output shape: (950, 12)
+Done!
+```
+
+## Limitations
+
+- **No GUI**: Can't display matplotlib plots (use Evaluator for visualizations)
+- **No input**: Can't read from stdin or prompt for user input
+- **Timeout**: Scripts timeout after 5 minutes by default
+- **Memory**: Limited to available system memory
+
+## External Packages
+
+You can import any installed Python package:
+
+```python
+import numpy as np           # Pre-imported
+import pandas as pd          # Pre-imported
+from sklearn.preprocessing import StandardScaler
+from scipy import stats
+import re
+```
+
+<Aside type="caution">
+Make sure packages are installed in the same Python environment configured in the app.
+</Aside>
+
+## Best Practices
+
+1. **Keep scripts focused** — One transformation per script for clarity
+2. **Add comments** — Document what the script does
+3. **Print progress** — Use `print()` to show what's happening
+4. **Handle errors** — Use try/except for risky operations
+5. **Test incrementally** — Run after each change
+
+## Example: Complete Preprocessing Script
+
+```python
+"""
+Data Preprocessing Script
+- Clean missing values
+- Encode categoricals
+- Create features
+- Scale numerics
+"""
+
+print("Starting preprocessing...")
+
+# 1. Handle missing values
+print(f"Missing before: {df.isnull().sum().sum()}")
+df['age'].fillna(df['age'].median(), inplace=True)
+df['income'].fillna(df['income'].mean(), inplace=True)
+df = df.dropna(subset=['target'])
+print(f"Missing after: {df.isnull().sum().sum()}")
+
+# 2. Feature engineering
+df['income_per_age'] = df['income'] / (df['age'] + 1)
+df['is_high_income'] = (df['income'] > df['income'].median()).astype(int)
+
+# 3. Encode categoricals
+df = pd.get_dummies(df, columns=['region', 'category'], drop_first=True)
+
+# 4. Scale numerics
+from sklearn.preprocessing import StandardScaler
+scaler = StandardScaler()
+numeric_cols = ['age', 'income', 'score', 'income_per_age']
+df[numeric_cols] = scaler.fit_transform(df[numeric_cols])
+
+print(f"Final shape: {df.shape}")
+print(f"Columns: {list(df.columns)}")
+print("Preprocessing complete!")
+```
+
+## Related Nodes
+
+- [DataLoader](/reference/nodes/dataloader/) — Load data to process
+- [Trainer](/reference/nodes/trainer/) — Train on processed data

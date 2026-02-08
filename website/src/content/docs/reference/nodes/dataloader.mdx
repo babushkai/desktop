@@ -1,0 +1,121 @@
+---
+title: DataLoader Node
+description: Load CSV and Parquet files into your pipeline.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The DataLoader node is the starting point for most pipelines. It loads data files and passes them to downstream nodes for processing.
+
+## Overview
+
+| Property | Value |
+|----------|-------|
+| **Type** | Source node |
+| **Inputs** | None |
+| **Outputs** | DataFrame |
+| **Supported formats** | CSV, Parquet |
+
+## Configuration
+
+### File Path
+
+The path to your data file. Click **Browse** to select a file, or enter the path manually.
+
+```
+/Users/yourname/Desktop/data.csv
+```
+
+### Supported Formats
+
+| Format | Extension | Notes |
+|--------|-----------|-------|
+| CSV | `.csv` | Comma-separated values |
+| Parquet | `.parquet` | Columnar storage format |
+
+<Aside type="tip">
+Parquet files load faster and use less memory for large datasets.
+</Aside>
+
+## Output
+
+The DataLoader outputs a pandas DataFrame with:
+
+- All columns from the source file
+- Inferred data types (numeric, string, datetime)
+- Original row order preserved
+
+## Data Preview
+
+After selecting a file, the node shows a preview:
+
+- **Rows**: Total number of rows
+- **Columns**: Column names and types
+- **Sample**: First 5 rows of data
+
+## Usage Examples
+
+### Basic Loading
+
+1. Add a DataLoader node to the canvas
+2. Click the node to open the properties panel
+3. Click **Browse** and select your CSV file
+4. Connect to a Trainer or Script node
+
+### Large Files
+
+For files over 100MB:
+
+1. Consider converting to Parquet format first
+2. Use a Script node to sample or filter data
+3. Check available memory before loading
+
+## Common Issues
+
+### "File not found"
+
+- Check that the file path is correct
+- Ensure the file hasn't been moved or renamed
+- Use absolute paths (starting with `/`)
+
+### "Encoding error"
+
+- CSV files should use UTF-8 encoding
+- If your file uses a different encoding, convert it first:
+
+```bash
+iconv -f ISO-8859-1 -t UTF-8 input.csv > output.csv
+```
+
+### "Memory error"
+
+- File is too large for available RAM
+- Sample the data or use a smaller subset
+- Consider using Parquet format
+
+## Generated Code
+
+When the pipeline runs, DataLoader generates:
+
+```python
+import pandas as pd
+
+# Load the data
+df = pd.read_csv("/path/to/data.csv")
+
+# Display info
+print(f"Loaded {len(df)} rows, {len(df.columns)} columns")
+print(df.dtypes)
+```
+
+## Best Practices
+
+1. **Use descriptive file names** — `customer_churn_2024.csv` not `data.csv`
+2. **Keep data files in a consistent location** — Avoid moving files after creating pipelines
+3. **Check data quality** — Preview the data to ensure it loaded correctly
+4. **Use Parquet for large files** — Faster loading and smaller file size
+
+## Related Nodes
+
+- [Trainer](/reference/nodes/trainer/) — Train models on loaded data
+- [Script](/reference/nodes/script/) — Custom data preprocessing

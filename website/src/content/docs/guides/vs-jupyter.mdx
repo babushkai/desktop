@@ -1,0 +1,250 @@
+---
+title: Kissaten AI vs Jupyter Notebooks
+description: When to use Kissaten AI instead of Jupyter, and when notebooks are still the right choice.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+Jupyter notebooks are the standard tool for data science. So why consider Kissaten AI? This guide compares both tools to help you choose the right one for your workflow.
+
+## Quick Comparison
+
+| Feature | Kissaten AI | Jupyter Notebooks |
+|---------|---------------|-------------------|
+| **Learning curve** | Visual, no code required | Requires Python knowledge |
+| **Reproducibility** | Deterministic pipelines | Cells can run out of order |
+| **Collaboration** | Save/load pipeline files | Notebooks need version control |
+| **Production** | Built-in model export | Manual export required |
+| **Flexibility** | Structured node types | Write any Python code |
+| **Data exploration** | Limited | Excellent |
+| **Visualization** | Built-in charts | Matplotlib, Plotly, etc. |
+
+## When to Use Kissaten AI
+
+### You want quick results
+
+Kissaten AI gets you from data to trained model in minutes:
+
+1. Load CSV
+2. Select algorithm
+3. Click Train
+
+No boilerplate code. No import statements. No debugging cells.
+
+### Reproducibility matters
+
+Every Kissaten AI pipeline runs the same way every time:
+
+- Fixed execution order (left to right)
+- All parameters saved with the pipeline
+- Random states tracked automatically
+
+Compare this to Jupyter, where:
+
+- Cells can run in any order
+- Hidden state persists between runs
+- Restarting the kernel changes results
+
+<Aside type="tip">
+If you've ever heard "It works on my machine," Kissaten AI helps prevent that.
+</Aside>
+
+### You're not a Python expert
+
+Visual node configuration means:
+
+- No syntax errors
+- No missing imports
+- No debugging `fit()` vs `fit_transform()`
+
+Just fill in forms and click Run.
+
+### Production is the goal
+
+Kissaten AI includes:
+
+- One-click model export
+- Metadata for deployment
+- Built-in hyperparameter tuning
+
+Notebooks require manual effort to:
+
+- Extract code from cells
+- Handle training/inference separation
+- Package models for production
+
+### You value local-first
+
+Kissaten AI runs 100% locally:
+
+- No cloud connection
+- No data uploads
+- No API keys
+
+Your data never leaves your machine.
+
+## When to Use Jupyter
+
+### Deep data exploration
+
+Jupyter excels at iterative exploration:
+
+```python
+df.head()
+df.describe()
+df['column'].hist()
+df.corr()
+```
+
+The immediate feedback loop is hard to beat.
+
+### Custom algorithms
+
+If you need:
+
+- PyTorch or TensorFlow models
+- Custom loss functions
+- Novel architectures
+
+...Jupyter gives you full Python flexibility.
+
+### Research and papers
+
+Notebooks combine:
+
+- Narrative text (Markdown)
+- Code execution
+- Inline visualizations
+
+Perfect for documenting research methodology.
+
+### Teaching and learning
+
+Notebooks let you:
+
+- Explain code step by step
+- Show intermediate results
+- Let students experiment
+
+### One-off analysis
+
+For quick ad-hoc analysis:
+
+```python
+df = pd.read_csv("data.csv")
+df.groupby("category")["revenue"].mean()
+```
+
+A notebook is faster than building a pipeline.
+
+## Use Both Together
+
+The best workflow often combines both tools:
+
+### Exploration in Jupyter, Production in Kissaten AI
+
+```
+1. Explore data in Jupyter
+   - Understand distributions
+   - Find data quality issues
+   - Try different features
+
+2. Build pipeline in Kissaten AI
+   - Structured, reproducible training
+   - Hyperparameter tuning
+   - Model export
+
+3. Deploy the model
+   - Use exported .joblib file
+   - Serve via Flask/FastAPI
+```
+
+### Preprocessing in Jupyter, Training in Kissaten AI
+
+```
+1. Clean data in Jupyter
+   - Complex transformations
+   - Custom feature engineering
+   - Save to cleaned CSV
+
+2. Load cleaned data in Kissaten AI
+   - Standard ML workflow
+   - Experiment tracking
+   - Model comparison
+```
+
+## Migration Guide
+
+### From Jupyter to Kissaten AI
+
+If you have an existing notebook:
+
+1. **Export your cleaned data** as CSV
+2. **Identify model type** — What sklearn model do you use?
+3. **Note hyperparameters** — What settings work best?
+4. **Build equivalent pipeline** in Kissaten AI
+5. **Compare results** — Verify similar performance
+
+### From Kissaten AI to Jupyter
+
+If you need more flexibility:
+
+1. **Export the model** as .joblib
+2. **Use generated code** — Each node shows its Python equivalent
+3. **Copy to notebook** and extend as needed
+
+## Feature Comparison
+
+### Data Loading
+
+| Jupyter | Kissaten AI |
+|---------|---------------|
+| `pd.read_csv()` | DataLoader node |
+| Any format supported | CSV, Parquet |
+| Custom parsing | Automatic inference |
+
+### Model Training
+
+| Jupyter | Kissaten AI |
+|---------|---------------|
+| Write full training loop | Configure in form |
+| Any sklearn/PyTorch model | sklearn models |
+| Manual train/test split | Automatic splitting |
+
+### Hyperparameter Tuning
+
+| Jupyter | Kissaten AI |
+|---------|---------------|
+| Manual GridSearchCV | Built-in Optuna |
+| Write optimization loop | Select strategy, click Run |
+| Parse results yourself | Visual trials panel |
+
+### Model Evaluation
+
+| Jupyter | Kissaten AI |
+|---------|---------------|
+| Manual metric calculation | Automatic metrics |
+| Custom visualizations | Built-in charts |
+| Install SHAP yourself | One-click explainability |
+
+## Conclusion
+
+**Choose Kissaten AI when:**
+- You want visual, no-code ML
+- Reproducibility is important
+- You're building for production
+- You prefer local-first tools
+
+**Choose Jupyter when:**
+- You need deep data exploration
+- You're doing custom research
+- You require full Python flexibility
+- You're teaching or learning
+
+**Use both when:**
+- Explore in Jupyter, productionize in Kissaten AI
+- You want the best of both worlds
+
+---
+
+Ready to try Kissaten AI? [Download now](/getting-started/installation/) or [see the quickstart](/getting-started/quickstart/).

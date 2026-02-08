@@ -1,0 +1,224 @@
+---
+title: Trainerノード
+description: MLモデルの学習、事前学習済みモデルの読み込み、Optunaでのハイパーパラメータチューニング
+---
+
+import { Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+TrainerノードはKissaten AIのモデル学習の中核です。3つのモード：新規モデルの学習、事前学習済みモデルの読み込み、Optunaでのハイパーパラメータチューニングをサポートします。
+
+## 概要
+
+| プロパティ | 値 |
+|-----------|-----|
+| **タイプ** | 処理ノード |
+| **入力** | DataFrame（DataLoaderまたはDataSplitから） |
+| **出力** | 学習済みモデル |
+| **ライブラリ** | scikit-learn |
+| **モード** | Train、Load、Tune |
+
+## 動作モード
+
+Trainerノードには**3つのモード**があり、トグルボタンで選択：
+
+<Tabs>
+  <TabItem label="Train">
+    新規モデルをゼロから学習。
+
+    **設定：**
+    - **Model Type** — 12アルゴリズムから選択
+    - **Target Column** — 予測するカラム
+    - **Test Split** — 訓練/テスト分割の比率（DataSplitノードを使用しない場合）
+
+    初期のモデル開発や素早い実験に最適。
+  </TabItem>
+  <TabItem label="Load">
+    ディスクから事前学習済みモデルを読み込み。
+
+    **設定：**
+    - **Model File Path** — `.joblib`、`.pkl`、または`.pickle`ファイルへのパス
+
+    <Aside type="caution">
+    pickleファイルは任意のコードを実行できるため、読み込み前にセキュリティ警告が表示されます。
+    </Aside>
+
+    他の場所で学習したモデルの使用や作業の再開に最適。
+  </TabItem>
+  <TabItem label="Tune">
+    Optunaで最適なハイパーパラメータを自動探索。
+
+    **設定：**
+    - **Model Type** — チューニングするモデル（Linear Regressionは無効—チューニング可能なパラメータなし）
+    - **Target Column** — 予測するカラム
+    - **Tuning Config** — 探索戦略、トライアル数、CVフォールド、探索空間
+
+    本番前のモデル性能最大化に最適。
+  </TabItem>
+</Tabs>
+
+## 対応モデル
+
+### 分類モデル（6種類）
+
+| モデル | 説明 | 主要ハイパーパラメータ |
+|--------|------|----------------------|
+| **ロジスティック回帰** | 線形分類器、解釈しやすい | `C`、`max_iter` |
+| **Random Forest Classifier** | 決定木のアンサンブル | `n_estimators`、`max_depth`、`min_samples_split` |
+| **Gradient Boosting Classifier** | 逐次ブースティング、高精度 | `n_estimators`、`learning_rate`、`max_depth` |
+| **SVM (SVC)** | サポートベクターマシン | `C`、`kernel`、`gamma` |
+| **KNN Classifier** | 距離ベースの分類 | `n_neighbors`、`weights`、`metric` |
+| **MLP Classifier** | ニューラルネットワーク | `hidden_layer_sizes`、`alpha`、`learning_rate_init` |
+
+### 回帰モデル（6種類）
+
+| モデル | 説明 | 主要ハイパーパラメータ |
+|--------|------|----------------------|
+| **線形回帰** | シンプルな線形モデル | なし（チューニング不可） |
+| **Random Forest Regressor** | 回帰用アンサンブル | `n_estimators`、`max_depth`、`min_samples_split` |
+| **Gradient Boosting Regressor** | 回帰用ブースト木 | `n_estimators`、`learning_rate`、`max_depth` |
+| **SVM (SVR)** | サポートベクター回帰 | `C`、`kernel`、`gamma` |
+| **KNN Regressor** | 距離ベースの回帰 | `n_neighbors`、`weights`、`metric` |
+| **MLP Regressor** | 回帰用ニューラルネットワーク | `hidden_layer_sizes`、`alpha`、`learning_rate_init` |
+
+## ハイパーパラメータチューニング
+
+**Tune**モード選択時、チューニング設定ボタンをクリックしてTuningPanelを開きます。
+
+### 探索戦略
+
+| 戦略 | 説明 | 最適な用途 |
+|------|------|-----------|
+| **Bayesian (TPE)** | Tree-structured Parzen Estimator、過去のトライアルから学習 | ほとんどの場合（デフォルト） |
+| **Random** | 一様ランダムサンプリング | ベースライン比較 |
+| **Grid** | 全組み合わせの網羅的列挙 | 小さな離散空間 |
+
+### チューニング設定
+
+| 設定 | 範囲 | デフォルト | 説明 |
+|------|------|----------|------|
+| **Number of Trials** | 1-1000 | 50 | 試す設定の数 |
+| **CV Folds** | 2-10 | 3 | 交差検証フォールド数 |
+| **Scoring Metric** | 様々 | accuracy/r2 | 最適化するメトリクス |
+
+### モデル別の探索空間
+
+各モデルには事前定義の探索範囲があります：
+
+**Random Forest:**
+```yaml
+n_estimators: 50-300（ステップ50）
+max_depth: [null, 10, 15, 20, 30]
+min_samples_split: 2-10（ステップ2）
+min_samples_leaf: 1-4（ステップ1）
+```
+
+**Gradient Boosting:**
+```yaml
+n_estimators: 50-300（ステップ50）
+learning_rate: 0.01-0.3（対数スケール）
+max_depth: 3-8（ステップ1）
+subsample: 0.7-1.0（一様）
+```
+
+**SVM (SVC/SVR):**
+```yaml
+C: 0.1-100（対数スケール）
+kernel: [rbf, linear, poly]
+gamma: [scale, auto]
+```
+
+**KNN:**
+```yaml
+n_neighbors: 3-21（ステップ2）
+weights: [uniform, distance]
+metric: [euclidean, manhattan, minkowski]
+```
+
+**MLPニューラルネットワーク:**
+```yaml
+hidden_layer_sizes: [(50,), (100,), (100,50), (100,100)]
+alpha: 0.0001-0.1（対数スケール）
+learning_rate_init: 0.0001-0.1（対数スケール）
+max_iter: 200-1000（ステップ100）
+```
+
+### スコアリングメトリクス
+
+**分類:**
+- Accuracy
+- F1 Score
+- Precision
+- Recall
+- ROC AUC
+
+**回帰:**
+- R² Score
+- Neg MSE
+- Neg MAE
+- Neg RMSE
+
+## 自動前処理
+
+Trainerは以下を自動的に処理：
+
+- **欠損値** — 数値カラムは中央値、カテゴリカルは最頻値で補完
+- **カテゴリカルエンコーディング** — 全カテゴリカルカラムにラベルエンコーディング
+- **IDカラムのフィルタリング** — `id`、`index`、`name`、`ticket`、`cabin`などのカラムを削除
+- **高カーディナリティカラム** — 50以上のユニーク値を持つカラムを削除
+
+## 接続
+
+| 方向 | ノードタイプ |
+|------|-------------|
+| **入力元** | DataLoader、DataSplit |
+| **出力先** | Evaluator、ModelExporter |
+
+典型的なパイプライン：
+```
+DataLoader → DataSplit → Trainer → Evaluator
+```
+
+## Trialsパネル
+
+チューニング時、結果は**Trials**タブに表示：
+
+| カラム | 説明 |
+|--------|------|
+| **Trial #** | トライアル番号 |
+| **Score** | 交差検証スコア |
+| **Parameters** | 使用したハイパーパラメータ値 |
+| **Duration** | 所要時間 |
+| **Status** | Complete、Pruned、またはFailed |
+
+最良のトライアルはスターアイコンでハイライトされます。
+
+## よくある問題
+
+### 「線形回帰はチューニングできません」
+
+線形回帰にはチューニング可能なハイパーパラメータがありません。Trainモードを使用するか、別のモデルを選択してください。
+
+### 「Optunaがインストールされていません」
+
+Optunaをインストール：
+```bash
+pip install optuna
+```
+
+### チューニングが遅い
+
+- トライアル数を減らす
+- GridではなくRandomサーチを使用
+- CVフォールドを減らす（最小2）
+- より高速なモデルを使用（MLPよりLogistic Regression）
+
+### 「ターゲットカラムが見つかりません」
+
+カラム名が完全に一致しているか確認（大文字小文字を区別）。DataLoaderプレビューでカラム名を確認してください。
+
+## 関連ノード
+
+- [DataLoader](/ja/reference/nodes/dataloader/) — 訓練データを読み込み
+- [DataSplit](/ja/reference/nodes/datasplit/) — 訓練/テストセットに分割
+- [Evaluator](/ja/reference/nodes/evaluator/) — 学習済みモデルを評価
+- [ModelExporter](/ja/reference/nodes/exporter/) — モデルをエクスポート

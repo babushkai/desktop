@@ -1,0 +1,213 @@
+---
+title: Explain Model Predictions
+description: Use SHAP and feature importance to understand your ML models.
+---
+
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+Understanding *why* a model makes predictions is just as important as the predictions themselves. Kissaten AI provides several explainability tools to interpret your models.
+
+**Time to complete:** ~10 minutes
+
+## Prerequisites
+
+- Completed the [Train a Classifier](/tutorials/train-classifier/) tutorial
+- Python packages: `pip install shap matplotlib`
+
+## Why Explainability Matters
+
+Consider a loan approval model that predicts "approve" or "deny." Without explainability, you can't answer:
+
+- Why was this applicant denied?
+- Which features are most important?
+- Is the model biased toward certain groups?
+
+Explainability tools answer these questions.
+
+## Enable Explainability
+
+<Steps>
+1. **Open your trained pipeline**
+
+   Load a pipeline with a Trainer and Evaluator.
+
+2. **Run the pipeline**
+
+   Train your model by clicking **Run**.
+
+3. **Click the Evaluator node**
+
+   After training completes, the Evaluator node shows results.
+
+4. **Open the Explain tab**
+
+   Click the **Explain** tab in the results panel.
+
+   You'll see three visualizations:
+   - Feature Importance
+   - SHAP Summary
+   - Partial Dependence
+</Steps>
+
+## Feature Importance
+
+**What it shows:** How much each feature contributes to predictions overall.
+
+```
+Feature Importance (Random Forest)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+petal length (cm)  ████████████████████ 0.45
+petal width (cm)   ██████████████ 0.35
+sepal length (cm)  ████ 0.12
+sepal width (cm)   ███ 0.08
+```
+
+**How to interpret:**
+- Higher bars = more important features
+- For Random Forest, this is calculated by measuring how much each feature reduces impurity across all trees
+
+<Aside type="tip">
+If a feature has near-zero importance, consider removing it to simplify your model.
+</Aside>
+
+## SHAP Values
+
+**SHAP (SHapley Additive exPlanations)** explains individual predictions by showing how each feature pushes the prediction up or down.
+
+### Summary Plot
+
+Shows feature impact across all predictions:
+
+```
+SHAP Summary Plot
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        ← decreases prediction    increases prediction →
+petal length  ●●●●●●●○○○○○○○○●●●●●●●●●●
+petal width   ●●●●●○○○○○○○○●●●●●●●
+sepal length  ●●●○○○○○●●●
+sepal width   ●●○○○●●
+```
+
+Each dot is one sample:
+- **Position (left/right):** Feature's impact on prediction
+- **Color:** Feature value (blue=low, red=high)
+
+**Reading the plot:**
+- High petal length (red dots on right) → increases prediction
+- Low petal length (blue dots on left) → decreases prediction
+
+### Waterfall Plot
+
+Explains a single prediction step-by-step:
+
+```
+Prediction: Class 2 (Virginica)
+
+Base value: 0.33 (average across all classes)
+
+petal length = 5.1  +0.35  ▶▶▶▶▶▶▶
+petal width = 1.8   +0.25  ▶▶▶▶▶
+sepal length = 6.3  +0.05  ▶
+sepal width = 2.5   -0.02  ◀
+
+Final: 0.96 → Class 2
+```
+
+This shows exactly *why* a sample was classified as Virginica.
+
+## Partial Dependence Plots
+
+**What it shows:** How changing one feature affects predictions, holding all other features constant.
+
+<Tabs>
+  <TabItem label="1D Plot">
+    Shows relationship between one feature and the prediction:
+
+    ```
+    Partial Dependence: petal length
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    Prediction
+         │        ╭─────────
+         │       ╱
+         │      ╱
+         │─────╯
+         └────────────────────→ petal length
+           1    3    5    7
+    ```
+
+    Interpretation: As petal length increases past ~2.5, the model predicts a different class.
+  </TabItem>
+  <TabItem label="2D Plot">
+    Shows interaction between two features:
+
+    ```
+    Partial Dependence: petal length × petal width
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    petal width
+         │ ░░░░░████████
+         │ ░░░░░████████
+         │ ░░░░░████████
+         │ ░░░░░░░░░████
+         └──────────────→ petal length
+
+    ░ = Class 0   █ = Class 2
+    ```
+
+    Shows the decision boundary between classes.
+  </TabItem>
+</Tabs>
+
+## Interpreting Explanations
+
+### For Classification
+
+Ask yourself:
+- Do the important features make domain sense?
+- Are any features surprisingly unimportant?
+- Does the decision boundary align with expectations?
+
+### For Regression
+
+Ask yourself:
+- Is the relationship linear or non-linear?
+- Are there threshold effects (sudden jumps)?
+- Do interactions make sense?
+
+### Red Flags
+
+Watch out for:
+
+| Warning Sign | Possible Issue |
+|-------------|----------------|
+| Random feature is #1 important | Data leakage or overfitting |
+| ID column has high importance | Model memorizing, not learning |
+| Unexpected feature interactions | Check for data quality issues |
+
+## Export Explanations
+
+Click **Export** to save visualizations as images for reports:
+
+- `feature_importance.png`
+- `shap_summary.png`
+- `partial_dependence.png`
+
+## Next Steps
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem;">
+  <a href="/tutorials/deploy-model/" style="display: block; padding: 1rem; background: var(--surface-2); border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); text-decoration: none;">
+    <strong>Deploy Your Model</strong>
+    <p style="color: #94a3b8; margin: 0.5rem 0 0 0; font-size: 0.875rem;">Serve predictions via HTTP API</p>
+  </a>
+  <a href="/tutorials/track-experiments/" style="display: block; padding: 1rem; background: var(--surface-2); border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); text-decoration: none;">
+    <strong>Track Experiments</strong>
+    <p style="color: #94a3b8; margin: 0.5rem 0 0 0; font-size: 0.875rem;">Compare explanations across runs</p>
+  </a>
+</div>
+
+---
+
+**Troubleshooting:**
+
+- **"shap not found"** — Run `pip install shap`
+- **SHAP taking too long** — SHAP can be slow on large datasets. Try sampling fewer rows.
+- **Plots not showing** — Ensure `matplotlib` is installed: `pip install matplotlib`

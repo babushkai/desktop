@@ -1,0 +1,359 @@
+---
+title: Troubleshooting
+description: Solutions to common issues with Kissaten AI.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+This guide covers common issues and their solutions. If you don't find your issue here, please [open a GitHub issue](https://github.com/kissaten-ai/desktop/issues).
+
+## Installation Issues
+
+### "App is damaged and can't be opened"
+
+This is a macOS Gatekeeper issue, not actual damage.
+
+**Solution:**
+
+```bash
+xattr -cr /Applications/MLOps\ Desktop.app
+```
+
+Then try opening the app again.
+
+### App crashes on launch
+
+<Steps>
+1. Check that you're running macOS 12 or later:
+   ```bash
+   sw_vers
+   ```
+
+2. Check Console.app for crash logs:
+   - Open Console.app
+   - Search for "Kissaten AI"
+   - Look for recent crash reports
+
+3. Try downloading the latest version from [GitHub Releases](https://github.com/kissaten-ai/desktop/releases)
+
+4. If issues persist, delete preferences and try again:
+   ```bash
+   rm -rf ~/Library/Application\ Support/com.mlops.desktop
+   ```
+</Steps>
+
+### "Developer cannot be verified"
+
+<Steps>
+1. Right-click the app in Finder
+2. Select **Open**
+3. Click **Open** in the dialog
+4. The app will now open normally in the future
+</Steps>
+
+## Python Issues
+
+### "Python not found"
+
+The app can't locate a Python installation.
+
+**Solution:**
+
+<Steps>
+1. Check if Python is installed:
+   ```bash
+   python3 --version
+   ```
+
+2. If not installed, install via Homebrew:
+   ```bash
+   brew install python@3.11
+   ```
+
+3. Configure the path in the app:
+   - Click the Python path in the toolbar
+   - Enter the correct path (e.g., `/opt/homebrew/bin/python3`)
+</Steps>
+
+### "Module not found" errors
+
+A required Python package isn't installed.
+
+**Common packages needed:**
+
+```bash
+pip3 install scikit-learn pandas numpy optuna shap matplotlib
+```
+
+<Aside type="tip">
+On macOS with Homebrew Python, you may need:
+```bash
+pip3 install --break-system-packages scikit-learn pandas numpy
+```
+</Aside>
+
+### "Permission denied" when installing packages
+
+```bash
+# Use --user flag
+pip3 install --user package-name
+
+# Or with Homebrew Python
+pip3 install --break-system-packages package-name
+```
+
+### Wrong Python version detected
+
+The app might find the wrong Python.
+
+<Steps>
+1. Find the correct Python path:
+   ```bash
+   which python3
+   # or
+   /opt/homebrew/bin/python3 --version  # Homebrew on Apple Silicon
+   /usr/local/bin/python3 --version     # Homebrew on Intel
+   ```
+
+2. Click the Python path in the toolbar
+
+3. Enter the correct path
+
+4. Press Enter to save
+</Steps>
+
+## Pipeline Issues
+
+### Pipeline won't run
+
+**Check these first:**
+
+1. All nodes are connected
+2. DataLoader has a valid file path
+3. Target column exists in the data
+4. Python path is configured correctly
+
+### "Column not found" error
+
+The target column name doesn't match your data.
+
+**Solution:**
+
+1. Click the DataLoader node
+2. Check the column names in the preview
+3. Update the Trainer's target column to match exactly (case-sensitive)
+
+### "Not enough samples"
+
+Your dataset is too small for the train/test split.
+
+**Solution:**
+
+- Use a smaller test_size (e.g., 0.1 instead of 0.2)
+- Add more data to your dataset
+- For very small datasets (fewer than 50 rows), consider using cross-validation instead
+
+### Training is stuck or slow
+
+<Steps>
+1. Check the output panel for progress messages
+
+2. For large datasets:
+   - Reduce `n_estimators` for Random Forest
+   - Use a simpler model (Logistic Regression)
+   - Sample your data first with a Script node
+
+3. For hyperparameter tuning:
+   - Reduce number of trials
+   - Use Random search instead of Grid search
+
+4. Click **Stop** if needed and adjust settings
+</Steps>
+
+### Pipeline results are inconsistent
+
+Set a random_state for reproducibility:
+
+1. Click the Trainer node
+2. Set **Random State** to a fixed number (e.g., 42)
+3. Re-run the pipeline
+
+## Data Issues
+
+### "Failed to load file"
+
+<Steps>
+1. Check the file path is correct
+2. Verify the file exists:
+   ```bash
+   ls -la /path/to/your/file.csv
+   ```
+
+3. Check file permissions:
+   ```bash
+   chmod 644 /path/to/your/file.csv
+   ```
+
+4. For CSV files, ensure it's UTF-8 encoded
+</Steps>
+
+### "Memory error" with large files
+
+Your file is too large for available RAM.
+
+**Solutions:**
+
+1. Sample the data:
+   ```python
+   # In a Script node
+   df = df.sample(frac=0.1)  # Use 10% of data
+   ```
+
+2. Convert to Parquet format (smaller, faster)
+
+3. Close other applications to free memory
+
+4. Use a machine with more RAM
+
+### Encoding issues with CSV
+
+Convert to UTF-8:
+
+```bash
+iconv -f ISO-8859-1 -t UTF-8 input.csv > output.csv
+```
+
+Or detect encoding:
+
+```bash
+file -I your_file.csv
+```
+
+## UI Issues
+
+### Nodes disappear off canvas
+
+<Steps>
+1. Press **Cmd + 1** to fit all nodes in view
+2. Or zoom out with **Cmd + scroll**
+3. Or reset zoom with **Cmd + 0**
+</Steps>
+
+### Properties panel is empty
+
+Click on a node to select it. The properties panel shows settings for the selected node.
+
+### Output panel shows nothing
+
+<Steps>
+1. Run the pipeline first
+2. Click on a node to see its specific output
+3. Check the "All" tab to see combined output
+</Steps>
+
+### UI feels slow
+
+<Steps>
+1. Close unused pipelines
+2. Reduce number of nodes on canvas
+3. Clear run history if it's very long
+4. Restart the app
+</Steps>
+
+## Save/Load Issues
+
+### "Failed to save pipeline"
+
+<Steps>
+1. Check disk space:
+   ```bash
+   df -h
+   ```
+
+2. Verify the app data directory exists:
+   ```bash
+   ls ~/Library/Application\ Support/com.mlops.desktop/
+   ```
+
+3. Check file permissions:
+   ```bash
+   ls -la ~/Library/Application\ Support/com.mlops.desktop/
+   ```
+</Steps>
+
+### Pipeline loads with errors
+
+If a pipeline references files that have moved:
+
+1. Open the pipeline
+2. Update the DataLoader file paths
+3. Re-save the pipeline
+
+### Lost my pipelines
+
+Pipelines are stored in:
+
+```
+~/Library/Application Support/com.mlops.desktop/
+```
+
+If you accidentally deleted this folder, the pipelines cannot be recovered (unless you have a backup).
+
+## SHAP/Explainability Issues
+
+### "SHAP not available"
+
+Install SHAP:
+
+```bash
+pip3 install shap
+```
+
+If installation fails, you may need Xcode command line tools:
+
+```bash
+xcode-select --install
+pip3 install shap
+```
+
+### SHAP is very slow
+
+SHAP can be slow on large datasets.
+
+**Solutions:**
+
+1. Use a smaller sample:
+   ```python
+   # SHAP will use a sample automatically for large datasets
+   ```
+
+2. Use TreeExplainer for tree-based models (faster than KernelExplainer)
+
+3. Reduce the number of samples to explain
+
+## Getting More Help
+
+### Check the logs
+
+Application logs are stored at:
+
+```bash
+~/Library/Logs/com.mlops.desktop/
+```
+
+### Report a bug
+
+<Steps>
+1. Go to [GitHub Issues](https://github.com/kissaten-ai/desktop/issues)
+2. Click "New Issue"
+3. Include:
+   - macOS version (`sw_vers`)
+   - Python version (`python3 --version`)
+   - Steps to reproduce
+   - Error messages from the output panel
+   - Screenshots if helpful
+</Steps>
+
+### Request a feature
+
+Open a [GitHub Discussion](https://github.com/kissaten-ai/desktop/discussions) to propose new features.

@@ -1,0 +1,274 @@
+---
+title: ハイパーパラメータチューニング
+description: Optunaを使用して最適なモデル設定を自動探索
+---
+
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+ハイパーパラメータチューニングは、モデルの最適な設定を見つけるプロセスです。Kissaten AIには**Optuna**が統合されており、Bayesian（TPE）、Random、Gridの3つの探索戦略をサポートしています。
+
+## 前提条件
+
+- [クイックスタート](/ja/getting-started/quickstart/)を完了済み
+- Pythonパッケージ：`pip install optuna`
+
+## チューニングの有効化
+
+<Steps>
+1. **パイプラインを開く**
+
+   DataLoader → DataSplit → Trainer → Evaluatorの構成を用意します。
+
+2. **Tuneモードを選択**
+
+   Trainerノードをクリックし、上部の**Tune**ボタンを選択します（Train、Loadの隣）。
+
+3. **モデルとターゲットを設定**
+
+   - **Model Type:** Linear Regression以外を選択（チューニング可能なパラメータがないため）
+   - **Target Column:** 予測対象のカラム
+
+4. **チューニング設定を開く**
+
+   **Configure Tuning**ボタンをクリックしてTuningPanelを開きます。
+
+5. **パラメータを設定**
+
+   | 設定 | 推奨値 | 範囲 |
+   |------|--------|------|
+   | **Search Strategy** | Bayesian (TPE) | TPE, Random, Grid |
+   | **Number of Trials** | 50 | 1-1000 |
+   | **CV Folds** | 3 | 2-10 |
+   | **Scoring Metric** | accuracy（分類）/ r2（回帰） | 各種 |
+
+6. **実行**
+
+   **Run**をクリックします。**Trials**タブにリアルタイムで結果が表示されます。
+</Steps>
+
+## 探索戦略
+
+<Tabs>
+  <TabItem label="Bayesian (TPE)">
+    **Tree-structured Parzen Estimator** — 推奨設定
+
+    - 過去のトライアル結果を学習し、有望な領域を重点的に探索
+    - 複雑な探索空間で高効率
+    - 少ないトライアル数で良好な結果を得やすい
+
+    ```
+    Trial 1-10: 探索フェーズ（ランダムに近い）
+    Trial 11+: 活用フェーズ（良好な領域に集中）
+    ```
+  </TabItem>
+  <TabItem label="Random">
+    **ランダムサーチ** — シンプルな一様サンプリング
+
+    - 各トライアルが独立
+    - ベースライン比較に有用
+    - 広い探索空間に適している
+
+    ```
+    全トライアル: 全空間からランダムにサンプリング
+    ```
+  </TabItem>
+  <TabItem label="Grid">
+    **グリッドサーチ** — 網羅的な列挙
+
+    - すべての組み合わせをテスト
+    - 小規模な離散空間でのみ実用的
+    - 10,000組み合わせを超えると警告が表示
+
+    ```
+    例:
+    n_estimators: [50, 100, 150]
+    max_depth: [5, 10, 15]
+    = 計9トライアル
+    ```
+  </TabItem>
+</Tabs>
+
+## モデル別の探索空間
+
+各モデルには、一般的なユースケースに最適化された探索範囲が設定されています。
+
+### Random Forest
+
+| パラメータ | 範囲 | タイプ |
+|-----------|------|--------|
+| `n_estimators` | 50-300（ステップ50） | Integer |
+| `max_depth` | [None, 10, 15, 20, 30] | Categorical |
+| `min_samples_split` | 2-10（ステップ2） | Integer |
+| `min_samples_leaf` | 1-4（ステップ1） | Integer |
+
+### Gradient Boosting
+
+| パラメータ | 範囲 | タイプ |
+|-----------|------|--------|
+| `n_estimators` | 50-300（ステップ50） | Integer |
+| `learning_rate` | 0.01-0.3 | Log-uniform |
+| `max_depth` | 3-8（ステップ1） | Integer |
+| `subsample` | 0.7-1.0 | Uniform |
+
+### SVM (SVC/SVR)
+
+| パラメータ | 範囲 | タイプ |
+|-----------|------|--------|
+| `C` | 0.1-100 | Log-uniform |
+| `kernel` | [rbf, linear, poly] | Categorical |
+| `gamma` | [scale, auto] | Categorical |
+
+### KNN
+
+| パラメータ | 範囲 | タイプ |
+|-----------|------|--------|
+| `n_neighbors` | 3-21（ステップ2） | Integer |
+| `weights` | [uniform, distance] | Categorical |
+| `metric` | [euclidean, manhattan, minkowski] | Categorical |
+
+### MLPニューラルネットワーク
+
+| パラメータ | 範囲 | タイプ |
+|-----------|------|--------|
+| `hidden_layer_sizes` | [(50,), (100,), (100,50), (100,100)] | Categorical |
+| `alpha` | 0.0001-0.1 | Log-uniform |
+| `learning_rate_init` | 0.0001-0.1 | Log-uniform |
+| `max_iter` | 200-1000（ステップ100） | Integer |
+
+<Aside type="note">
+**線形回帰**はハイパーパラメータがないためチューニングできません。他のモデルを選択してください。
+</Aside>
+
+## スコアリングメトリクス
+
+最適化するメトリクスを選択します。
+
+**分類:**
+| メトリクス | 用途 |
+|-----------|------|
+| `accuracy` | クラスが均衡している場合（デフォルト） |
+| `f1` | 不均衡なクラス |
+| `precision` | 偽陽性を最小化 |
+| `recall` | 偽陰性を最小化 |
+| `roc_auc` | ランキング品質 |
+
+**回帰:**
+| メトリクス | 用途 |
+|-----------|------|
+| `r2` | 全体的な適合度（デフォルト） |
+| `neg_mse` | 大きな誤差にペナルティ |
+| `neg_mae` | 外れ値に頑健 |
+| `neg_rmse` | ターゲットと同じ単位 |
+
+## Trialsタブ
+
+チューニング中、**Trials**タブにリアルタイムで結果が表示されます。
+
+| カラム | 説明 |
+|--------|------|
+| **#** | トライアル番号 |
+| **Score** | 交差検証スコア（高いほど良好） |
+| **Parameters** | 使用したハイパーパラメータ値 |
+| **Duration** | 実行時間 |
+| **Status** | Complete、Pruned、Failed |
+
+最良のトライアルにはスターアイコンが表示されます。
+
+```
+Trial 1:  0.823  n_estimators=150, max_depth=10     2.1s
+Trial 2:  0.845  n_estimators=200, max_depth=15     2.8s
+Trial 3:  0.831  n_estimators=100, max_depth=None   1.9s
+...
+★ Trial 17: 0.867  n_estimators=250, max_depth=20   3.2s  ← 最良
+```
+
+## 交差検証
+
+チューニングでは**k分割交差検証**を使用します（単純な訓練/テスト分割ではありません）。
+
+1. 訓練データをk個のフォールドに分割
+2. k回の学習と検証を実行（毎回異なるフォールドで検証）
+3. スコアを平均して最終トライアルスコアとする
+
+単一分割よりも信頼性の高いスコアリングが可能です。
+
+| CVフォールド | トレードオフ |
+|-------------|-------------|
+| 2 | 高速、高分散 |
+| 3 | バランス（デフォルト） |
+| 5 | 信頼性向上、低速 |
+| 10 | 最も信頼性が高い、最も低速 |
+
+## チューニング完了後
+
+チューニングが完了すると：
+
+1. **最良のパラメータ**がTrialsタブに表示
+2. **最終モデル**が最良のパラメータで全訓練データを使用して学習
+3. **Evaluator**がチューニング済みモデルでメトリクスを計算
+
+最良の設定は自動的に適用されます。
+
+## 効果的なチューニングのヒント
+
+### 少ないトライアルから開始
+
+まず20-30トライアルで傾向を把握します。
+```
+Trial 1-30: 傾向を把握
+→ 結果を確認
+→ 必要に応じて探索空間を調整
+→ さらに50-100トライアルを実行
+```
+
+### ほとんどの場合はTPEを使用
+
+Bayesian（TPE）はほぼすべてのケースでRandomサーチより優れています。Gridを使用するのは以下の場合のみです。
+- 非常に小さな探索空間
+- 網羅的なカバレッジが必要
+
+### 小規模データにはCVフォールドを増やす
+
+1,000サンプル未満の場合、5分割CVを使用すると信頼性のあるスコアが得られます。
+
+### 過学習の確認
+
+チューニングスコアが評価スコアよりはるかに高い場合、過学習の可能性があります。対策：
+- シンプルなモデル（推定器を減らす、浅い木を使用）
+- 正則化を強化（SVMの`C`、MLPの`alpha`）
+
+## トラブルシューティング
+
+### 「Optunaがインストールされていません」
+
+```bash
+pip install optuna
+```
+
+### 「線形回帰はチューニングできません」
+
+線形回帰にはハイパーパラメータがありません。RidgeやLassoなど他のモデルを使用してください。
+
+### チューニングが遅い
+
+- トライアル数を減らす（素早いテストには20-30）
+- GridではなくRandomまたはTPEを使用
+- CVフォールドを2に減らす
+- シンプルなモデルを使用（MLPよりLogistic Regression）
+
+### グリッドサーチ警告
+
+「10,000組み合わせを超えています」と表示される場合、探索空間が大きすぎます。TPEまたはRandomに切り替えてください。
+
+## 次のステップ
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem;">
+  <a href="/ja/tutorials/explain-predictions/" style="display: block; padding: 1rem; background: var(--surface-2); border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); text-decoration: none;">
+    <strong>予測の説明</strong>
+    <p style="color: #94a3b8; margin: 0.5rem 0 0 0; font-size: 0.875rem;">チューニング済みモデルの判断理由を理解</p>
+  </a>
+  <a href="/ja/tutorials/track-experiments/" style="display: block; padding: 1rem; background: var(--surface-2); border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); text-decoration: none;">
+    <strong>実験の管理</strong>
+    <p style="color: #94a3b8; margin: 0.5rem 0 0 0; font-size: 0.875rem;">チューニング結果を実験間で比較</p>
+  </a>
+</div>

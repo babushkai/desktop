@@ -1,0 +1,239 @@
+---
+title: Python Setup
+description: Configure Python and install required packages for Kissaten AI.
+---
+
+import { Tabs, TabItem, Steps, Aside, Code } from '@astrojs/starlight/components';
+
+Kissaten AI uses your system Python to run ML pipelines. This guide covers installation and configuration.
+
+## Check Your Python Installation
+
+Open Terminal and run:
+
+```bash
+python3 --version
+```
+
+You should see `Python 3.9` or later. If not installed, follow the installation steps below.
+
+## Installing Python
+
+<Tabs>
+  <TabItem label="Homebrew (Recommended)">
+    Homebrew is the easiest way to manage Python on macOS:
+
+    ```bash
+    # Install Homebrew if you don't have it
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+    # Install Python
+    brew install python@3.11
+
+    # Verify
+    python3 --version
+    ```
+  </TabItem>
+  <TabItem label="Official Installer">
+    Download from [python.org](https://www.python.org/downloads/):
+
+    1. Download the latest Python 3.11+ installer
+    2. Run the `.pkg` installer
+    3. Follow the installation prompts
+    4. Open a new Terminal and verify: `python3 --version`
+  </TabItem>
+  <TabItem label="pyenv">
+    For managing multiple Python versions:
+
+    ```bash
+    # Install pyenv
+    brew install pyenv
+
+    # Add to shell config (~/.zshrc)
+    echo 'eval "$(pyenv init -)"' >> ~/.zshrc
+    source ~/.zshrc
+
+    # Install Python
+    pyenv install 3.11.0
+    pyenv global 3.11.0
+
+    # Verify
+    python3 --version
+    ```
+  </TabItem>
+</Tabs>
+
+## Required Packages
+
+Kissaten AI requires these Python packages:
+
+| Package | Purpose |
+|---------|---------|
+| `scikit-learn` | ML algorithms (Random Forest, Gradient Boosting, etc.) |
+| `pandas` | Data loading and manipulation |
+| `numpy` | Numerical operations |
+| `optuna` | Hyperparameter tuning |
+| `shap` | Model explainability |
+| `matplotlib` | Visualization (for SHAP plots) |
+
+### Install All Packages
+
+Run this command to install everything:
+
+```bash
+pip3 install scikit-learn pandas numpy optuna shap matplotlib
+```
+
+<Aside type="caution">
+On macOS with Homebrew Python, you may need the `--break-system-packages` flag:
+
+```bash
+pip3 install --break-system-packages scikit-learn pandas numpy optuna shap matplotlib
+```
+</Aside>
+
+### Verify Installation
+
+Test that packages are installed correctly:
+
+```bash
+python3 -c "import sklearn, pandas, numpy, optuna, shap; print('All packages installed!')"
+```
+
+## Configure Python in Kissaten AI
+
+<Steps>
+1. **Open Kissaten AI**
+
+2. **Check auto-detected path**
+
+   The app shows the detected Python path in the toolbar. Click it to see the full path.
+
+3. **Change Python path (if needed)**
+
+   If the wrong Python is detected:
+   - Click the Python path in the toolbar
+   - Enter the correct path (e.g., `/opt/homebrew/bin/python3`)
+   - Press Enter to save
+
+4. **Verify packages**
+
+   Run a simple pipeline to confirm packages are available.
+</Steps>
+
+## Finding Your Python Path
+
+Not sure which Python to use? Run these commands:
+
+```bash
+# Show all Python installations
+which -a python3
+
+# For Homebrew Python
+/opt/homebrew/bin/python3 --version
+
+# For system Python (not recommended)
+/usr/bin/python3 --version
+```
+
+Common paths:
+
+| Installation | Path |
+|-------------|------|
+| Homebrew (Apple Silicon) | `/opt/homebrew/bin/python3` |
+| Homebrew (Intel) | `/usr/local/bin/python3` |
+| Official installer | `/Library/Frameworks/Python.framework/Versions/3.X/bin/python3` |
+| pyenv | `~/.pyenv/shims/python3` |
+
+## Virtual Environments
+
+<Aside type="tip">
+Virtual environments are optional but recommended for isolating project dependencies.
+</Aside>
+
+### Using venv
+
+```bash
+# Create a virtual environment
+python3 -m venv ~/.mlops-env
+
+# Activate it
+source ~/.mlops-env/bin/activate
+
+# Install packages
+pip install scikit-learn pandas numpy optuna shap matplotlib
+
+# Get the Python path for Kissaten AI
+which python
+# → /Users/yourname/.mlops-env/bin/python
+```
+
+Use this path in Kissaten AI to ensure consistent package versions.
+
+### Using conda
+
+```bash
+# Create environment
+conda create -n mlops python=3.11
+
+# Activate
+conda activate mlops
+
+# Install packages
+conda install scikit-learn pandas numpy optuna shap matplotlib
+
+# Get path
+which python
+# → /opt/homebrew/anaconda3/envs/mlops/bin/python
+```
+
+## Troubleshooting
+
+### "No module named 'sklearn'"
+
+The package is named `scikit-learn` but imported as `sklearn`:
+
+```bash
+pip3 install scikit-learn
+```
+
+### "pip: command not found"
+
+Use `pip3` instead of `pip`:
+
+```bash
+pip3 install package-name
+```
+
+### Package installed but not found
+
+You may have multiple Python installations. Check which pip you're using:
+
+```bash
+which pip3
+# Make sure it matches the Python path in Kissaten AI
+```
+
+### SHAP installation fails
+
+SHAP requires a C compiler. Install Xcode command line tools:
+
+```bash
+xcode-select --install
+```
+
+Then retry: `pip3 install shap`
+
+### Permission errors
+
+On modern macOS, use `--user` or `--break-system-packages`:
+
+```bash
+pip3 install --user scikit-learn
+# OR
+pip3 install --break-system-packages scikit-learn
+```
+
+---
+
+Next: [Quickstart](/getting-started/quickstart/) — Build your first pipeline

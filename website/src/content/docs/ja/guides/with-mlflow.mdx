@@ -1,0 +1,275 @@
+---
+title: MLflowとの連携
+description: 実験管理とモデルレジストリの強化
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+MLflowはMLライフサイクル管理プラットフォームです。Kissaten AIと組み合わせることで、実験管理機能を強化できます。
+
+<Aside type="note">
+役割分担：
+- **Kissaten AI** → パイプライン構築、ローカルでの学習
+- **MLflow** → 実験トラッキング、モデルレジストリ、デプロイ
+</Aside>
+
+## 併用のメリット
+
+| Kissaten AI | MLflow |
+|---------------|--------|
+| ビジュアルUI | チーム全体の実験管理 |
+| ローカル完結 | サーバーで共有 |
+| 迅速な試行 | 本番モデル管理 |
+| 個人作業 | チーム協業 |
+
+## セットアップ
+
+### MLflowのインストール
+
+```bash
+pip install mlflow
+```
+
+### サーバーの起動（任意）
+
+UIと永続化が必要な場合：
+
+```bash
+mlflow ui --backend-store-uri sqlite:///mlflow.db
+```
+
+`http://localhost:5000` でアクセスできます。
+
+<Aside type="tip">
+個人使用の場合はサーバーなしでも動作します。データはファイルに保存されます。
+</Aside>
+
+## 連携パターン
+
+### パターン1: Scriptノードからログ
+
+パイプライン内からMLflowに記録：
+
+```python
+import mlflow
+
+# サーバーを使用する場合
+mlflow.set_tracking_uri("http://localhost:5000")
+
+# 実行を記録
+with mlflow.start_run(run_name="random-forest-v1"):
+    # パラメータ
+    mlflow.log_params({
+        "model_type": "RandomForestClassifier",
+        "n_estimators": 100,
+        "max_depth": 10,
+        "test_size": 0.2
+    })
+
+    # メトリクス（Evaluatorの結果を使用）
+    mlflow.log_metrics({
+        "accuracy": 0.967,
+        "f1_score": 0.965,
+        "precision": 0.968,
+        "recall": 0.967
+    })
+
+    # モデルを保存
+    mlflow.sklearn.log_model(model, "model")
+```
+
+### パターン2: エクスポート後にログ
+
+Kissaten AIでエクスポートした後に記録：
+
+```python
+import mlflow
+import joblib
+import json
+
+# エクスポートしたファイルを読み込み
+model = joblib.load("model.joblib")
+with open("model_meta.json") as f:
+    meta = json.load(f)
+
+# MLflowに記録
+with mlflow.start_run(run_name=meta.get("model_type", "model")):
+    mlflow.log_params(meta.get("hyperparameters", {}))
+    mlflow.log_metrics(meta.get("metrics", {}))
+    mlflow.sklearn.log_model(model, "model")
+    mlflow.log_artifact("model_meta.json")
+```
+
+### パターン3: 一括ログ
+
+ディレクトリ内のモデルを一括で記録：
+
+```python
+import mlflow
+import joblib
+import json
+from pathlib import Path
+
+def log_experiment(model_path: str, meta_path: str):
+    model = joblib.load(model_path)
+    with open(meta_path) as f:
+        meta = json.load(f)
+
+    with mlflow.start_run(run_name=Path(model_path).stem):
+        mlflow.set_tag("training_date", meta.get("training_date", "unknown"))
+        mlflow.log_params(meta.get("hyperparameters", {}))
+        mlflow.log_metrics(meta.get("metrics", {}))
+        mlflow.sklearn.log_model(
+            model, "model",
+            registered_model_name=meta.get("model_type", "MLOpsModel")
+        )
+        mlflow.log_artifact(meta_path)
+    print(f"Logged {model_path}")
+
+# 一括実行
+models_dir = Path("./exported_models")
+for model_path in models_dir.glob("*.joblib"):
+    meta_path = model_path.with_name(f"{model_path.stem}_meta.json")
+    if meta_path.exists():
+        log_experiment(str(model_path), str(meta_path))
+```
+
+## ワークフロー例
+
+### 個人での使用
+
+<Steps>
+1. Kissaten AIで試行錯誤
+   - 迅速にプロトタイプを作成
+   - Optunaでチューニング
+   - 良好なモデルをエクスポート
+
+2. ローカルMLflowに記録
+   - 実験を時系列で追跡
+   - 結果を比較
+   - モデルを保存
+
+3. デプロイ
+   - MLflowのツールを使用
+   - またはエクスポートしたモデルを直接使用
+</Steps>
+
+### チームでの使用
+
+<Steps>
+1. 各メンバーがKissaten AIで実験
+   - 個人での試行錯誤
+   - 迅速なプロトタイプ作成
+
+2. 良好な結果を共有MLflowサーバーに記録
+   - チーム全体で可視化
+   - 結果を比較
+
+3. MLflowのモデルレジストリで管理
+   - Staging → Production
+   - モデルの系譜を追跡
+   - デプロイを調整
+</Steps>
+
+## MLflowの主要機能
+
+### 実験トラッキング
+
+`http://localhost:5000` でUIにアクセスし、実行を比較できます。
+
+### モデルレジストリ
+
+```python
+# 登録
+mlflow.register_model("runs:/run_id/model", "ChurnPredictor")
+
+# ステージ変更
+from mlflow.tracking import MlflowClient
+client = MlflowClient()
+client.transition_model_version_stage(
+    name="ChurnPredictor",
+    version=1,
+    stage="Production"
+)
+```
+
+### モデルサービング
+
+```bash
+mlflow models serve -m "models:/ChurnPredictor/Production" -p 5001
+```
+
+```bash
+curl -X POST http://localhost:5001/invocations \
+  -H "Content-Type: application/json" \
+  -d '{"inputs": [[5.1, 3.5, 1.4, 0.2]]}'
+```
+
+## ベストプラクティス
+
+### 命名規則の統一
+
+```
+パイプライン名: churn-random-forest-v2
+MLflow Run名: churn-random-forest-v2
+モデル名: ChurnPredictor
+```
+
+### アーティファクトの保存
+
+```python
+mlflow.log_artifact("feature_importance.png")
+mlflow.log_artifact("confusion_matrix.png")
+mlflow.log_artifact("shap_summary.png")
+```
+
+### タグによる整理
+
+```python
+mlflow.set_tags({
+    "source": "mlops_desktop",
+    "dataset": "customer_churn_2024",
+    "team": "data_science",
+    "purpose": "production"
+})
+```
+
+### 検索
+
+```python
+runs = client.search_runs(
+    experiment_ids=["1"],
+    filter_string="tags.source = 'mlops_desktop' AND metrics.accuracy > 0.95"
+)
+for run in runs:
+    print(f"{run.info.run_name}: {run.data.metrics['accuracy']}")
+```
+
+## 使い分け
+
+### MLflowで補う機能
+
+- チーム間のコラボレーション
+- 集中管理サーバー
+- 承認ワークフロー
+- A/Bテスト基盤
+
+### Kissaten AIで補う機能
+
+- ドラッグ＆ドロップでのパイプライン構築
+- コードなしでのモデル設定
+- ローカル完結、オフライン対応
+
+## まとめ
+
+1. **作成・試行** → Kissaten AI（ビジュアル、高速、ローカル）
+2. **管理・デプロイ** → MLflow（チーム向け、本番対応）
+
+迅速に試行した後、適切に管理する。両方を併用することで、それぞれの強みを活かせます。
+
+---
+
+**次のステップ：**
+- [インストール](/ja/getting-started/installation/)
+- [分類モデルの学習](/ja/tutorials/train-classifier/)
+- [モデルのデプロイ](/ja/tutorials/deploy-model/)

@@ -1,0 +1,185 @@
+---
+title: Train a Classifier
+description: Build an end-to-end classification pipeline from data loading to model evaluation.
+---
+
+import { Steps, Aside, Badge } from '@astrojs/starlight/components';
+
+This tutorial walks through building a complete classification pipeline using the Iris dataset. You'll learn how to:
+
+- Load and preview data
+- Configure a classifier
+- Evaluate model performance
+- Interpret results
+
+**Time to complete:** ~10 minutes
+
+## Prerequisites
+
+- Kissaten AI [installed](/getting-started/installation/)
+- Python packages: `pip install scikit-learn pandas`
+
+## Prepare the Dataset
+
+First, create a sample dataset. Open Terminal and run:
+
+```python
+from sklearn.datasets import load_iris
+import pandas as pd
+
+iris = load_iris(as_frame=True)
+df = iris.frame
+df.to_csv("~/Desktop/iris.csv", index=False)
+print(f"Saved iris.csv with {len(df)} rows")
+```
+
+This creates `iris.csv` on your Desktop with 150 samples and 5 columns:
+- `sepal length (cm)`, `sepal width (cm)`, `petal length (cm)`, `petal width (cm)` — features
+- `target` — class label (0=setosa, 1=versicolor, 2=virginica)
+
+## Build the Pipeline
+
+<Steps>
+1. **Create a new pipeline**
+
+   Open Kissaten AI. You'll see an empty canvas.
+
+2. **Add a DataLoader node**
+
+   Click **+ Add Node** → **DataLoader**.
+
+   Click the node to select it, then in the properties panel:
+   - Click **Browse** and select `iris.csv`
+   - The preview shows your data columns
+
+3. **Add a Trainer node**
+
+   Click **+ Add Node** → **Trainer**.
+
+   Connect the DataLoader's right handle to the Trainer's left handle.
+
+4. **Configure the Trainer**
+
+   Click the Trainer node. In the properties panel:
+
+   | Setting | Value |
+   |---------|-------|
+   | Model Type | Random Forest Classifier |
+   | Target Column | `target` |
+   | Test Size | 0.2 |
+   | Random State | 42 |
+
+   **Random Forest settings:**
+   | Parameter | Value | Why |
+   |-----------|-------|-----|
+   | n_estimators | 100 | Number of trees (more = better, slower) |
+   | max_depth | 10 | Limit tree depth to prevent overfitting |
+   | min_samples_split | 2 | Minimum samples to split a node |
+
+5. **Add an Evaluator node**
+
+   Click **+ Add Node** → **Evaluator**.
+
+   Connect the Trainer's right handle to the Evaluator's left handle.
+
+6. **Run the pipeline**
+
+   Click **Run** in the toolbar.
+
+   Watch the output panel as each node executes:
+   ```
+   [DataLoader] Loaded iris.csv: 150 rows, 5 columns
+   [Trainer] Training Random Forest on 120 samples...
+   [Trainer] Training complete
+   [Evaluator] Accuracy: 0.967 (29/30 correct)
+   ```
+</Steps>
+
+## Understanding Classification Metrics
+
+After running, the Evaluator shows several metrics:
+
+### Accuracy
+
+The simplest metric: percentage of correct predictions.
+
+```
+Accuracy = Correct Predictions / Total Predictions
+         = 29 / 30
+         = 0.967 (96.7%)
+```
+
+### Precision, Recall, F1
+
+For each class:
+
+| Metric | Formula | Interpretation |
+|--------|---------|----------------|
+| **Precision** | TP / (TP + FP) | "Of all predicted positives, how many were correct?" |
+| **Recall** | TP / (TP + FN) | "Of all actual positives, how many did we find?" |
+| **F1 Score** | 2 × (P × R) / (P + R) | Harmonic mean of precision and recall |
+
+<Aside type="tip">
+- High precision, low recall → Conservative predictions (fewer false positives)
+- Low precision, high recall → Aggressive predictions (fewer false negatives)
+- F1 balances both
+</Aside>
+
+### Confusion Matrix
+
+A 3×3 matrix showing predictions vs actual labels:
+
+```
+              Predicted
+            0    1    2
+Actual  0 [ 10   0    0 ]  ← Setosa (perfect!)
+        1 [  0   9    1 ]  ← Versicolor (1 misclassified as Virginica)
+        2 [  0   0   10 ]  ← Virginica (perfect!)
+```
+
+Diagonal values = correct predictions. Off-diagonal = errors.
+
+## Try Different Models
+
+Experiment with other classifiers:
+
+| Model | Best For |
+|-------|----------|
+| **Logistic Regression** | Linear decision boundaries, interpretable |
+| **Random Forest** | Complex relationships, handles outliers |
+| **Gradient Boosting** | Maximum accuracy, slower training |
+| **SVM** | High-dimensional data, binary classification |
+
+To switch models:
+1. Click the Trainer node
+2. Change **Model Type**
+3. Click **Run** again
+
+Compare accuracy across models to find the best one for your data.
+
+## Save Your Pipeline
+
+Click **Save** and name it "iris-classifier".
+
+Your pipeline is now saved and can be reloaded anytime from the **Load** dropdown.
+
+## Next Steps
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem;">
+  <a href="/tutorials/tune-hyperparameters/" style="display: block; padding: 1rem; background: var(--surface-2); border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); text-decoration: none;">
+    <strong>Tune Hyperparameters</strong>
+    <p style="color: #94a3b8; margin: 0.5rem 0 0 0; font-size: 0.875rem;">Find optimal model settings with Optuna</p>
+  </a>
+  <a href="/tutorials/explain-predictions/" style="display: block; padding: 1rem; background: var(--surface-2); border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); text-decoration: none;">
+    <strong>Explain Predictions</strong>
+    <p style="color: #94a3b8; margin: 0.5rem 0 0 0; font-size: 0.875rem;">Understand why your model makes predictions</p>
+  </a>
+</div>
+
+---
+
+**Troubleshooting:**
+
+- **"Column 'target' not found"** — Check your CSV has a `target` column, or select the correct column name
+- **Low accuracy** — Try increasing `n_estimators` or changing the model type
+- **"Not enough samples"** — Ensure test_size leaves enough data for training (at least 50+ samples)

@@ -1,0 +1,113 @@
+---
+title: Kissaten AI ドキュメント
+description: ドラッグ＆ドロップでMLモデルを構築、学習、デプロイ。クラウド不要。
+template: splash
+hero:
+  tagline: ローカル環境で完結するビジュアルMLパイプライン。クラウド料金なし、アカウント不要。
+  image:
+    file: ../../../assets/logo.svg
+  actions:
+    - text: はじめる
+      link: /ja/getting-started/installation/
+      icon: right-arrow
+      variant: primary
+    - text: GitHubで見る
+      link: https://github.com/kissaten-ai/desktop
+      icon: external
+      variant: secondary
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Kissaten AIとは
+
+機械学習パイプラインをビジュアルに構築できるmacOSアプリケーションです。ノードをドラッグ＆ドロップで配置し、接続するだけで、コードを書かずにモデルの学習から評価まで行えます。
+
+<CardGrid stagger>
+  <Card title="ビジュアルパイプライン" icon="pencil">
+    6種類のノードを組み合わせてワークフローを設計。DataLoader、DataSplit、Trainer、Evaluator、ModelExporter、Script。
+  </Card>
+  <Card title="12種類のMLモデル" icon="rocket">
+    Random Forest、Gradient Boosting、SVM、KNN、MLPなど、分類・回帰の主要アルゴリズムに対応。
+  </Card>
+  <Card title="ハイパーパラメータ探索" icon="setting">
+    Optunaと連携し、ベイズ最適化、ランダムサーチ、グリッドサーチを実行可能。
+  </Card>
+  <Card title="モデルの説明可能性" icon="open-book">
+    SHAP値、特徴量重要度、部分依存プロットをワンクリックで生成。
+  </Card>
+  <Card title="実験管理" icon="list-format">
+    実行履歴を自動保存。メトリクスの比較、タグ付け、モデルのバージョン管理に対応。
+  </Card>
+  <Card title="モデルサービング" icon="external">
+    学習済みモデルをFastAPIでHTTPサーバーとして公開。ONNX Runtimeにも対応。
+  </Card>
+</CardGrid>
+
+## クイックリンク
+
+<CardGrid>
+  <Card title="インストール" icon="add-document">
+    macOS用アプリケーションをダウンロード
+
+    [インストール →](/ja/getting-started/installation/)
+  </Card>
+  <Card title="クイックスタート" icon="rocket">
+    5分で最初のパイプラインを構築
+
+    [はじめる →](/ja/getting-started/quickstart/)
+  </Card>
+  <Card title="Pythonセットアップ" icon="seti:python">
+    必要なパッケージの準備
+
+    [セットアップ →](/ja/getting-started/python-setup/)
+  </Card>
+  <Card title="ノードリファレンス" icon="list-format">
+    各ノードの詳細な使い方
+
+    [リファレンス →](/ja/reference/nodes/dataloader/)
+  </Card>
+</CardGrid>
+
+## パイプラインの流れ
+
+Kissaten AIでは、ノードを左から右へ接続してパイプラインを構築します。
+
+```
+DataLoader → DataSplit → Trainer → Evaluator → ModelExporter
+     ↓           ↓          ↓          ↓           ↓
+   データ     訓練/テスト   モデル    メトリクス   エクスポート
+   読み込み    分割        学習      & 説明     .joblib/.onnx
+```
+
+1. **DataLoader** — CSV、Parquetファイルを読み込み
+2. **DataSplit** — 訓練データとテストデータに分割（層化サンプリング対応）
+3. **Trainer** — 12種類のアルゴリズムから選択して学習、ハイパーパラメータ探索も可能
+4. **Evaluator** — メトリクス計算、SHAP分析、説明生成
+5. **ModelExporter** — joblib、ONNX形式で保存
+6. **Script** — カスタムPythonコードを実行
+
+## 対応モデル
+
+| 分類 | 回帰 |
+|------|------|
+| ロジスティック回帰 | 線形回帰 |
+| Random Forest Classifier | Random Forest Regressor |
+| Gradient Boosting Classifier | Gradient Boosting Regressor |
+| SVM (SVC) | SVM (SVR) |
+| K近傍法 (KNN) | K近傍法 (KNN) |
+| MLPニューラルネットワーク | MLPニューラルネットワーク |
+
+## 出力パネル
+
+画面下部には7つのタブがあります。
+
+| タブ | 内容 |
+|------|------|
+| **Logs** | 実行ログとエラーメッセージ |
+| **Data Profile** | データセットの統計情報 |
+| **Metrics** | 精度グラフ、混同行列 |
+| **Runs** | 実行履歴の一覧 |
+| **Models** | 登録済みモデルの管理 |
+| **Trials** | ハイパーパラメータ探索の結果 |
+| **Serving** | HTTPサーバーの状態 |

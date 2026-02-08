@@ -1,0 +1,359 @@
+---
+title: トラブルシューティング
+description: Kissaten AIの一般的な問題の解決策
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+このガイドでは一般的な問題とその解決策を説明します。問題が見つからない場合は、[GitHub Issue](https://github.com/kissaten-ai/desktop/issues)を開いてください。
+
+## インストールの問題
+
+### 「アプリが破損しているため開けません」
+
+これはmacOS Gatekeeperの問題であり、実際の破損ではありません。
+
+**解決策：**
+
+```bash
+xattr -cr /Applications/MLOps\ Desktop.app
+```
+
+その後、アプリを再度開いてみてください。
+
+### アプリが起動時にクラッシュ
+
+<Steps>
+1. macOS 12以降を実行しているか確認：
+   ```bash
+   sw_vers
+   ```
+
+2. Console.appでクラッシュログを確認：
+   - Console.appを開く
+   - 「Kissaten AI」を検索
+   - 最近のクラッシュレポートを確認
+
+3. [GitHub Releases](https://github.com/kissaten-ai/desktop/releases)から最新バージョンをダウンロード
+
+4. 問題が続く場合、設定を削除して再試行：
+   ```bash
+   rm -rf ~/Library/Application\ Support/com.mlops.desktop
+   ```
+</Steps>
+
+### 「開発元を確認できません」
+
+<Steps>
+1. Finderでアプリを右クリック
+2. **開く**を選択
+3. ダイアログで**開く**をクリック
+4. 今後はアプリが正常に開きます
+</Steps>
+
+## Pythonの問題
+
+### 「Pythonが見つかりません」
+
+アプリがPythonインストールを見つけられません。
+
+**解決策：**
+
+<Steps>
+1. Pythonがインストールされているか確認：
+   ```bash
+   python3 --version
+   ```
+
+2. インストールされていない場合、Homebrewでインストール：
+   ```bash
+   brew install python@3.11
+   ```
+
+3. アプリでパスを設定：
+   - ツールバーのPythonパスをクリック
+   - 正しいパスを入力（例：`/opt/homebrew/bin/python3`）
+</Steps>
+
+### 「Module not found」エラー
+
+必要なPythonパッケージがインストールされていません。
+
+**一般的に必要なパッケージ：**
+
+```bash
+pip3 install scikit-learn pandas numpy optuna shap matplotlib
+```
+
+<Aside type="tip">
+Homebrew PythonのmacOSでは以下が必要な場合があります：
+```bash
+pip3 install --break-system-packages scikit-learn pandas numpy
+```
+</Aside>
+
+### パッケージインストール時の「Permission denied」
+
+```bash
+# --userフラグを使用
+pip3 install --user package-name
+
+# またはHomebrew Pythonの場合
+pip3 install --break-system-packages package-name
+```
+
+### 間違ったPythonバージョンが検出される
+
+アプリが間違ったPythonを見つける場合があります。
+
+<Steps>
+1. 正しいPythonパスを見つける：
+   ```bash
+   which python3
+   # または
+   /opt/homebrew/bin/python3 --version  # Apple SiliconのHomebrew
+   /usr/local/bin/python3 --version     # IntelのHomebrew
+   ```
+
+2. ツールバーのPythonパスをクリック
+
+3. 正しいパスを入力
+
+4. Enterを押して保存
+</Steps>
+
+## パイプラインの問題
+
+### パイプラインが実行されない
+
+**まず確認すること：**
+
+1. 全ノードが接続されている
+2. DataLoaderに有効なファイルパスがある
+3. ターゲットカラムがデータに存在する
+4. Pythonパスが正しく設定されている
+
+### 「カラムが見つかりません」エラー
+
+ターゲットカラム名がデータと一致しません。
+
+**解決策：**
+
+1. DataLoaderノードをクリック
+2. プレビューでカラム名を確認
+3. Trainerのターゲットカラムを正確に一致するよう更新（大文字小文字を区別）
+
+### 「サンプルが不足しています」
+
+データセットが訓練/テスト分割に対して小さすぎます。
+
+**解決策：**
+
+- より小さいtest_sizeを使用（例：0.2の代わりに0.1）
+- データセットにデータを追加
+- 非常に小さなデータセット（50行未満）では、代わりに交差検証を検討
+
+### 学習が停止または遅い
+
+<Steps>
+1. 出力パネルで進行メッセージを確認
+
+2. 大きなデータセットの場合：
+   - Random Forestの`n_estimators`を減らす
+   - よりシンプルなモデル（Logistic Regression）を使用
+   - Scriptノードでまずデータをサンプリング
+
+3. ハイパーパラメータチューニングの場合：
+   - トライアル数を減らす
+   - Gridサーチの代わりにRandomサーチを使用
+
+4. 必要に応じて**Stop**をクリックして設定を調整
+</Steps>
+
+### パイプライン結果が一貫しない
+
+再現性のためにrandom_stateを設定：
+
+1. Trainerノードをクリック
+2. **Random State**を固定の数値に設定（例：42）
+3. パイプラインを再実行
+
+## データの問題
+
+### 「ファイルの読み込みに失敗」
+
+<Steps>
+1. ファイルパスが正しいか確認
+2. ファイルが存在するか確認：
+   ```bash
+   ls -la /path/to/your/file.csv
+   ```
+
+3. ファイル権限を確認：
+   ```bash
+   chmod 644 /path/to/your/file.csv
+   ```
+
+4. CSVファイルの場合、UTF-8エンコードを確認
+</Steps>
+
+### 大きなファイルで「メモリエラー」
+
+ファイルが利用可能なRAMに対して大きすぎます。
+
+**解決策：**
+
+1. データをサンプリング：
+   ```python
+   # Scriptノードで
+   df = df.sample(frac=0.1)  # データの10%を使用
+   ```
+
+2. Parquet形式に変換（より小さく、高速）
+
+3. 他のアプリケーションを閉じてメモリを解放
+
+4. より多くのRAMを持つマシンを使用
+
+### CSVのエンコーディング問題
+
+UTF-8に変換：
+
+```bash
+iconv -f ISO-8859-1 -t UTF-8 input.csv > output.csv
+```
+
+またはエンコーディングを検出：
+
+```bash
+file -I your_file.csv
+```
+
+## UIの問題
+
+### ノードがキャンバスから消える
+
+<Steps>
+1. **Cmd + 1**を押して全ノードを画面に収める
+2. または**Cmd + スクロール**でズームアウト
+3. または**Cmd + 0**でズームをリセット
+</Steps>
+
+### プロパティパネルが空
+
+ノードをクリックして選択。プロパティパネルは選択したノードの設定を表示します。
+
+### 出力パネルに何も表示されない
+
+<Steps>
+1. まずパイプラインを実行
+2. ノードをクリックして特定の出力を表示
+3. 「All」タブで結合された出力を確認
+</Steps>
+
+### UIが遅く感じる
+
+<Steps>
+1. 使用していないパイプラインを閉じる
+2. キャンバス上のノード数を減らす
+3. 実行履歴が非常に長い場合はクリア
+4. アプリを再起動
+</Steps>
+
+## 保存/読み込みの問題
+
+### 「パイプラインの保存に失敗」
+
+<Steps>
+1. ディスク容量を確認：
+   ```bash
+   df -h
+   ```
+
+2. アプリデータディレクトリが存在するか確認：
+   ```bash
+   ls ~/Library/Application\ Support/com.mlops.desktop/
+   ```
+
+3. ファイル権限を確認：
+   ```bash
+   ls -la ~/Library/Application\ Support/com.mlops.desktop/
+   ```
+</Steps>
+
+### パイプラインがエラーで読み込まれる
+
+パイプラインが移動されたファイルを参照している場合：
+
+1. パイプラインを開く
+2. DataLoaderのファイルパスを更新
+3. パイプラインを再保存
+
+### パイプラインを失くした
+
+パイプラインは以下に保存されています：
+
+```
+~/Library/Application Support/com.mlops.desktop/
+```
+
+このフォルダを誤って削除した場合、パイプラインは復元できません（バックアップがない限り）。
+
+## SHAP/説明可能性の問題
+
+### 「SHAPが利用できません」
+
+SHAPをインストール：
+
+```bash
+pip3 install shap
+```
+
+インストールが失敗した場合、Xcodeコマンドラインツールが必要な場合があります：
+
+```bash
+xcode-select --install
+pip3 install shap
+```
+
+### SHAPが非常に遅い
+
+SHAPは大きなデータセットで遅くなることがあります。
+
+**解決策：**
+
+1. より小さなサンプルを使用：
+   ```python
+   # SHAPは大きなデータセットで自動的にサンプルを使用
+   ```
+
+2. ツリーベースのモデルにはTreeExplainerを使用（KernelExplainerより高速）
+
+3. 説明するサンプル数を減らす
+
+## さらなるヘルプ
+
+### ログを確認
+
+アプリケーションログは以下に保存：
+
+```bash
+~/Library/Logs/com.mlops.desktop/
+```
+
+### バグを報告
+
+<Steps>
+1. [GitHub Issues](https://github.com/kissaten-ai/desktop/issues)にアクセス
+2. 「New Issue」をクリック
+3. 以下を含める：
+   - macOSバージョン（`sw_vers`）
+   - Pythonバージョン（`python3 --version`）
+   - 再現手順
+   - 出力パネルのエラーメッセージ
+   - 役立つならスクリーンショット
+</Steps>
+
+### 機能をリクエスト
+
+新機能を提案するには[GitHub Discussion](https://github.com/kissaten-ai/desktop/discussions)を開いてください。

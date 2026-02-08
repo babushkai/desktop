@@ -1,0 +1,103 @@
+---
+title: インストール
+description: macOSにKissaten AIをインストール
+---
+
+import { Tabs, TabItem, Steps, Aside } from '@astrojs/starlight/components';
+
+Kissaten AIはmacOS専用のネイティブアプリケーションです。
+
+## システム要件
+
+- **macOS** 12.0（Monterey）以降
+- **Python** 3.9以降
+- **ディスク容量** 約200MB
+
+<Aside type="note">
+Windows版とLinux版は開発中です。[ウェイトリストに登録](/)すると、リリース時に通知を受け取れます。
+</Aside>
+
+## ダウンロード
+
+<Tabs>
+  <TabItem label="Apple Silicon（M1/M2/M3/M4）">
+    Apple Silicon Mac用の`.dmg`ファイルをダウンロードします。
+
+    [ダウンロード →](https://github.com/kissaten-ai/desktop/releases/latest)
+
+    ダウンロード後：
+    1. `.dmg`ファイルを開く
+    2. Kissaten AIをアプリケーションフォルダにドラッグ
+    3. アプリケーションフォルダから起動（初回は右クリック→「開く」が必要な場合があります）
+  </TabItem>
+  <TabItem label="Intel Mac">
+    Intel Mac用の`.dmg`ファイルをダウンロードします。
+
+    [ダウンロード →](https://github.com/kissaten-ai/desktop/releases/latest)
+
+    ダウンロード後：
+    1. `.dmg`ファイルを開く
+    2. Kissaten AIをアプリケーションフォルダにドラッグ
+    3. アプリケーションフォルダから起動（初回は右クリック→「開く」が必要な場合があります）
+  </TabItem>
+</Tabs>
+
+## 初回起動
+
+<Steps>
+1. **アプリケーションを開く**
+
+   アプリケーションフォルダから起動します。
+
+2. **セキュリティの許可**
+
+   初回起動時に「開発元を確認できません」と表示される場合があります。「開く」をクリックするか、システム設定 → プライバシーとセキュリティから許可してください。
+
+3. **Pythonパスの確認**
+
+   アプリケーションは自動的にPythonを検出します。検出されない場合は[Pythonセットアップ](/ja/getting-started/python-setup/)を参照してください。
+
+4. **準備完了**
+
+   空のキャンバスが表示されれば準備完了です。[クイックスタート](/ja/getting-started/quickstart/)へ進んでください。
+</Steps>
+
+## アップデート
+
+新しいバージョンが利用可能になると通知されます。手動でアップデートする場合：
+
+1. [GitHubリリースページ](https://github.com/kissaten-ai/desktop/releases)から最新版をダウンロード
+2. Kissaten AIを終了
+3. 新しいアプリケーションで上書き
+
+## アンインストール
+
+1. アプリケーションを終了
+2. アプリケーションフォルダからゴミ箱に移動
+3. 設定ファイルも削除する場合：`rm -rf ~/Library/Application\ Support/com.mlops.desktop`
+
+## トラブルシューティング
+
+### 「アプリケーションが壊れているため開けません」
+
+macOS Gatekeeperによる制限です。ターミナルで以下を実行してください。
+
+```bash
+xattr -cr /Applications/MLOps\ Desktop.app
+```
+
+実行後、再度アプリケーションを開いてください。
+
+### アプリケーションが起動しない
+
+1. Console.appでクラッシュログを確認
+2. macOS 12以上であることを確認
+3. 最新版をダウンロードし直す
+
+### Pythonが検出されない
+
+[Pythonセットアップ](/ja/getting-started/python-setup/)を参照してください。
+
+---
+
+次へ：[クイックスタート](/ja/getting-started/quickstart/)

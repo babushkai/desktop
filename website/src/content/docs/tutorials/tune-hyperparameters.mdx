@@ -1,0 +1,285 @@
+---
+title: Tune Hyperparameters
+description: Use Optuna to automatically find the best model settings.
+---
+
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+Hyperparameter tuning finds the optimal settings for your model. Kissaten AI integrates **Optuna** for intelligent hyperparameter search with three strategies: Bayesian (TPE), Random, and Grid.
+
+**Time to complete:** ~15 minutes
+
+## Prerequisites
+
+- Completed the [Quickstart](/getting-started/quickstart/) tutorial
+- Python packages: `pip install optuna`
+
+## Enable Hyperparameter Tuning
+
+<Steps>
+1. **Open your pipeline**
+
+   Load a pipeline with DataLoader → DataSplit → Trainer → Evaluator.
+
+2. **Select Tune mode**
+
+   Click the Trainer node. At the top of the node, click the **Tune** button (next to Train and Load).
+
+3. **Configure model and target**
+
+   - **Model Type:** Select any model except Linear Regression (no tunable params)
+   - **Target Column:** Your target variable
+
+4. **Open Tuning Configuration**
+
+   Click the **Configure Tuning** button to open the TuningPanel.
+
+5. **Set tuning parameters**
+
+   | Setting | Recommended | Range |
+   |---------|-------------|-------|
+   | **Search Strategy** | Bayesian (TPE) | TPE, Random, Grid |
+   | **Number of Trials** | 50 | 1-1000 |
+   | **CV Folds** | 3 | 2-10 |
+   | **Scoring Metric** | accuracy (classification) or r2 (regression) | varies |
+
+6. **Run the pipeline**
+
+   Click **Run**. Watch the **Trials** tab for real-time results.
+</Steps>
+
+## Search Strategies
+
+<Tabs>
+  <TabItem label="Bayesian (TPE)">
+    **Tree-structured Parzen Estimator** — Default and recommended.
+
+    - Learns from previous trials to focus on promising regions
+    - Most efficient for complex search spaces
+    - Better results with fewer trials
+
+    ```
+    Trial 1-10: Exploration (random-ish)
+    Trial 11+: Exploitation (focuses on good regions)
+    ```
+  </TabItem>
+  <TabItem label="Random">
+    **Random Search** — Simple uniform sampling.
+
+    - Each trial is independent
+    - Good baseline for comparison
+    - Works well with large search spaces
+
+    ```
+    Every trial: Random sample from full space
+    ```
+  </TabItem>
+  <TabItem label="Grid">
+    **Grid Search** — Exhaustive enumeration.
+
+    - Tests every combination
+    - Only practical for small, discrete spaces
+    - Warning shown if >10,000 combinations
+
+    ```
+    All combinations of:
+    n_estimators: [50, 100, 150]
+    max_depth: [5, 10, 15]
+    = 9 total trials
+    ```
+  </TabItem>
+</Tabs>
+
+## Search Spaces by Model
+
+Each model has predefined search ranges optimized for common use cases:
+
+### Random Forest
+
+| Parameter | Range | Type |
+|-----------|-------|------|
+| `n_estimators` | 50-300 (step 50) | Integer |
+| `max_depth` | [None, 10, 15, 20, 30] | Categorical |
+| `min_samples_split` | 2-10 (step 2) | Integer |
+| `min_samples_leaf` | 1-4 (step 1) | Integer |
+
+### Gradient Boosting
+
+| Parameter | Range | Type |
+|-----------|-------|------|
+| `n_estimators` | 50-300 (step 50) | Integer |
+| `learning_rate` | 0.01-0.3 | Log-uniform |
+| `max_depth` | 3-8 (step 1) | Integer |
+| `subsample` | 0.7-1.0 | Uniform |
+
+### SVM (SVC/SVR)
+
+| Parameter | Range | Type |
+|-----------|-------|------|
+| `C` | 0.1-100 | Log-uniform |
+| `kernel` | [rbf, linear, poly] | Categorical |
+| `gamma` | [scale, auto] | Categorical |
+
+### KNN
+
+| Parameter | Range | Type |
+|-----------|-------|------|
+| `n_neighbors` | 3-21 (step 2) | Integer |
+| `weights` | [uniform, distance] | Categorical |
+| `metric` | [euclidean, manhattan, minkowski] | Categorical |
+
+### MLP Neural Network
+
+| Parameter | Range | Type |
+|-----------|-------|------|
+| `hidden_layer_sizes` | [(50,), (100,), (100,50), (100,100)] | Categorical |
+| `alpha` | 0.0001-0.1 | Log-uniform |
+| `learning_rate_init` | 0.0001-0.1 | Log-uniform |
+| `max_iter` | 200-1000 (step 100) | Integer |
+
+### Logistic Regression
+
+| Parameter | Range | Type |
+|-----------|-------|------|
+| `C` | 0.01-100 | Log-uniform |
+| `max_iter` | 500-2000 (step 500) | Integer |
+
+<Aside type="note">
+**Linear Regression** cannot be tuned — it has no hyperparameters. Select a different model for tuning.
+</Aside>
+
+## Scoring Metrics
+
+Choose the metric to optimize:
+
+**Classification:**
+| Metric | Best For |
+|--------|----------|
+| `accuracy` | Balanced classes (default) |
+| `f1` | Imbalanced classes |
+| `precision` | Minimize false positives |
+| `recall` | Minimize false negatives |
+| `roc_auc` | Ranking quality |
+
+**Regression:**
+| Metric | Best For |
+|--------|----------|
+| `r2` | Overall fit (default) |
+| `neg_mse` | Penalize large errors |
+| `neg_mae` | Robust to outliers |
+| `neg_rmse` | Same units as target |
+
+## Trials Tab
+
+During tuning, the **Trials** tab shows real-time results:
+
+| Column | Description |
+|--------|-------------|
+| **#** | Trial number |
+| **Score** | Cross-validation score (higher = better) |
+| **Parameters** | Hyperparameter values tried |
+| **Duration** | Time for this trial |
+| **Status** | Complete, Pruned, or Failed |
+
+The **best trial** is highlighted with a star icon.
+
+### Example Output
+
+```
+Trial 1:  0.823  n_estimators=150, max_depth=10     2.1s
+Trial 2:  0.845  n_estimators=200, max_depth=15     2.8s
+Trial 3:  0.831  n_estimators=100, max_depth=None   1.9s
+...
+★ Trial 17: 0.867  n_estimators=250, max_depth=20   3.2s  ← Best
+```
+
+## Cross-Validation
+
+Tuning uses **k-fold cross-validation** (not a simple train/test split):
+
+1. Training data split into k folds
+2. Model trained k times, each time validating on a different fold
+3. Scores averaged for final trial score
+
+This provides more reliable scoring than a single split.
+
+| CV Folds | Trade-off |
+|----------|-----------|
+| 2 | Fast, high variance |
+| 3 | Good balance (default) |
+| 5 | More reliable, slower |
+| 10 | Most reliable, slowest |
+
+## After Tuning
+
+When tuning completes:
+
+1. **Best parameters** are displayed in the Trials tab
+2. **Final model** is trained on full training data with best params
+3. **Evaluator** receives the tuned model for metrics
+
+The best configuration is automatically applied—no manual copying needed.
+
+## Tips for Better Results
+
+### Start Small
+
+Begin with 20-30 trials to understand the landscape:
+```
+Trial 1-30: Quick exploration
+→ Review results
+→ Narrow search space if needed
+→ Run 50-100 more trials
+```
+
+### Use TPE for Most Cases
+
+Bayesian (TPE) outperforms Random search in almost all scenarios. Only use Grid when:
+- You have a very small search space
+- You need exhaustive coverage
+
+### Increase CV Folds for Small Data
+
+With fewer than 1,000 samples, use 5-fold CV to get reliable scores.
+
+### Check for Overfitting
+
+If tuning score is much higher than evaluation score, your model may be overfitting to the validation folds. Try:
+- Simpler model (fewer estimators, shallower trees)
+- More regularization (`C` for SVM, `alpha` for MLP)
+
+## Common Issues
+
+### "Optuna not installed"
+
+```bash
+pip install optuna
+```
+
+### "Linear Regression cannot be tuned"
+
+Linear Regression has no hyperparameters. Use Ridge, Lasso, or another model.
+
+### Tuning takes too long
+
+- Reduce number of trials (20-30 for quick tests)
+- Use Random instead of Grid search
+- Reduce CV folds to 2
+- Use a simpler model (Logistic Regression vs MLP)
+
+### Grid search warning
+
+If Grid search shows ">10,000 combinations", the search space is too large. Switch to TPE or Random.
+
+## Next Steps
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem;">
+  <a href="/tutorials/explain-predictions/" style="display: block; padding: 1rem; background: var(--surface-2); border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); text-decoration: none;">
+    <strong>Explain Predictions</strong>
+    <p style="color: #94a3b8; margin: 0.5rem 0 0 0; font-size: 0.875rem;">Understand why your tuned model makes predictions</p>
+  </a>
+  <a href="/tutorials/track-experiments/" style="display: block; padding: 1rem; background: var(--surface-2); border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); text-decoration: none;">
+    <strong>Track Experiments</strong>
+    <p style="color: #94a3b8; margin: 0.5rem 0 0 0; font-size: 0.875rem;">Compare tuning runs across experiments</p>
+  </a>
+</div>

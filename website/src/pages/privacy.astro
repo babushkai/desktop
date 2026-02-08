@@ -1,0 +1,282 @@
+---
+import Footer from '../components/Footer.astro';
+---
+
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy - Kissaten AI</title>
+    <meta name="description" content="Privacy policy for Kissaten AI application and website." />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="theme-color" content="#0b0e14" />
+  </head>
+
+  <body>
+    <header class="site-header">
+      <nav class="nav">
+        <a href="/" class="logo">
+          <img src="/favicon.svg" alt="" width="28" height="28" />
+          <span>Kissaten AI</span>
+        </a>
+        <div class="nav-links">
+          <a href="/getting-started/installation/">Docs</a>
+          <a href="https://github.com/kissaten-ai/desktop" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
+      </nav>
+    </header>
+
+    <main class="legal-page">
+      <article class="content">
+        <h1>Privacy Policy</h1>
+        <p class="last-updated">Last updated: January 2025</p>
+
+        <section>
+          <h2>Overview</h2>
+          <p>
+            Kissaten AI is a local-first application. Your data stays on your machine.
+            This privacy policy explains what information we collect and how we use it.
+          </p>
+        </section>
+
+        <section>
+          <h2>The Application</h2>
+          <p>
+            Kissaten AI runs entirely on your local machine. We do not collect, transmit,
+            or store any of your:
+          </p>
+          <ul>
+            <li>Datasets or training data</li>
+            <li>Machine learning models</li>
+            <li>Pipeline configurations</li>
+            <li>Experiment results</li>
+            <li>Personal files</li>
+          </ul>
+          <p>
+            All data processing happens locally using your system's Python installation.
+            The application does not require an internet connection to function.
+          </p>
+        </section>
+
+        <section>
+          <h2>The Website</h2>
+          <p>
+            When you visit kissaten.ai, we may collect:
+          </p>
+          <ul>
+            <li>
+              <strong>Analytics data:</strong> Page views, browser type, and country
+              (anonymized, no personal identifiers)
+            </li>
+            <li>
+              <strong>Waitlist submissions:</strong> Email address and platform preference
+              when you voluntarily join our waitlist
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Waitlist Data</h2>
+          <p>
+            If you join our waitlist for Windows or Linux versions:
+          </p>
+          <ul>
+            <li>We collect your email address and platform preference</li>
+            <li>We use this only to notify you when your platform is available</li>
+            <li>You can unsubscribe at any time by clicking the link in our emails</li>
+            <li>We do not sell or share your email with third parties</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Third-Party Services</h2>
+          <p>
+            The website may use:
+          </p>
+          <ul>
+            <li>
+              <strong>Vercel:</strong> For hosting (see
+              <a href="https://vercel.com/legal/privacy-policy" target="_blank" rel="noopener noreferrer">
+                Vercel's Privacy Policy
+              </a>)
+            </li>
+            <li>
+              <strong>GitHub:</strong> For downloads and source code (see
+              <a href="https://docs.github.com/en/site-policy/privacy-policies/github-privacy-statement" target="_blank" rel="noopener noreferrer">
+                GitHub's Privacy Statement
+              </a>)
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>Cookies</h2>
+          <p>
+            We use minimal, essential cookies for website functionality. We do not use
+            tracking cookies or third-party advertising cookies.
+          </p>
+        </section>
+
+        <section>
+          <h2>Your Rights</h2>
+          <p>
+            You have the right to:
+          </p>
+          <ul>
+            <li>Request access to your personal data</li>
+            <li>Request deletion of your data</li>
+            <li>Unsubscribe from our mailing list</li>
+          </ul>
+          <p>
+            To exercise these rights, contact us at privacy@kissaten.ai.
+          </p>
+        </section>
+
+        <section>
+          <h2>Changes to This Policy</h2>
+          <p>
+            We may update this privacy policy from time to time. We will notify you of
+            any changes by posting the new policy on this page and updating the
+            "Last updated" date.
+          </p>
+        </section>
+
+        <section>
+          <h2>Contact</h2>
+          <p>
+            For questions about this privacy policy, please contact us at
+            privacy@kissaten.ai or open an issue on
+            <a href="https://github.com/kissaten-ai/desktop" target="_blank" rel="noopener noreferrer">GitHub</a>.
+          </p>
+        </section>
+      </article>
+    </main>
+
+    <Footer />
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    --navy-h: 222;
+    --navy-s: 47%;
+    --surface-0: hsl(var(--navy-h), var(--navy-s), 4%);
+    --surface-1: hsl(var(--navy-h), var(--navy-s), 7%);
+    --surface-2: hsl(var(--navy-h), var(--navy-s), 10%);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, sans-serif;
+    background: var(--surface-0);
+    color: #f8fafc;
+    -webkit-font-smoothing: antialiased;
+  }
+</style>
+
+<style>
+  .site-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: rgba(11, 14, 20, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem 2rem;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    font-weight: 600;
+    color: #f8fafc;
+    text-decoration: none;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 2rem;
+  }
+
+  .nav-links a {
+    color: #94a3b8;
+    text-decoration: none;
+  }
+
+  .nav-links a:hover {
+    color: #f8fafc;
+  }
+
+  .legal-page {
+    padding: 8rem 2rem 4rem;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .content h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .last-updated {
+    color: #64748b;
+    font-size: 0.875rem;
+    margin-bottom: 3rem;
+  }
+
+  section {
+    margin-bottom: 2.5rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0 0 1rem 0;
+    color: #f8fafc;
+  }
+
+  p {
+    color: #94a3b8;
+    line-height: 1.7;
+    margin: 0 0 1rem 0;
+  }
+
+  ul {
+    color: #94a3b8;
+    line-height: 1.7;
+    padding-left: 1.5rem;
+    margin: 0 0 1rem 0;
+  }
+
+  li {
+    margin-bottom: 0.5rem;
+  }
+
+  a {
+    color: #22d3ee;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+
+  strong {
+    color: #f8fafc;
+  }
+</style>

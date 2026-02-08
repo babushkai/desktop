@@ -1,0 +1,178 @@
+---
+title: クイックスタート
+description: 5分で最初のMLパイプラインを構築
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+このクイックスタートでは、Titanicデータセットを使用して以下を行います。
+
+1. データの読み込み
+2. 訓練/テストデータへの分割
+3. Random Forest分類器の学習
+4. 精度の評価と結果の確認
+
+## 前提条件
+
+- [Kissaten AI](/ja/getting-started/installation/)がインストール済み
+- Python 3.9以上と必要パッケージ：`pip install scikit-learn pandas shap`
+
+## パイプラインの作成
+
+<Steps>
+1. **Kissaten AIを開く**
+
+   アプリを起動すると、空のキャンバスが表示されます。左側にノードパレット、上部にツールバーがあります。
+
+2. **DataLoaderノードを追加**
+
+   左側の**Components**パネルから**DataLoader**をキャンバスにドラッグします。
+
+   ノードをクリックして選択し、ノード内の**Browse**でCSVファイルを選択します。（サンプルデータの作成方法は後述）
+
+3. **DataSplitノードを追加**
+
+   同様に**Data Split**をドラッグし、DataLoaderの右ハンドルからDataSplitの左ハンドルへ接続します。
+
+   設定：
+   - **Test Split:** 20%（デフォルト）
+   - **Random State:** 42
+   - **Stratify:** 有効にし、カラムを`Survived`に設定
+
+4. **Trainerノードを追加**
+
+   **Trainer**をドラッグし、DataSplitから接続します。
+
+   設定：
+   - **Mode:** Train（デフォルト）
+   - **Model Type:** Random Forest Classifier
+   - **Target Column:** `Survived`
+
+5. **Evaluatorノードを追加**
+
+   **Evaluator**をドラッグし、Trainerから接続します。
+
+   設定は不要です。モデルタイプは自動で検出されます。
+
+6. **パイプラインを実行**
+
+   ツールバーの**Run**をクリックします。
+
+   **Logs**タブに進行状況が表示されます。
+   ```
+   [DataLoader] Loaded titanic.csv: 891 rows, 12 columns
+   [DataSplit] Split: 712 train, 179 test (stratified by Survived)
+   [Trainer] Training RandomForestClassifier...
+   [Trainer] Training complete
+   [Evaluator] Accuracy: 0.821, F1: 0.756
+   ```
+
+7. **結果を確認**
+
+   **Metrics**タブをクリックすると以下が表示されます。
+   - Accuracy、Precision、Recall、F1の棒グラフ
+   - 混同行列のヒートマップ
+
+   **Explain**ボタンをクリックすると以下が生成されます。
+   - 特徴量重要度チャート
+   - SHAPサマリープロット
+   - 部分依存プロット
+</Steps>
+
+## サンプルデータの作成
+
+CSVファイルがない場合は、Pythonで作成できます。
+
+```python
+import pandas as pd
+from sklearn.datasets import fetch_openml
+
+titanic = fetch_openml('titanic', version=1, as_frame=True)
+df = titanic.frame
+df.to_csv("titanic.csv", index=False)
+print(f"titanic.csv を保存しました（{len(df)}行）")
+```
+
+またはIrisデータセットを使用する場合：
+
+```python
+from sklearn.datasets import load_iris
+import pandas as pd
+
+iris = load_iris(as_frame=True)
+df = iris.frame
+df.to_csv("iris.csv", index=False)
+print("iris.csv を保存しました")
+```
+
+Irisの場合は、Trainerの**Target Column**を`target`に設定してください。
+
+## 結果の見方
+
+### Metricsタブ
+
+| メトリクス | 意味 |
+|-----------|------|
+| **Accuracy** | 正解した予測の割合 |
+| **Precision** | 陽性と予測したうち、実際に陽性だった割合 |
+| **Recall** | 実際の陽性のうち、正しく検出できた割合 |
+| **F1 Score** | PrecisionとRecallの調和平均 |
+
+### 混同行列
+
+```
+              予測
+            死亡  生存
+実際 死亡   98    12
+    生存   21    48
+```
+
+対角線上の値が正解、それ以外が誤分類です。
+
+### Explainセクション
+
+**Explain**をクリックすると、モデルの予測理由を確認できます。
+
+- **Feature Importance** — 各特徴量の重要度
+- **SHAP Summary** — 各特徴量が予測に与える影響
+- **Partial Dependence** — 特徴量の変化が予測に与える影響
+
+## その他のタブ
+
+| タブ | 内容 |
+|------|------|
+| **Logs** | 実行ログとエラー |
+| **Data Profile** | データセットの統計 |
+| **Metrics** | モデルの性能チャート |
+| **Runs** | 実行履歴 |
+| **Models** | モデルレジストリ |
+| **Trials** | ハイパーパラメータ探索結果 |
+| **Serving** | HTTPサーバー |
+
+## パイプラインの保存
+
+ツールバーの**Save**をクリックし、名前を入力します（例：「titanic-classifier」）。
+
+**Load**ドロップダウンからいつでも読み込み可能です。
+
+## 次のステップ
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem;">
+  <a href="/ja/tutorials/tune-hyperparameters/" style="display: block; padding: 1rem; background: var(--surface-2); border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); text-decoration: none;">
+    <strong>ハイパーパラメータチューニング</strong>
+    <p style="color: #94a3b8; margin: 0.5rem 0 0 0; font-size: 0.875rem;">Optunaで最適な設定を探索</p>
+  </a>
+  <a href="/ja/tutorials/explain-predictions/" style="display: block; padding: 1rem; background: var(--surface-2); border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); text-decoration: none;">
+    <strong>予測の説明</strong>
+    <p style="color: #94a3b8; margin: 0.5rem 0 0 0; font-size: 0.875rem;">SHAPでモデルの判断理由を理解</p>
+  </a>
+</div>
+
+---
+
+**トラブルシューティング：**
+
+- **「Pythonが見つかりません」** — [Pythonセットアップ](/ja/getting-started/python-setup/)を参照
+- **「sklearn が見つかりません」** — `pip install scikit-learn`を実行
+- **「カラムが見つかりません」** — カラム名が正確に一致しているか確認（大文字小文字を区別）
+- **実行が停止した** — Logsタブでエラーメッセージを確認

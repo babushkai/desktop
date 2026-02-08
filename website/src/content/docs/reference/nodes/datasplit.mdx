@@ -1,0 +1,172 @@
+---
+title: DataSplit Node
+description: Split data into training and test sets with optional stratification.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+The DataSplit node splits your dataset into training and test sets. This is a critical step for evaluating model performance on unseen data.
+
+## Overview
+
+| Property | Value |
+|----------|-------|
+| **Type** | Processing node |
+| **Inputs** | DataFrame (from DataLoader) |
+| **Outputs** | Split indices (train/test) |
+| **Library** | scikit-learn |
+
+## Configuration
+
+### Test Split Ratio
+
+The percentage of data to hold out for testing.
+
+| Value | Training | Testing | Use Case |
+|-------|----------|---------|----------|
+| 0.1 | 90% | 10% | Large datasets (100k+ rows) |
+| 0.2 | 80% | 20% | **Standard (default)** |
+| 0.3 | 70% | 30% | Small datasets, extra validation |
+| 0.4 | 60% | 40% | Very small datasets |
+| 0.5 | 50% | 50% | Maximum validation |
+
+Adjust with the slider (10%-50% range, 5% increments).
+
+### Random State
+
+Seed for reproducibility. Set a fixed value (e.g., 42) to get the same split every time.
+
+- **Default:** 42
+- **Range:** Any integer
+
+<Aside type="tip">
+Always set a fixed random state when comparing models. This ensures fair comparison on the same test data.
+</Aside>
+
+### Stratification
+
+Enable stratified splitting to maintain class proportions in both train and test sets.
+
+**When to use stratification:**
+- Imbalanced classification problems
+- When you have rare classes
+- When class distribution matters
+
+**Configuration:**
+- **Stratify** — Toggle on/off
+- **Stratify Column** — The target column to stratify by (only visible when enabled)
+
+Example: If your dataset has 90% class A and 10% class B, stratification ensures both train and test sets maintain this 90/10 ratio.
+
+## How It Works
+
+1. Reads data from the connected DataLoader
+2. Shuffles the data using the random state
+3. Splits into train/test indices
+4. Saves indices to `split_indices.json` in the work directory
+5. Downstream Trainer uses these indices for training
+
+```python
+from sklearn.model_selection import train_test_split
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y,
+    test_size=0.2,
+    random_state=42,
+    stratify=y  # if stratification enabled
+)
+```
+
+## Connections
+
+| Direction | Node Types |
+|-----------|-----------|
+| **Input from** | DataLoader |
+| **Output to** | Trainer |
+
+**Required pipeline structure:**
+```
+DataLoader → DataSplit → Trainer → Evaluator
+```
+
+<Aside type="note">
+The DataSplit node requires a DataLoader connection. You cannot use it standalone.
+</Aside>
+
+## Validation
+
+The node validates:
+- Must be connected to a DataLoader
+- If stratification enabled, must specify a column name
+- Split ratio must be between 0.1 and 0.5
+
+## Output
+
+The DataSplit node saves split indices to:
+```
+~/mlops-work/split_indices.json
+```
+
+This file contains:
+```json
+{
+  "train_indices": [0, 1, 3, 5, ...],
+  "test_indices": [2, 4, 6, ...],
+  "random_state": 42,
+  "test_size": 0.2,
+  "stratified": true,
+  "stratify_column": "target"
+}
+```
+
+The Trainer node reads this file to use the exact same split.
+
+## Best Practices
+
+### Always Use DataSplit
+
+While the Trainer node has a built-in test split, using DataSplit is preferred:
+- Separates concerns (splitting vs training)
+- Makes split configuration visible in the pipeline
+- Enables stratification
+- Reproducible across reruns
+
+### Choose Appropriate Split Ratio
+
+| Dataset Size | Recommended Split |
+|--------------|-------------------|
+| < 1,000 rows | 0.2-0.3 |
+| 1,000-10,000 | 0.2 |
+| 10,000-100,000 | 0.15-0.2 |
+| > 100,000 | 0.1-0.15 |
+
+Smaller datasets need larger test sets for reliable evaluation.
+
+### Use Stratification for Classification
+
+Always enable stratification for classification tasks, especially with:
+- Imbalanced classes
+- Multi-class problems
+- Small datasets
+
+## Common Issues
+
+### "Stratify column not found"
+
+The column name must match exactly (case-sensitive). Check the DataLoader preview for correct column names.
+
+### "Not enough samples in each class"
+
+If a class has very few samples, stratification may fail. Options:
+- Disable stratification
+- Combine rare classes
+- Collect more data
+
+### Different results each run
+
+Set a fixed `random_state` (e.g., 42) for reproducible splits.
+
+## Related Nodes
+
+- [DataLoader](/reference/nodes/dataloader/) — Load data before splitting
+- [Trainer](/reference/nodes/trainer/) — Train on the split data

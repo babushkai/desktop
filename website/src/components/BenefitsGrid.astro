@@ -1,0 +1,101 @@
+---
+import BenefitCard from './BenefitCard.astro';
+
+const benefits = [
+  {
+    title: 'Train Models in Minutes',
+    description: 'Visual forms replace boilerplate. Pick algorithm, set params, click Train.',
+    icon: 'train',
+  },
+  {
+    title: 'Understand Your Models',
+    description: 'SHAP plots and feature importance explain every prediction.',
+    icon: 'understand',
+  },
+  {
+    title: 'Find Best Hyperparameters',
+    description: 'Optuna runs 100 trials while you grab coffee.',
+    icon: 'tune',
+  },
+  {
+    title: 'Compare Every Experiment',
+    description: 'Tag runs, track metrics, never lose a good model.',
+    icon: 'compare',
+  },
+  {
+    title: 'Deploy Without DevOps',
+    description: 'One-click HTTP server. Test in the playground.',
+    icon: 'deploy',
+  },
+  {
+    title: 'Keep Data Private',
+    description: 'No cloud uploads. No accounts. Just your machine.',
+    icon: 'private',
+  },
+];
+---
+
+<section class="benefits-section">
+  <div class="section-header">
+    <h2>Everything You Need for Local ML</h2>
+    <p>From data loading to model deployment—all on your machine.</p>
+  </div>
+  <div class="benefits-grid">
+    {benefits.map((benefit) => (
+      <BenefitCard
+        title={benefit.title}
+        description={benefit.description}
+        icon={benefit.icon}
+      />
+    ))}
+  </div>
+</section>
+
+<style>
+  .benefits-section {
+    padding: 6rem 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .section-header {
+    text-align: center;
+    margin-bottom: 3rem;
+  }
+
+  .section-header h2 {
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: #f8fafc;
+    margin: 0 0 1rem 0;
+    letter-spacing: -0.02em;
+  }
+
+  .section-header p {
+    font-size: 1.125rem;
+    color: #94a3b8;
+    margin: 0;
+  }
+
+  .benefits-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+  }
+
+  @media (max-width: 900px) {
+    .benefits-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 600px) {
+    .benefits-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .section-header h2 {
+      font-size: 1.75rem;
+    }
+  }
+</style>

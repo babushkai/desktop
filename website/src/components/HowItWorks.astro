@@ -1,0 +1,139 @@
+---
+const steps = [
+  {
+    number: '1',
+    title: 'Load Data',
+    description: 'Drag & drop CSV or Parquet files',
+    color: '#3fb950',
+  },
+  {
+    number: '2',
+    title: 'Configure Model',
+    description: 'Visual forms, no code needed',
+    color: '#db61a2',
+  },
+  {
+    number: '3',
+    title: 'Train & Deploy',
+    description: 'One-click serve via HTTP API',
+    color: '#f0883e',
+  },
+];
+---
+
+<section class="how-it-works">
+  <div class="section-header">
+    <h2>How It Works</h2>
+    <p>Three steps from data to deployment.</p>
+  </div>
+  <div class="steps">
+    {steps.map((step, index) => (
+      <>
+        <div class="step">
+          <div class="step-number" style={`background: ${step.color}20; color: ${step.color};`}>
+            {step.number}
+          </div>
+          <h3>{step.title}</h3>
+          <p>{step.description}</p>
+        </div>
+        {index < steps.length - 1 && (
+          <div class="connector">
+            <svg width="40" height="24" viewBox="0 0 40 24" fill="none">
+              <path d="M0 12h32M24 4l8 8-8 8" stroke="#6e7681" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        )}
+      </>
+    ))}
+  </div>
+</section>
+
+<style>
+  .how-it-works {
+    padding: 6rem 2rem;
+    max-width: 1000px;
+    margin: 0 auto;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .section-header {
+    text-align: center;
+    margin-bottom: 4rem;
+  }
+
+  .section-header h2 {
+    font-size: 2.25rem;
+    font-weight: 700;
+    color: #f8fafc;
+    margin: 0 0 1rem 0;
+    letter-spacing: -0.02em;
+  }
+
+  .section-header p {
+    font-size: 1.125rem;
+    color: #94a3b8;
+    margin: 0;
+  }
+
+  .steps {
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 1rem;
+  }
+
+  @media (max-width: 768px) {
+    .steps {
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .connector {
+      transform: rotate(90deg);
+      margin: 1rem 0;
+    }
+  }
+
+  .step {
+    flex: 1;
+    max-width: 240px;
+    text-align: center;
+    padding: 2rem 1.5rem;
+    background: var(--surface-2, hsl(222, 47%, 10%));
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 0.75rem;
+  }
+
+  .step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    font-size: 1.5rem;
+    font-weight: 700;
+    border-radius: 50%;
+    margin-bottom: 1rem;
+  }
+
+  .step h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #f8fafc;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .step p {
+    font-size: 0.875rem;
+    color: #94a3b8;
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  .connector {
+    display: flex;
+    align-items: center;
+    padding-top: 2.5rem;
+    opacity: 0.6;
+  }
+</style>
