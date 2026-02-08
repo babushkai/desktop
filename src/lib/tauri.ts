@@ -959,3 +959,67 @@ export async function listenToLspFailed(callback: (message: string) => void): Pr
     callback(event.payload);
   });
 }
+
+// Chunk Embeddings (RAG) - v8
+
+export interface ChunkEmbedding {
+  id: number;
+  node_id: string;
+  pipeline_id: string;
+  chunk_id: string;
+  content_hash: string;
+  embedding: number[]; // Uint8Array serializes as number[]
+  embedding_model: string;
+  embedding_dim: number;
+  symbol_name: string | null;
+  symbol_type: string | null; // "function" | "class" | "method" | "toplevel"
+  start_line: number | null;
+  end_line: number | null;
+  created_at: string;
+}
+
+export interface ChunkEmbeddingInput {
+  node_id: string;
+  pipeline_id: string;
+  chunk_id: string;
+  content_hash: string;
+  embedding: number[]; // Uint8Array as number[]
+  embedding_model: string;
+  embedding_dim: number;
+  symbol_name?: string;
+  symbol_type?: string;
+  start_line?: number;
+  end_line?: number;
+}
+
+export async function upsertChunkEmbedding(input: ChunkEmbeddingInput): Promise<void> {
+  return invoke("upsert_chunk_embedding", { input });
+}
+
+export async function getChunkEmbeddingHash(
+  nodeId: string,
+  chunkId: string
+): Promise<string | null> {
+  return invoke<string | null>("get_chunk_embedding_hash", { nodeId, chunkId });
+}
+
+export async function listChunkEmbeddingsForPipeline(
+  pipelineId: string
+): Promise<ChunkEmbedding[]> {
+  return invoke<ChunkEmbedding[]>("list_chunk_embeddings_for_pipeline", { pipelineId });
+}
+
+export async function deleteOrphanChunks(
+  nodeId: string,
+  keepChunkIds: string[]
+): Promise<number> {
+  return invoke<number>("delete_orphan_chunks", { nodeId, keepChunkIds });
+}
+
+export async function deleteChunksForNode(nodeId: string): Promise<number> {
+  return invoke<number>("delete_chunks_for_node", { nodeId });
+}
+
+export async function deleteChunksForPipeline(pipelineId: string): Promise<number> {
+  return invoke<number>("delete_chunks_for_pipeline", { pipelineId });
+}
