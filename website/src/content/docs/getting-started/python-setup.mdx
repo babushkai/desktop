@@ -1,11 +1,11 @@
 ---
 title: Python Setup
-description: Configure Python and install required packages for Kissaten AI.
+description: Configure Python and install required packages for MLOps Desktop.
 ---
 
 import { Tabs, TabItem, Steps, Aside, Code } from '@astrojs/starlight/components';
 
-Kissaten AI uses your system Python to run ML pipelines. This guide covers installation and configuration.
+MLOps Desktop uses your system Python to run ML pipelines. This guide covers installation and configuration.
 
 ## Check Your Python Installation
 
@@ -65,7 +65,7 @@ You should see `Python 3.9` or later. If not installed, follow the installation 
 
 ## Required Packages
 
-Kissaten AI requires these Python packages:
+MLOps Desktop requires these Python packages:
 
 | Package | Purpose |
 |---------|---------|
@@ -100,10 +100,10 @@ Test that packages are installed correctly:
 python3 -c "import sklearn, pandas, numpy, optuna, shap; print('All packages installed!')"
 ```
 
-## Configure Python in Kissaten AI
+## Configure Python in MLOps Desktop
 
 <Steps>
-1. **Open Kissaten AI**
+1. **Open MLOps Desktop**
 
 2. **Check auto-detected path**
 
@@ -163,12 +163,12 @@ source ~/.mlops-env/bin/activate
 # Install packages
 pip install scikit-learn pandas numpy optuna shap matplotlib
 
-# Get the Python path for Kissaten AI
+# Get the Python path for MLOps Desktop
 which python
 # → /Users/yourname/.mlops-env/bin/python
 ```
 
-Use this path in Kissaten AI to ensure consistent package versions.
+Use this path in MLOps Desktop to ensure consistent package versions.
 
 ### Using conda
 
@@ -211,7 +211,7 @@ You may have multiple Python installations. Check which pip you're using:
 
 ```bash
 which pip3
-# Make sure it matches the Python path in Kissaten AI
+# Make sure it matches the Python path in MLOps Desktop
 ```
 
 ### SHAP installation fails

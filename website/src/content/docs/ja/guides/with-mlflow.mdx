@@ -5,17 +5,17 @@ description: 実験管理とモデルレジストリの強化
 
 import { Aside, Steps } from '@astrojs/starlight/components';
 
-MLflowはMLライフサイクル管理プラットフォームです。Kissaten AIと組み合わせることで、実験管理機能を強化できます。
+MLflowはMLライフサイクル管理プラットフォームです。MLOps Desktopと組み合わせることで、実験管理機能を強化できます。
 
 <Aside type="note">
 役割分担：
-- **Kissaten AI** → パイプライン構築、ローカルでの学習
+- **MLOps Desktop** → パイプライン構築、ローカルでの学習
 - **MLflow** → 実験トラッキング、モデルレジストリ、デプロイ
 </Aside>
 
 ## 併用のメリット
 
-| Kissaten AI | MLflow |
+| MLOps Desktop | MLflow |
 |---------------|--------|
 | ビジュアルUI | チーム全体の実験管理 |
 | ローカル完結 | サーバーで共有 |
@@ -80,7 +80,7 @@ with mlflow.start_run(run_name="random-forest-v1"):
 
 ### パターン2: エクスポート後にログ
 
-Kissaten AIでエクスポートした後に記録：
+MLOps Desktopでエクスポートした後に記録：
 
 ```python
 import mlflow
@@ -139,7 +139,7 @@ for model_path in models_dir.glob("*.joblib"):
 ### 個人での使用
 
 <Steps>
-1. Kissaten AIで試行錯誤
+1. MLOps Desktopで試行錯誤
    - 迅速にプロトタイプを作成
    - Optunaでチューニング
    - 良好なモデルをエクスポート
@@ -157,7 +157,7 @@ for model_path in models_dir.glob("*.joblib"):
 ### チームでの使用
 
 <Steps>
-1. 各メンバーがKissaten AIで実験
+1. 各メンバーがMLOps Desktopで実験
    - 個人での試行錯誤
    - 迅速なプロトタイプ作成
 
@@ -254,7 +254,7 @@ for run in runs:
 - 承認ワークフロー
 - A/Bテスト基盤
 
-### Kissaten AIで補う機能
+### MLOps Desktopで補う機能
 
 - ドラッグ＆ドロップでのパイプライン構築
 - コードなしでのモデル設定
@@ -262,7 +262,7 @@ for run in runs:
 
 ## まとめ
 
-1. **作成・試行** → Kissaten AI（ビジュアル、高速、ローカル）
+1. **作成・試行** → MLOps Desktop（ビジュアル、高速、ローカル）
 2. **管理・デプロイ** → MLflow（チーム向け、本番対応）
 
 迅速に試行した後、適切に管理する。両方を併用することで、それぞれの強みを活かせます。

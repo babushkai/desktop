@@ -1,21 +1,21 @@
 ---
 title: Using with MLflow
-description: Integrate Kissaten AI with MLflow for experiment tracking and model registry.
+description: Integrate MLOps Desktop with MLflow for experiment tracking and model registry.
 ---
 
 import { Aside, Steps } from '@astrojs/starlight/components';
 
-MLflow is an open-source platform for managing the ML lifecycle. This guide shows how to use Kissaten AI alongside MLflow for enhanced experiment tracking.
+MLflow is an open-source platform for managing the ML lifecycle. This guide shows how to use MLOps Desktop alongside MLflow for enhanced experiment tracking.
 
 <Aside type="note">
-Kissaten AI and MLflow solve different problems and work great together:
-- **Kissaten AI**: Visual pipeline building, local training
+MLOps Desktop and MLflow solve different problems and work great together:
+- **MLOps Desktop**: Visual pipeline building, local training
 - **MLflow**: Experiment tracking, model registry, deployment
 </Aside>
 
 ## Why Use Both?
 
-| Kissaten AI | MLflow |
+| MLOps Desktop | MLflow |
 |---------------|--------|
 | Visual UI for building pipelines | Centralized experiment tracking |
 | Local-first, no server needed | Collaborative team features |
@@ -86,7 +86,7 @@ with mlflow.start_run(run_name="random-forest-v1"):
 
 ### Approach 2: Post-Export Logging
 
-After exporting from Kissaten AI:
+After exporting from MLOps Desktop:
 
 ```python
 import mlflow
@@ -117,7 +117,7 @@ import json
 from pathlib import Path
 
 def log_experiment(model_path: str, meta_path: str):
-    """Log an Kissaten AI export to MLflow."""
+    """Log an MLOps Desktop export to MLflow."""
     model = joblib.load(model_path)
     with open(meta_path) as f:
         meta = json.load(f)
@@ -163,7 +163,7 @@ for model_path in models_dir.glob("*.joblib"):
 ### Solo Data Scientist
 
 <Steps>
-1. Build and iterate in Kissaten AI
+1. Build and iterate in MLOps Desktop
    - Quick visual prototyping
    - Hyperparameter tuning with Optuna
    - Export best model
@@ -181,7 +181,7 @@ for model_path in models_dir.glob("*.joblib"):
 ### Team Workflow
 
 <Steps>
-1. Each team member uses Kissaten AI locally
+1. Each team member uses MLOps Desktop locally
    - Personal experimentation
    - Quick prototyping
 
@@ -251,7 +251,7 @@ curl -X POST http://localhost:5001/invocations \
 
 ### Naming Conventions
 
-Use consistent names across Kissaten AI and MLflow:
+Use consistent names across MLOps Desktop and MLflow:
 
 ```
 Pipeline Name: churn-random-forest-v2
@@ -261,7 +261,7 @@ MLflow Model Name: ChurnPredictor
 
 ### Artifact Organization
 
-Log additional artifacts from Kissaten AI:
+Log additional artifacts from MLOps Desktop:
 
 ```python
 # In a Script node
@@ -302,14 +302,14 @@ for run in runs:
 
 ## Limitations
 
-### What Kissaten AI doesn't do (use MLflow for):
+### What MLOps Desktop doesn't do (use MLflow for):
 
 - Multi-user collaboration
 - Centralized experiment server
 - Model staging/approval workflows
 - A/B testing infrastructure
 
-### What MLflow doesn't do (use Kissaten AI for):
+### What MLflow doesn't do (use MLOps Desktop for):
 
 - Visual pipeline building
 - Drag-and-drop ML
@@ -318,9 +318,9 @@ for run in runs:
 
 ## Conclusion
 
-Kissaten AI and MLflow complement each other:
+MLOps Desktop and MLflow complement each other:
 
-1. **Build and iterate** in Kissaten AI (visual, fast, local)
+1. **Build and iterate** in MLOps Desktop (visual, fast, local)
 2. **Track and deploy** with MLflow (collaborative, production-ready)
 
 This combination gives you the best of both worlds: rapid local development with enterprise-grade experiment tracking.
@@ -328,6 +328,6 @@ This combination gives you the best of both worlds: rapid local development with
 ---
 
 **Next steps:**
-- [Install Kissaten AI](/getting-started/installation/)
+- [Install MLOps Desktop](/getting-started/installation/)
 - [Train your first model](/tutorials/train-classifier/)
 - [Export and deploy](/tutorials/deploy-model/)

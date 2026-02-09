@@ -1,11 +1,11 @@
 ---
 title: Pythonセットアップ
-description: Kissaten AI用にPythonと必要なパッケージを設定
+description: MLOps Desktop用にPythonと必要なパッケージを設定
 ---
 
 import { Tabs, TabItem, Steps, Aside } from '@astrojs/starlight/components';
 
-Kissaten AIは、システムにインストールされたPythonを使用してMLパイプラインを実行します。
+MLOps Desktopは、システムにインストールされたPythonを使用してMLパイプラインを実行します。
 
 ## Pythonの確認
 
@@ -65,7 +65,7 @@ python3 --version
 
 ## 必要なパッケージ
 
-Kissaten AIを使用するには、以下のPythonパッケージが必要です。
+MLOps Desktopを使用するには、以下のPythonパッケージが必要です。
 
 | パッケージ | 用途 |
 |-----------|------|
@@ -96,10 +96,10 @@ pip3 install --break-system-packages scikit-learn pandas numpy optuna shap matpl
 python3 -c "import sklearn, pandas, numpy, optuna, shap; print('全パッケージがインストールされました')"
 ```
 
-## Kissaten AIでのPython設定
+## MLOps DesktopでのPython設定
 
 <Steps>
-1. **Kissaten AIを開く**
+1. **MLOps Desktopを開く**
 
 2. **検出されたPythonパスを確認**
 
@@ -159,12 +159,12 @@ source ~/.mlops-env/bin/activate
 # パッケージをインストール
 pip install scikit-learn pandas numpy optuna shap matplotlib
 
-# Kissaten AI用のパスを確認
+# MLOps Desktop用のパスを確認
 which python
 # → /Users/yourname/.mlops-env/bin/python
 ```
 
-このパスをKissaten AIで設定すると、パッケージのバージョンが固定されます。
+このパスをMLOps Desktopで設定すると、パッケージのバージョンが固定されます。
 
 ### condaを使用
 
@@ -207,7 +207,7 @@ pip3 install パッケージ名
 
 ```bash
 which pip3
-# Kissaten AIで設定したPythonと一致しているか確認
+# MLOps Desktopで設定したPythonと一致しているか確認
 ```
 
 ### SHAPのインストールに失敗する

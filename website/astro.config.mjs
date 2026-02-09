@@ -3,17 +3,17 @@ import starlight from '@astrojs/starlight';
 import tailwind from '@astrojs/tailwind';
 
 export default defineConfig({
-  site: 'https://kissaten.ai',
+  site: 'https://mlopsdesktop.com',
   integrations: [
     starlight({
-      title: 'Kissaten AI',
+      title: 'MLOps Desktop',
       description: 'Build, train, and deploy ML models with drag-and-drop. No cloud required.',
       logo: {
         src: './src/assets/logo.svg',
         replacesTitle: false,
       },
       social: [
-        { icon: 'github', label: 'GitHub', href: 'https://github.com/kissaten-ai/desktop' },
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/babushkai/desktop' },
       ],
       // Internationalization
       defaultLocale: 'root',

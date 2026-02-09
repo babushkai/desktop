@@ -4,7 +4,7 @@ import starlightPlugin from '@astrojs/starlight-tailwind';
 
 const require = createRequire(import.meta.url);
 
-// Kissaten AI theme - cyan/navy palette
+// MLOps Desktop theme - cyan/navy palette
 const appColors = {
   background: {
     DEFAULT: 'var(--surface-0)',

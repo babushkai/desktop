@@ -5,11 +5,11 @@ description: 用途に応じた適切なツール選択
 
 import { Aside } from '@astrojs/starlight/components';
 
-Jupyter notebookはデータサイエンスの標準ツールです。Kissaten AIとは用途が異なるため、両方を併用するのが効果的です。
+Jupyter notebookはデータサイエンスの標準ツールです。MLOps Desktopとは用途が異なるため、両方を併用するのが効果的です。
 
 ## 比較表
 
-| | Kissaten AI | Jupyter |
+| | MLOps Desktop | Jupyter |
 |--|---------------|---------|
 | **学習コスト** | 低い（ドラッグ＆ドロップ） | Python知識が必要 |
 | **再現性** | 高い（パイプラインで保証） | セル実行順に依存 |
@@ -17,7 +17,7 @@ Jupyter notebookはデータサイエンスの標準ツールです。Kissaten A
 | **柔軟性** | 定型ワークフロー向け | 自由度が高い |
 | **探索的分析** | 限定的 | 優れている |
 
-## Kissaten AIが適している場面
+## MLOps Desktopが適している場面
 
 ### 迅速に結果を得たい場合
 
@@ -33,7 +33,7 @@ Jupyterで起こりがちな問題：
 - カーネル再起動で結果が変わる
 
 <Aside type="tip">
-「自分の環境では動く」という問題を避けたい場合はKissaten AIが適しています。
+「自分の環境では動く」という問題を避けたい場合はMLOps Desktopが適しています。
 </Aside>
 
 ### Pythonに不慣れな場合
@@ -88,7 +88,7 @@ df.groupby("category")["revenue"].mean()
 
 実際の開発では、両方を組み合わせることが多くあります。
 
-### 探索はJupyter、本番化はKissaten AI
+### 探索はJupyter、本番化はMLOps Desktop
 
 ```
 1. Jupyterでデータを探索
@@ -96,7 +96,7 @@ df.groupby("category")["revenue"].mean()
    - 欠損値や異常値の発見
    - 特徴量のアイデア出し
 
-2. Kissaten AIでパイプライン化
+2. MLOps Desktopでパイプライン化
    - 再現可能な形式に
    - ハイパーパラメータチューニング
    - モデルのエクスポート
@@ -105,7 +105,7 @@ df.groupby("category")["revenue"].mean()
    - エクスポートしたモデルを本番環境へ
 ```
 
-### 前処理はJupyter、学習はKissaten AI
+### 前処理はJupyter、学習はMLOps Desktop
 
 ```
 1. Jupyterで複雑な前処理
@@ -113,7 +113,7 @@ df.groupby("category")["revenue"].mean()
    - ドメイン知識を要する加工
    - 整形済みCSVとして保存
 
-2. Kissaten AIで学習
+2. MLOps Desktopで学習
    - 標準的なMLワークフロー
    - 実験管理
    - モデル比較
@@ -121,15 +121,15 @@ df.groupby("category")["revenue"].mean()
 
 ## 移行ガイド
 
-### JupyterからKissaten AIへ
+### JupyterからMLOps Desktopへ
 
 1. 整形済みデータをCSVで保存
 2. 使用しているsklearnモデルを確認
 3. 効果的だったパラメータをメモ
-4. Kissaten AIで同じ構成を再現
+4. MLOps Desktopで同じ構成を再現
 5. 精度が同等であることを確認
 
-### Kissaten AIからJupyterへ
+### MLOps DesktopからJupyterへ
 
 1. モデルを.joblib形式でエクスポート
 2. 各ノードのPythonコードを参考にする
@@ -139,7 +139,7 @@ df.groupby("category")["revenue"].mean()
 
 ### データ読み込み
 
-| Jupyter | Kissaten AI |
+| Jupyter | MLOps Desktop |
 |---------|---------------|
 | `pd.read_csv()` | DataLoaderノード |
 | 様々な形式に対応 | CSV、Parquet |
@@ -147,7 +147,7 @@ df.groupby("category")["revenue"].mean()
 
 ### 学習
 
-| Jupyter | Kissaten AI |
+| Jupyter | MLOps Desktop |
 |---------|---------------|
 | コードを記述 | フォームで設定 |
 | sklearn/PyTorch/その他 | sklearn |
@@ -155,7 +155,7 @@ df.groupby("category")["revenue"].mean()
 
 ### チューニング
 
-| Jupyter | Kissaten AI |
+| Jupyter | MLOps Desktop |
 |---------|---------------|
 | GridSearchCV等を自分で実装 | Optuna内蔵 |
 | 最適化ループを記述 | ボタンで実行 |
@@ -163,7 +163,7 @@ df.groupby("category")["revenue"].mean()
 
 ### 評価
 
-| Jupyter | Kissaten AI |
+| Jupyter | MLOps Desktop |
 |---------|---------------|
 | 自分で計算 | 自動計算 |
 | 自分でグラフを描画 | 内蔵チャート |
@@ -171,7 +171,7 @@ df.groupby("category")["revenue"].mean()
 
 ## まとめ
 
-**Kissaten AIが適している場合：**
+**MLOps Desktopが適している場合：**
 - ノーコードでML開発を行いたい
 - 再現性を重視する
 - 本番環境への移行を見据えている
@@ -184,7 +184,7 @@ df.groupby("category")["revenue"].mean()
 - 教育用途
 
 **両方を併用する場合：**
-- 探索はJupyter、本番化はKissaten AI
+- 探索はJupyter、本番化はMLOps Desktop
 - それぞれの強みを活かす
 
 ---
