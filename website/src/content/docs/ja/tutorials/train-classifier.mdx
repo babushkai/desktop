@@ -1,0 +1,176 @@
+---
+title: 分類モデルの学習
+description: Irisデータセットを使用して分類パイプラインを構築
+---
+
+import { Steps, Aside } from '@astrojs/starlight/components';
+
+このチュートリアルでは、Irisデータセットを使用して完全な分類パイプラインを構築します。
+
+- データの読み込みとプレビュー
+- 分類器の設定と学習
+- モデル性能の評価
+- 結果の解釈
+
+## 前提条件
+
+- [MLOps Desktop](/ja/getting-started/installation/)がインストール済み
+- Pythonパッケージ：`pip install scikit-learn pandas`
+
+## データセットの準備
+
+サンプルデータセットを作成します。ターミナルで以下を実行してください。
+
+```python
+from sklearn.datasets import load_iris
+import pandas as pd
+
+iris = load_iris(as_frame=True)
+df = iris.frame
+df.to_csv("~/Desktop/iris.csv", index=False)
+print(f"iris.csv を保存しました（{len(df)}行）")
+```
+
+これでデスクトップに`iris.csv`が作成されます。150サンプル、5カラムのデータです。
+- `sepal length (cm)`、`sepal width (cm)`、`petal length (cm)`、`petal width (cm)` — 特徴量
+- `target` — クラスラベル（0=setosa、1=versicolor、2=virginica）
+
+## パイプラインの構築
+
+<Steps>
+1. **新しいパイプラインを作成**
+
+   MLOps Desktopを開きます。空のキャンバスが表示されます。
+
+2. **DataLoaderノードを追加**
+
+   **+ Add Node** → **DataLoader**を選択します。
+
+   ノードをクリックし、**Browse**で`iris.csv`を選択します。プレビューにデータカラムが表示されます。
+
+3. **DataSplitノードを追加**
+
+   **+ Add Node** → **Data Split**を選択します。
+
+   DataLoaderの右ハンドルからDataSplitの左ハンドルへ接続します。
+
+   設定：
+   - **Test Split:** 0.2（20%をテストに使用）
+   - **Random State:** 42
+   - **Stratify:** 有効、カラムを`target`に設定
+
+4. **Trainerノードを追加**
+
+   **+ Add Node** → **Trainer**を選択し、DataSplitから接続します。
+
+   | 設定 | 値 |
+   |------|-----|
+   | Model Type | Random Forest Classifier |
+   | Target Column | `target` |
+
+5. **Evaluatorノードを追加**
+
+   **+ Add Node** → **Evaluator**を選択し、Trainerから接続します。
+
+6. **パイプラインを実行**
+
+   ツールバーの**Run**をクリックします。
+
+   出力パネルに進行状況が表示されます。
+   ```
+   [DataLoader] Loaded iris.csv: 150 rows, 5 columns
+   [DataSplit] Split: 120 train, 30 test (stratified)
+   [Trainer] Training Random Forest on 120 samples...
+   [Trainer] Training complete
+   [Evaluator] Accuracy: 0.967 (29/30 correct)
+   ```
+</Steps>
+
+## 分類メトリクスの理解
+
+実行後、Evaluatorに複数のメトリクスが表示されます。
+
+### Accuracy（精度）
+
+正解した予測の割合を示す最も基本的なメトリクスです。
+
+```
+Accuracy = 正解数 / 全予測数
+         = 29 / 30
+         = 0.967（96.7%）
+```
+
+### Precision、Recall、F1
+
+各クラスについて算出されます。
+
+| メトリクス | 計算式 | 解釈 |
+|-----------|--------|------|
+| **Precision** | TP / (TP + FP) | 陽性と予測したうち、正解だった割合 |
+| **Recall** | TP / (TP + FN) | 実際の陽性を、どれだけ検出できたか |
+| **F1 Score** | 2 × (P × R) / (P + R) | PrecisionとRecallの調和平均 |
+
+<Aside type="tip">
+- 高Precision、低Recall → 控えめな予測（偽陽性が少ない）
+- 低Precision、高Recall → 積極的な予測（偽陰性が少ない）
+- F1は両者のバランスを示す指標
+</Aside>
+
+### 混同行列
+
+予測と実際のラベルを比較する3×3の行列です。
+
+```
+              予測
+            0    1    2
+実際  0 [ 10   0    0 ]  ← Setosa（全問正解）
+      1 [  0   9    1 ]  ← Versicolor（1つがVirginicaに誤分類）
+      2 [  0   0   10 ]  ← Virginica（全問正解）
+```
+
+対角線が正解、非対角線が誤分類です。
+
+## 他のモデルを試す
+
+他の分類器でも実験できます。
+
+| モデル | 適した用途 |
+|--------|-----------|
+| **Logistic Regression** | 線形決定境界、解釈しやすい |
+| **Random Forest** | 複雑な関係、外れ値に強い |
+| **Gradient Boosting** | 高精度が必要な場合、学習は遅い |
+| **SVM** | 高次元データ、二値分類 |
+
+モデルを切り替えるには：
+1. Trainerノードをクリック
+2. **Model Type**を変更
+3. **Run**を再実行
+
+複数のモデルで精度を比較し、データに最適なものを選択してください。
+
+## パイプラインの保存
+
+**Save**をクリックし、名前を入力します（例：「iris-classifier」）。
+
+**Load**ドロップダウンからいつでも再読み込みできます。
+
+## 次のステップ
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem;">
+  <a href="/ja/tutorials/tune-hyperparameters/" style="display: block; padding: 1rem; background: var(--surface-2); border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); text-decoration: none;">
+    <strong>ハイパーパラメータチューニング</strong>
+    <p style="color: #94a3b8; margin: 0.5rem 0 0 0; font-size: 0.875rem;">Optunaで最適な設定を探索</p>
+  </a>
+  <a href="/ja/tutorials/explain-predictions/" style="display: block; padding: 1rem; background: var(--surface-2); border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); text-decoration: none;">
+    <strong>予測の説明</strong>
+    <p style="color: #94a3b8; margin: 0.5rem 0 0 0; font-size: 0.875rem;">モデルの判断理由を理解</p>
+  </a>
+</div>
+
+---
+
+**トラブルシューティング：**
+
+- **「target が見つかりません」** — CSVに`target`カラムがあるか確認、またはカラム名の大文字小文字を確認
+- **精度が低い** — `n_estimators`を増やすか、他のモデルを試す
+- **「サンプルが不足」** — test_sizeを小さくして訓練データを確保（50サンプル以上を推奨）

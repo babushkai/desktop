@@ -1,0 +1,288 @@
+---
+import Footer from '../components/Footer.astro';
+---
+
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Terms of Use - MLOps Desktop</title>
+    <meta name="description" content="Terms of use for MLOps Desktop application and website." />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="theme-color" content="#0b0e14" />
+  </head>
+
+  <body>
+    <header class="site-header">
+      <nav class="nav">
+        <a href="/" class="logo">
+          <img src="/favicon.svg" alt="" width="28" height="28" />
+          <span>MLOps Desktop</span>
+        </a>
+        <div class="nav-links">
+          <a href="/getting-started/installation/">Docs</a>
+          <a href="https://github.com/babushkai/desktop" target="_blank" rel="noopener noreferrer">GitHub</a>
+        </div>
+      </nav>
+    </header>
+
+    <main class="legal-page">
+      <article class="content">
+        <h1>Terms of Use</h1>
+        <p class="last-updated">Last updated: January 2025</p>
+
+        <section>
+          <h2>1. Acceptance of Terms</h2>
+          <p>
+            By downloading, installing, or using MLOps Desktop ("the Software"), you agree
+            to be bound by these Terms of Use. If you do not agree to these terms, do not
+            use the Software.
+          </p>
+        </section>
+
+        <section>
+          <h2>2. License</h2>
+          <p>
+            MLOps Desktop is licensed under the MIT License. This means you are free to:
+          </p>
+          <ul>
+            <li>Use the Software for any purpose (personal, commercial, etc.)</li>
+            <li>Modify the Software</li>
+            <li>Distribute the Software</li>
+            <li>Include the Software in your own projects</li>
+          </ul>
+          <p>
+            The full license text is available at:
+            <a href="https://github.com/babushkai/desktop/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">
+              github.com/babushkai/desktop/blob/main/LICENSE
+            </a>
+          </p>
+        </section>
+
+        <section>
+          <h2>3. Disclaimer of Warranties</h2>
+          <p>
+            THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+            IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+            FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+          </p>
+          <p>
+            We do not warrant that:
+          </p>
+          <ul>
+            <li>The Software will meet your specific requirements</li>
+            <li>The Software will be uninterrupted, timely, secure, or error-free</li>
+            <li>The results obtained from using the Software will be accurate or reliable</li>
+            <li>Any errors in the Software will be corrected</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>4. Limitation of Liability</h2>
+          <p>
+            IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+            DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+            OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+            USE OR OTHER DEALINGS IN THE SOFTWARE.
+          </p>
+        </section>
+
+        <section>
+          <h2>5. Your Responsibilities</h2>
+          <p>
+            When using MLOps Desktop, you are responsible for:
+          </p>
+          <ul>
+            <li>Ensuring you have the right to use any data you process</li>
+            <li>Complying with applicable laws and regulations</li>
+            <li>Backing up your data and models</li>
+            <li>Securing your machine and preventing unauthorized access</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>6. Machine Learning Models</h2>
+          <p>
+            Models trained using MLOps Desktop are your property. We make no claims on
+            your models, training data, or results. You are solely responsible for:
+          </p>
+          <ul>
+            <li>The quality and accuracy of your models</li>
+            <li>Ensuring models do not produce harmful or biased outputs</li>
+            <li>Compliance with applicable ML/AI regulations in your jurisdiction</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>7. Third-Party Dependencies</h2>
+          <p>
+            MLOps Desktop uses third-party libraries and tools (Python, scikit-learn,
+            Optuna, SHAP, etc.). These are governed by their own licenses. You are
+            responsible for complying with those licenses when using their functionality.
+          </p>
+        </section>
+
+        <section>
+          <h2>8. Website Terms</h2>
+          <p>
+            When using the mlopsdesktop.com website:
+          </p>
+          <ul>
+            <li>Do not attempt to gain unauthorized access to our systems</li>
+            <li>Do not use automated tools to scrape or crawl the website excessively</li>
+            <li>Do not submit false information to forms</li>
+          </ul>
+        </section>
+
+        <section>
+          <h2>9. Changes to Terms</h2>
+          <p>
+            We may modify these terms at any time. Continued use of the Software after
+            changes constitutes acceptance of the new terms. We recommend reviewing
+            these terms periodically.
+          </p>
+        </section>
+
+        <section>
+          <h2>10. Governing Law</h2>
+          <p>
+            These terms shall be governed by and construed in accordance with applicable
+            laws, without regard to conflict of law principles.
+          </p>
+        </section>
+
+        <section>
+          <h2>11. Contact</h2>
+          <p>
+            For questions about these terms, please contact us at legal@mlopsdesktop.com
+            or open an issue on
+            <a href="https://github.com/babushkai/desktop" target="_blank" rel="noopener noreferrer">GitHub</a>.
+          </p>
+        </section>
+      </article>
+    </main>
+
+    <Footer />
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    --navy-h: 222;
+    --navy-s: 47%;
+    --surface-0: hsl(var(--navy-h), var(--navy-s), 4%);
+    --surface-1: hsl(var(--navy-h), var(--navy-s), 7%);
+    --surface-2: hsl(var(--navy-h), var(--navy-s), 10%);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', Roboto, sans-serif;
+    background: var(--surface-0);
+    color: #f8fafc;
+    -webkit-font-smoothing: antialiased;
+  }
+</style>
+
+<style>
+  .site-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    background: rgba(11, 14, 20, 0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+
+  .nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem 2rem;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    font-weight: 600;
+    color: #f8fafc;
+    text-decoration: none;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 2rem;
+  }
+
+  .nav-links a {
+    color: #94a3b8;
+    text-decoration: none;
+  }
+
+  .nav-links a:hover {
+    color: #f8fafc;
+  }
+
+  .legal-page {
+    padding: 8rem 2rem 4rem;
+    max-width: 800px;
+    margin: 0 auto;
+  }
+
+  .content h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+  }
+
+  .last-updated {
+    color: #64748b;
+    font-size: 0.875rem;
+    margin-bottom: 3rem;
+  }
+
+  section {
+    margin-bottom: 2.5rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0 0 1rem 0;
+    color: #f8fafc;
+  }
+
+  p {
+    color: #94a3b8;
+    line-height: 1.7;
+    margin: 0 0 1rem 0;
+  }
+
+  ul {
+    color: #94a3b8;
+    line-height: 1.7;
+    padding-left: 1.5rem;
+    margin: 0 0 1rem 0;
+  }
+
+  li {
+    margin-bottom: 0.5rem;
+  }
+
+  a {
+    color: #22d3ee;
+  }
+
+  a:hover {
+    text-decoration: underline;
+  }
+</style>

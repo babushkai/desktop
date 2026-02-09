@@ -1,0 +1,11 @@
+# MLOps Desktop Website
+# https://mlopsdesktop.com
+
+User-agent: *
+Allow: /
+
+# Sitemaps
+Sitemap: https://mlopsdesktop.com/sitemap-index.xml
+
+# Disallow admin/API routes
+Disallow: /api/

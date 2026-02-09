@@ -1,0 +1,299 @@
+---
+title: Deploy as HTTP API
+description: Serve your trained model via the built-in HTTP server.
+---
+
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+MLOps Desktop includes a built-in HTTP server for model serving. Deploy any trained model and get predictions via REST API—no additional infrastructure needed.
+
+**Time to complete:** ~10 minutes
+
+## Prerequisites
+
+- A trained model (complete the [Quickstart](/getting-started/quickstart/) first)
+- Python packages: `pip install fastapi uvicorn slowapi`
+- Optional for ONNX: `pip install onnxruntime`
+
+## Using the Serving Tab
+
+<Steps>
+1. **Open the Serving tab**
+
+   In the Output Panel at the bottom, click the **Serving** tab.
+
+2. **Select a model**
+
+   Choose from:
+   - **Registered models** from the Models tab
+   - **Latest trained model** from the current session
+
+   Select a specific version if multiple exist.
+
+3. **Configure the server**
+
+   Click the **Configure** button (gear icon):
+
+   | Setting | Default | Description |
+   |---------|---------|-------------|
+   | **Host** | 0.0.0.0 | Listen address |
+   | **Port** | 8000 | HTTP port |
+   | **Use ONNX Runtime** | Off | Enable for faster inference |
+
+4. **Start the server**
+
+   Click **Start Server**.
+
+   Status changes: `Stopped → Starting → Running`
+
+   You'll see the server URL: `http://localhost:8000`
+
+5. **Make predictions**
+
+   The API is now ready. Use curl, Python, or any HTTP client.
+</Steps>
+
+## API Endpoints
+
+Once running, the server provides these endpoints:
+
+### Health Check
+
+```bash
+curl http://localhost:8000/health
+```
+
+Response:
+```json
+{"status": "healthy", "model": "RandomForestClassifier"}
+```
+
+### Predict
+
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"features": [[5.1, 3.5, 1.4, 0.2]]}'
+```
+
+Response (classification):
+```json
+{
+  "predictions": [0],
+  "probabilities": [[0.98, 0.01, 0.01]]
+}
+```
+
+Response (regression):
+```json
+{
+  "predictions": [24.5]
+}
+```
+
+### Batch Predictions
+
+Send multiple samples:
+
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "features": [
+      [5.1, 3.5, 1.4, 0.2],
+      [6.2, 3.4, 5.4, 2.3],
+      [4.9, 2.5, 4.5, 1.7]
+    ]
+  }'
+```
+
+### API Documentation
+
+FastAPI provides automatic docs:
+
+- **Swagger UI:** `http://localhost:8000/docs`
+- **ReDoc:** `http://localhost:8000/redoc`
+
+## Request Metrics
+
+The Serving tab shows real-time metrics:
+
+| Metric | Description |
+|--------|-------------|
+| **Total Requests** | Count since server start |
+| **Success Rate** | Percentage of 2xx responses |
+| **Avg Latency** | Mean response time |
+| **Requests/min** | Current throughput |
+
+### Request Log
+
+A table shows recent requests:
+
+| Time | Method | Path | Status | Latency | Batch Size |
+|------|--------|------|--------|---------|------------|
+| 10:30:15 | POST | /predict | 200 | 12ms | 1 |
+| 10:30:18 | POST | /predict | 200 | 45ms | 100 |
+| 10:30:22 | GET | /health | 200 | 2ms | - |
+
+## ONNX Runtime
+
+Enable ONNX for faster inference:
+
+<Steps>
+1. Install onnxruntime: `pip install onnxruntime`
+2. Export your model as ONNX (in ModelExporter node)
+3. In Serving config, enable **Use ONNX Runtime**
+4. Select the `.onnx` model file
+</Steps>
+
+<Aside type="tip">
+ONNX Runtime is 2-10x faster than sklearn for inference, especially for tree-based models.
+</Aside>
+
+## Using with Python
+
+```python
+import requests
+
+# Single prediction
+response = requests.post(
+    "http://localhost:8000/predict",
+    json={"features": [[5.1, 3.5, 1.4, 0.2]]}
+)
+result = response.json()
+print(f"Predicted class: {result['predictions'][0]}")
+print(f"Confidence: {max(result['probabilities'][0]):.1%}")
+
+# Batch prediction
+import pandas as pd
+df = pd.read_csv("new_data.csv")
+features = df.drop(columns=["target"]).values.tolist()
+
+response = requests.post(
+    "http://localhost:8000/predict",
+    json={"features": features}
+)
+predictions = response.json()["predictions"]
+```
+
+## Using with JavaScript
+
+```javascript
+const response = await fetch('http://localhost:8000/predict', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    features: [[5.1, 3.5, 1.4, 0.2]]
+  })
+});
+
+const { predictions, probabilities } = await response.json();
+console.log(`Predicted: ${predictions[0]}`);
+```
+
+## Server Lifecycle
+
+| State | Description |
+|-------|-------------|
+| **Stopped** | Server not running |
+| **Starting** | Loading model, initializing FastAPI |
+| **Running** | Accepting requests |
+| **Stopping** | Graceful shutdown |
+
+Click **Stop Server** to shut down gracefully.
+
+## Export for Production
+
+For production deployment outside MLOps Desktop:
+
+<Tabs>
+  <TabItem label="Export Model">
+    Use the **ModelExporter** node to save:
+    - `.joblib` — Python sklearn applications
+    - `.onnx` — Cross-platform, optimized inference
+    - `.pkl` — Python native (security risk)
+  </TabItem>
+  <TabItem label="Standalone Server">
+    Create your own FastAPI server:
+
+    ```python
+    from fastapi import FastAPI
+    import joblib
+    import numpy as np
+
+    app = FastAPI()
+    model = joblib.load("model.joblib")
+
+    @app.post("/predict")
+    async def predict(data: dict):
+        features = np.array(data["features"])
+        predictions = model.predict(features)
+        return {"predictions": predictions.tolist()}
+    ```
+
+    Run with: `uvicorn server:app --host 0.0.0.0 --port 8000`
+  </TabItem>
+</Tabs>
+
+## Dependencies
+
+The server requires these packages:
+
+| Package | Purpose | Required |
+|---------|---------|----------|
+| `fastapi` | Web framework | Yes |
+| `uvicorn` | ASGI server | Yes |
+| `slowapi` | Rate limiting | Yes |
+| `onnxruntime` | ONNX inference | Optional |
+
+Install all:
+```bash
+pip install fastapi uvicorn slowapi onnxruntime
+```
+
+The Serving tab checks for dependencies and shows warnings if any are missing.
+
+## Common Issues
+
+### "FastAPI not installed"
+
+```bash
+pip install fastapi uvicorn slowapi
+```
+
+### Port already in use
+
+Change the port in server configuration, or stop the existing process:
+```bash
+lsof -i :8000  # Find process
+kill -9 <PID>  # Stop it
+```
+
+### Slow predictions
+
+- Enable ONNX Runtime for faster inference
+- Use batch predictions instead of single requests
+- Check model complexity (large Random Forest = slow)
+
+### CORS errors from browser
+
+The server allows all origins by default. If still having issues, check your request headers.
+
+## Rate Limiting
+
+The server includes basic rate limiting via slowapi:
+- Default: 100 requests/minute per IP
+- Prevents abuse in shared environments
+
+## Next Steps
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem;">
+  <a href="/reference/nodes/exporter/" style="display: block; padding: 1rem; background: var(--surface-2); border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); text-decoration: none;">
+    <strong>Export Formats</strong>
+    <p style="color: #94a3b8; margin: 0.5rem 0 0 0; font-size: 0.875rem;">joblib, pickle, and ONNX options</p>
+  </a>
+  <a href="/tutorials/track-experiments/" style="display: block; padding: 1rem; background: var(--surface-2); border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); text-decoration: none;">
+    <strong>Track Experiments</strong>
+    <p style="color: #94a3b8; margin: 0.5rem 0 0 0; font-size: 0.875rem;">Version and compare deployed models</p>
+  </a>
+</div>

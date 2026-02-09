@@ -1,0 +1,229 @@
+---
+title: Use Cases
+description: When MLOps Desktop is the right tool for your ML workflow.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+MLOps Desktop is designed for specific use cases where local-first, visual ML makes sense. This guide helps you determine if it's right for you.
+
+## Ideal Use Cases
+
+### Personal ML Projects
+
+**You're a data scientist or developer** working on side projects, learning ML, or building prototypes.
+
+Why MLOps Desktop works:
+- No cloud costs or setup
+- Visual interface for quick experimentation
+- Built-in hyperparameter tuning
+- Save/load projects locally
+
+**Example projects:**
+- Predicting housing prices from Kaggle datasets
+- Classifying your personal photo collection
+- Analyzing your Spotify listening history
+- Building a model for a hackathon
+
+### Small Team ML
+
+**Your team of 2-5 people** needs to build ML models without dedicated MLOps infrastructure.
+
+Why MLOps Desktop works:
+- Each person works locally (no server to maintain)
+- Share pipeline files via Git/Dropbox
+- Export models to joblib for easy sharing
+- No coordination overhead
+
+**Example workflow:**
+1. Alice builds a baseline model in MLOps Desktop
+2. Exports pipeline file and model
+3. Bob loads pipeline, tries different hyperparameters
+4. Best model goes to production
+
+### Privacy-Sensitive Data
+
+**Your data can't leave your machine** due to regulations, contracts, or personal preference.
+
+Why MLOps Desktop works:
+- 100% offline capable
+- No data uploaded anywhere
+- No telemetry or analytics in the app
+- Train on sensitive data without risk
+
+**Example scenarios:**
+- Healthcare data (HIPAA considerations)
+- Financial data (regulatory requirements)
+- Personal data you don't want in the cloud
+- Client data under NDA
+
+### Learning ML
+
+**You're learning machine learning** and want hands-on practice without coding overhead.
+
+Why MLOps Desktop works:
+- Visual representation of ML concepts
+- See how data flows through a pipeline
+- Experiment with different algorithms quickly
+- Understand hyperparameters through forms, not code
+
+**Learning path:**
+1. Load a dataset (understand data shape)
+2. Configure a model (learn about parameters)
+3. Evaluate results (understand metrics)
+4. Tune hyperparameters (see what affects performance)
+
+### Rapid Prototyping
+
+**You need a working model fast** before investing in a full ML pipeline.
+
+Why MLOps Desktop works:
+- Minutes from data to model
+- Compare algorithms quickly
+- Built-in evaluation and explainability
+- Export when ready for production
+
+**Example timeline:**
+- Hour 1: Load data, try 3-4 algorithms
+- Hour 2: Tune best algorithm
+- Hour 3: Export model and metadata
+- Day 2: Integrate into application
+
+### Model Explainability
+
+**You need to understand your models** for stakeholders, compliance, or debugging.
+
+Why MLOps Desktop works:
+- Built-in SHAP integration
+- Feature importance visualization
+- Partial dependence plots
+- Export explanations as images
+
+**Example needs:**
+- Explain loan approval decisions
+- Debug why model misclassifies certain inputs
+- Present model logic to non-technical stakeholders
+- Regulatory compliance documentation
+
+## Who Uses MLOps Desktop
+
+### Hobbyist Data Scientists
+
+- Weekend ML projects
+- Kaggle competition prep
+- Personal data analysis
+
+### Startup Teams
+
+- Early-stage ML features
+- Validate ideas quickly
+- Ship without MLOps overhead
+
+### Consultants
+
+- Build models for clients
+- Demonstrate ML value
+- Quick POC development
+
+### Students
+
+- Coursework projects
+- Thesis research
+- Learning ML fundamentals
+
+### Enterprise Data Scientists
+
+- Personal prototyping
+- Quick hypothesis testing
+- Offline work (travel, secure environments)
+
+## Not Ideal For
+
+<Aside type="caution">
+MLOps Desktop may not be the right choice for these scenarios.
+</Aside>
+
+### Large-Scale ML
+
+If you need:
+- Training on GPU clusters
+- Distributed training
+- Petabyte-scale data
+- Real-time streaming ML
+
+**Consider:** AWS SageMaker, GCP Vertex AI, Azure ML, or custom infrastructure.
+
+### Deep Learning
+
+If you're building:
+- Neural networks
+- Computer vision models
+- NLP transformers
+- Custom architectures
+
+**Consider:** PyTorch, TensorFlow, Jupyter notebooks.
+
+### Large Team Collaboration
+
+If you need:
+- Centralized experiment tracking
+- Model approval workflows
+- Team-wide visibility
+- Shared compute resources
+
+**Consider:** MLflow + cloud infrastructure, Weights & Biases, Neptune.
+
+### Real-Time Inference
+
+If you need:
+- Sub-millisecond predictions
+- High-throughput serving
+- Auto-scaling
+- A/B testing infrastructure
+
+**Consider:** TensorFlow Serving, Triton, cloud ML endpoints.
+
+## Comparison by Use Case
+
+| Use Case | MLOps Desktop | Cloud ML Platform |
+|----------|---------------|-------------------|
+| Personal projects | Best | Overkill |
+| Learning ML | Best | Overkill |
+| Rapid prototyping | Best | Slower setup |
+| Privacy-sensitive | Best | Depends on data policies |
+| Small team | Good | Good if budget allows |
+| Large team | Not ideal | Best |
+| Deep learning | Not ideal | Best |
+| Production at scale | Not ideal | Best |
+
+## Success Stories
+
+### Freelance Data Scientist
+
+> "I use MLOps Desktop for client demos. I can show a working model in our first meeting, then export and deploy if they want to proceed."
+
+### Startup CTO
+
+> "We shipped our first ML feature in a week. No infrastructure setup, no cloud bills, just results."
+
+### Student Researcher
+
+> "I learned more about ML by seeing the pipeline visually than from reading papers. Now I understand why hyperparameters matter."
+
+### Privacy-Conscious Developer
+
+> "I analyze my personal health data locally. I'd never upload it anywhere, but now I can apply ML to it."
+
+## Getting Started
+
+Ready to try MLOps Desktop for your use case?
+
+1. **[Download the app](/getting-started/installation/)** — Free, open source, macOS
+2. **[5-minute quickstart](/getting-started/quickstart/)** — Build your first pipeline
+3. **[Full tutorial](/tutorials/train-classifier/)** — End-to-end classification
+
+---
+
+**Questions about whether MLOps Desktop fits your needs?**
+
+[Open a discussion on GitHub](https://github.com/babushkai/desktop/discussions) and we'll help you figure out the best approach.

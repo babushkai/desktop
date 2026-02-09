@@ -1,0 +1,113 @@
+---
+title: MLOps Desktop Documentation
+description: Build, train, and deploy ML models with drag-and-drop. No cloud required.
+template: splash
+hero:
+  tagline: Visual ML pipelines that run entirely on your machine. No cloud bills. No account required.
+  image:
+    file: ../../assets/logo.svg
+  actions:
+    - text: Get Started
+      link: /getting-started/installation/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/babushkai/desktop
+      icon: external
+      variant: secondary
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## What is MLOps Desktop?
+
+MLOps Desktop is a native macOS application for building machine learning pipelines visually. Drag and drop nodes, connect them together, and run training jobs—all without writing boilerplate code.
+
+<CardGrid stagger>
+  <Card title="Visual Pipeline Builder" icon="pencil">
+    Design ML workflows with 6 node types: DataLoader, DataSplit, Trainer, Evaluator, ModelExporter, and Script.
+  </Card>
+  <Card title="12 ML Models" icon="rocket">
+    Train classification or regression models: Random Forest, Gradient Boosting, SVM, KNN, MLP Neural Networks, and more.
+  </Card>
+  <Card title="Hyperparameter Tuning" icon="setting">
+    Built-in Optuna integration with Bayesian (TPE), Random, and Grid search strategies.
+  </Card>
+  <Card title="Model Explainability" icon="open-book">
+    SHAP values, permutation importance, partial dependence plots, and human-readable insights.
+  </Card>
+  <Card title="Experiment Tracking" icon="list-format">
+    Track runs, compare metrics, tag experiments, and view complete run history.
+  </Card>
+  <Card title="Model Serving" icon="external">
+    Deploy models via HTTP API with FastAPI, track request metrics, and support ONNX runtime.
+  </Card>
+</CardGrid>
+
+## Quick Links
+
+<CardGrid>
+  <Card title="Installation" icon="add-document">
+    Download and install MLOps Desktop on macOS.
+
+    [Install now →](/getting-started/installation/)
+  </Card>
+  <Card title="5-Minute Quickstart" icon="rocket">
+    Build your first pipeline in under 5 minutes.
+
+    [Start tutorial →](/getting-started/quickstart/)
+  </Card>
+  <Card title="Python Setup" icon="seti:python">
+    Configure Python and install required packages.
+
+    [Setup guide →](/getting-started/python-setup/)
+  </Card>
+  <Card title="Node Reference" icon="list-format">
+    Complete reference for all 6 node types.
+
+    [View reference →](/reference/nodes/dataloader/)
+  </Card>
+</CardGrid>
+
+## Pipeline Flow
+
+MLOps Desktop uses a **node-based workflow**:
+
+```
+DataLoader → DataSplit → Trainer → Evaluator → ModelExporter
+     ↓           ↓          ↓
+   Data      Train/Test   Model    Metrics    Export
+   File       Split      Training  & SHAP    .joblib/.onnx
+```
+
+1. **DataLoader** — Load CSV, JSON, Parquet, or TXT files
+2. **DataSplit** — Split into train/test sets with optional stratification
+3. **Trainer** — Train models (12 algorithms), tune hyperparameters, or load existing models
+4. **Evaluator** — Auto-detect model type, compute metrics, generate explanations
+5. **ModelExporter** — Save to joblib, pickle, or ONNX format
+6. **Script** — Write custom Python code with Monaco editor
+
+## Supported Models
+
+| Classification | Regression |
+|---------------|------------|
+| Logistic Regression | Linear Regression |
+| Random Forest Classifier | Random Forest Regressor |
+| Gradient Boosting Classifier | Gradient Boosting Regressor |
+| SVM (SVC) | SVM (SVR) |
+| K-Nearest Neighbors | K-Nearest Neighbors |
+| MLP Neural Network | MLP Neural Network |
+
+## Output Panel Tabs
+
+The bottom panel provides 7 views:
+
+| Tab | Purpose |
+|-----|---------|
+| **Logs** | Real-time execution output with syntax highlighting |
+| **Data Profile** | Dataset statistics and column information |
+| **Metrics** | Model performance with charts and confusion matrix |
+| **Runs** | Run history with filtering and comparison |
+| **Models** | Model registry with versioning and staging |
+| **Trials** | Hyperparameter tuning results from Optuna |
+| **Serving** | HTTP model server with request metrics |

@@ -1,0 +1,267 @@
+---
+title: Track Experiments
+description: Compare runs, manage experiments, and register models.
+---
+
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+MLOps Desktop includes full experiment tracking: run history, experiment grouping, model registry with versioning, and side-by-side comparison. All data stays local in SQLite.
+
+**Time to complete:** ~10 minutes
+
+## Prerequisites
+
+- Run several pipelines with different configurations
+- Familiarity with the [Quickstart](/getting-started/quickstart/)
+
+## Runs Tab
+
+The **Runs** tab shows all pipeline executions with metrics.
+
+### View Modes
+
+<Tabs>
+  <TabItem label="Flat View">
+    All runs in a single list, sorted by date (newest first).
+
+    | Column | Description |
+    |--------|-------------|
+    | **Name** | Run display name (editable) |
+    | **Pipeline** | Pipeline that was executed |
+    | **Experiment** | Associated experiment (if any) |
+    | **Metrics** | Key metric (Accuracy or R²) |
+    | **Duration** | Execution time |
+    | **Status** | Success/Failed |
+  </TabItem>
+  <TabItem label="Hierarchical View">
+    Runs grouped by experiment.
+
+    ```
+    ▼ Titanic Classification (3 runs)
+        Run 1: Accuracy 0.82
+        Run 2: Accuracy 0.85
+        Run 3: Accuracy 0.87
+    ▼ Iris Baseline (2 runs)
+        Run 1: Accuracy 0.96
+        Run 2: Accuracy 0.97
+    ▼ Unassigned (5 runs)
+        ...
+    ```
+  </TabItem>
+</Tabs>
+
+### Run Actions
+
+Click a run to:
+- **View metrics** — Full metrics display in Metrics tab
+- **View explain data** — Load SHAP/importance from this run
+- **Edit metadata** — Change display name, add notes, tags
+- **Register model** — Add to model registry
+- **Delete** — Remove run (with confirmation)
+
+## Experiments
+
+Experiments group related runs for organization.
+
+### Create an Experiment
+
+<Steps>
+1. Click the **Experiment selector** dropdown in the toolbar
+2. Click **+ New Experiment**
+3. Enter a name and description
+4. Click **Create**
+</Steps>
+
+New runs will automatically be associated with the active experiment.
+
+### Experiment Status
+
+| Status | Meaning |
+|--------|---------|
+| **Active** | Currently running experiments |
+| **Completed** | Finished experiments (archive candidates) |
+| **Archived** | Hidden from default view |
+
+Filter runs by experiment status in the Runs tab.
+
+## Compare Runs
+
+Compare 2-5 runs side-by-side:
+
+<Steps>
+1. In the Runs tab, select multiple runs (Cmd+click)
+2. Click **Compare**
+3. View the comparison modal
+</Steps>
+
+### Comparison View
+
+```
+                    Run 1      Run 2      Run 3
+Accuracy            0.82       0.85       0.87 ✓
+Precision           0.79       0.83       0.85 ✓
+Recall              0.78       0.81       0.84 ✓
+F1 Score            0.78       0.82       0.84 ✓
+
+Parameters:
+n_estimators        100        150        200
+max_depth           10         15         15
+learning_rate       -          -          0.1
+```
+
+The best value in each row is highlighted.
+
+## Model Registry
+
+The **Models** tab manages your model versions.
+
+### Register a Model
+
+<Steps>
+1. In the Runs tab, click a successful run
+2. Click **Register Model**
+3. Enter model name (or select existing)
+4. Add description, tags
+5. Click **Register**
+</Steps>
+
+### Model Stages
+
+Each model version has a stage:
+
+| Stage | Purpose | Typical Use |
+|-------|---------|-------------|
+| **None** | Just registered | New models |
+| **Staging** | Testing/validation | Pre-production |
+| **Production** | Serving live traffic | Current best model |
+| **Archived** | No longer active | Old versions |
+
+Promote models through stages:
+```
+None → Staging → Production → Archived
+```
+
+### Model Actions
+
+- **View versions** — Expand to see all versions
+- **Compare versions** — Side-by-side metrics comparison
+- **Promote/demote** — Change stage
+- **View details** — File path, format, metrics snapshot
+- **Delete** — Remove version (with confirmation)
+
+## Tagging
+
+Add tags to runs and model versions for organization:
+
+```
+Tags: baseline, tuned, production-candidate, best-so-far
+```
+
+Filter by tags in both Runs and Models tabs.
+
+### Tag Best Practices
+
+| Tag | Use For |
+|-----|---------|
+| `baseline` | Reference model to beat |
+| `tuned` | After hyperparameter optimization |
+| `production` | Currently deployed |
+| `experiment-v2` | Group related experiments |
+| `best` | Your top performer |
+
+## Annotations
+
+Add notes to runs for context:
+
+```yaml
+Display Name: "RF with feature engineering"
+Notes: |
+  - Added age_group feature
+  - Removed cabin column (too many nulls)
+  - Stratified by Survived
+Tags: [feature-engineering, v2]
+```
+
+Access via **Edit Metadata** on any run.
+
+## Best Practices
+
+### Always Use Experiments
+
+Group related runs into experiments:
+```
+Experiment: "Titanic - Model Selection"
+  Run 1: Logistic Regression
+  Run 2: Random Forest
+  Run 3: Gradient Boosting
+
+Experiment: "Titanic - RF Tuning"
+  Run 1: n_estimators=100
+  Run 2: n_estimators=200
+  Run 3: Optuna 50 trials
+```
+
+### Tag Important Runs
+
+When you get a good result, tag it immediately. It's easy to forget which run was best.
+
+### Compare Before Deploying
+
+Before promoting a model:
+1. Compare against current production
+2. Verify improvement on all key metrics
+3. Check explain data for reasonable feature importance
+
+### Clean Up Failed Runs
+
+Delete failed or test runs to keep history clean. Use filters to find them:
+- Status: Failed
+- Duration: < 5s (likely errors)
+
+## Data Storage
+
+All tracking data is stored locally:
+
+```
+~/Library/Application Support/com.mlops.desktop/settings.db
+```
+
+Tables:
+- `runs` — Run metadata, status, duration
+- `run_metrics` — Metrics per run (JSON for complex data)
+- `models` — Model registry
+- `model_versions` — Versions with stage, tags
+- `experiments` — Experiment metadata
+- `run_annotations` — Display names, notes, tags
+
+<Aside type="tip">
+All data stays on your machine. Nothing is uploaded to the cloud.
+</Aside>
+
+## Export Data
+
+Export run history for external analysis:
+
+```python
+import sqlite3
+import pandas as pd
+
+conn = sqlite3.connect(
+    "~/Library/Application Support/com.mlops.desktop/settings.db"
+)
+runs = pd.read_sql("SELECT * FROM runs", conn)
+metrics = pd.read_sql("SELECT * FROM run_metrics", conn)
+```
+
+## Next Steps
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem;">
+  <a href="/tutorials/deploy-model/" style="display: block; padding: 1rem; background: var(--surface-2); border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); text-decoration: none;">
+    <strong>Deploy Your Model</strong>
+    <p style="color: #94a3b8; margin: 0.5rem 0 0 0; font-size: 0.875rem;">Serve models via HTTP API</p>
+  </a>
+  <a href="/reference/nodes/exporter/" style="display: block; padding: 1rem; background: var(--surface-2); border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); text-decoration: none;">
+    <strong>Model Export Formats</strong>
+    <p style="color: #94a3b8; margin: 0.5rem 0 0 0; font-size: 0.875rem;">joblib, pickle, and ONNX options</p>
+  </a>
+</div>

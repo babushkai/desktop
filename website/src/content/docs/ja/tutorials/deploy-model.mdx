@@ -1,0 +1,274 @@
+---
+title: モデルのデプロイ
+description: 学習済みモデルをHTTP APIとして公開
+---
+
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+MLOps Desktopには、モデルサービング用のHTTPサーバーが組み込まれています。学習済みモデルをデプロイし、REST API経由で予測を取得できます。追加のインフラストラクチャは不要です。
+
+## 前提条件
+
+- 学習済みモデル（[クイックスタート](/ja/getting-started/quickstart/)を参照）
+- Pythonパッケージ：`pip install fastapi uvicorn slowapi`
+- ONNX使用時（オプション）：`pip install onnxruntime`
+
+## Servingタブの使用
+
+<Steps>
+1. **Servingタブを開く**
+
+   出力パネルの**Serving**タブをクリックします。
+
+2. **モデルを選択**
+
+   以下から選択できます。
+   - Modelsタブに登録されたモデル
+   - 現在のセッションで学習したモデル
+
+   複数バージョンがある場合は特定のバージョンを選択します。
+
+3. **サーバーを設定**
+
+   **Configure**ボタン（歯車アイコン）をクリックします。
+
+   | 設定 | デフォルト | 説明 |
+   |------|----------|------|
+   | **Host** | 0.0.0.0 | リッスンアドレス |
+   | **Port** | 8000 | HTTPポート |
+   | **Use ONNX Runtime** | Off | 高速推論を有効化 |
+
+4. **サーバーを起動**
+
+   **Start Server**をクリックします。
+
+   ステータスが変化します：`Stopped → Starting → Running`
+
+   サーバーURL：`http://localhost:8000`
+
+5. **予測を実行**
+
+   curl、Python、JavaScriptなど任意のHTTPクライアントを使用できます。
+</Steps>
+
+## APIエンドポイント
+
+サーバー起動後、以下のエンドポイントが利用可能です。
+
+### ヘルスチェック
+
+```bash
+curl http://localhost:8000/health
+```
+
+レスポンス：
+```json
+{"status": "healthy", "model": "RandomForestClassifier"}
+```
+
+### 予測
+
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{"features": [[5.1, 3.5, 1.4, 0.2]]}'
+```
+
+分類の場合：
+```json
+{
+  "predictions": [0],
+  "probabilities": [[0.98, 0.01, 0.01]]
+}
+```
+
+回帰の場合：
+```json
+{
+  "predictions": [24.5]
+}
+```
+
+### バッチ予測
+
+複数サンプルを一度に送信できます。
+
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "features": [
+      [5.1, 3.5, 1.4, 0.2],
+      [6.2, 3.4, 5.4, 2.3],
+      [4.9, 2.5, 4.5, 1.7]
+    ]
+  }'
+```
+
+### APIドキュメント
+
+FastAPIが自動生成するドキュメントにアクセスできます。
+
+- **Swagger UI:** `http://localhost:8000/docs`
+- **ReDoc:** `http://localhost:8000/redoc`
+
+## リクエストメトリクス
+
+Servingタブにリアルタイムメトリクスが表示されます。
+
+| メトリクス | 説明 |
+|-----------|------|
+| **Total Requests** | サーバー起動からの総リクエスト数 |
+| **Success Rate** | 成功レスポンス（2xx）の割合 |
+| **Avg Latency** | 平均応答時間 |
+| **Requests/min** | 現在のスループット |
+
+最近のリクエストログも表示されます。
+
+## ONNX Runtime
+
+ONNX Runtimeを使用すると、推論が高速化されます（ツリーベースモデルで2-10倍）。
+
+<Steps>
+1. `pip install onnxruntime`を実行
+2. ModelExporterノードでONNX形式にエクスポート
+3. Serving設定で**Use ONNX Runtime**を有効化
+4. `.onnx`モデルファイルを選択
+</Steps>
+
+<Aside type="tip">
+ONNX Runtimeは特にRandom ForestやGradient Boostingで効果的です。
+</Aside>
+
+## Pythonからの利用
+
+```python
+import requests
+
+# 単一予測
+response = requests.post(
+    "http://localhost:8000/predict",
+    json={"features": [[5.1, 3.5, 1.4, 0.2]]}
+)
+result = response.json()
+print(f"予測クラス: {result['predictions'][0]}")
+print(f"信頼度: {max(result['probabilities'][0]):.1%}")
+
+# バッチ予測
+import pandas as pd
+df = pd.read_csv("new_data.csv")
+features = df.drop(columns=["target"]).values.tolist()
+
+response = requests.post(
+    "http://localhost:8000/predict",
+    json={"features": features}
+)
+predictions = response.json()["predictions"]
+```
+
+## JavaScriptからの利用
+
+```javascript
+const response = await fetch('http://localhost:8000/predict', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    features: [[5.1, 3.5, 1.4, 0.2]]
+  })
+});
+
+const { predictions, probabilities } = await response.json();
+console.log(`予測: ${predictions[0]}`);
+```
+
+## 本番環境へのエクスポート
+
+MLOps Desktop外での本番デプロイ用にモデルをエクスポートできます。
+
+<Tabs>
+  <TabItem label="モデルのエクスポート">
+    **ModelExporter**ノードで以下の形式で保存できます。
+    - `.joblib` — Pythonアプリケーション向け
+    - `.onnx` — クロスプラットフォーム、高速推論
+    - `.pkl` — Pythonネイティブ（セキュリティに注意）
+  </TabItem>
+  <TabItem label="スタンドアロンサーバー">
+    独自のFastAPIサーバーを作成できます。
+
+    ```python
+    from fastapi import FastAPI
+    import joblib
+    import numpy as np
+
+    app = FastAPI()
+    model = joblib.load("model.joblib")
+
+    @app.post("/predict")
+    async def predict(data: dict):
+        features = np.array(data["features"])
+        predictions = model.predict(features)
+        return {"predictions": predictions.tolist()}
+    ```
+
+    起動：`uvicorn server:app --host 0.0.0.0 --port 8000`
+  </TabItem>
+</Tabs>
+
+## 必要なパッケージ
+
+| パッケージ | 用途 | 必須 |
+|-----------|------|------|
+| `fastapi` | Webフレームワーク | Yes |
+| `uvicorn` | ASGIサーバー | Yes |
+| `slowapi` | レート制限 | Yes |
+| `onnxruntime` | ONNX推論 | Optional |
+
+一括インストール：
+```bash
+pip install fastapi uvicorn slowapi onnxruntime
+```
+
+Servingタブは依存関係をチェックし、不足している場合は警告を表示します。
+
+## トラブルシューティング
+
+### 「FastAPIがインストールされていません」
+
+```bash
+pip install fastapi uvicorn slowapi
+```
+
+### ポートが使用中
+
+設定でポートを変更するか、既存のプロセスを停止します。
+```bash
+lsof -i :8000  # プロセスを確認
+kill -9 <PID>  # 停止
+```
+
+### 予測が遅い
+
+- ONNX Runtimeを有効化
+- 単一リクエストではなくバッチ予測を使用
+- モデルの複雑さを確認（大規模なRandom Forestは遅い）
+
+### ブラウザからのCORSエラー
+
+サーバーはデフォルトで全オリジンを許可しています。問題が続く場合はリクエストヘッダーを確認してください。
+
+## レート制限
+
+サーバーにはslowapiによる基本的なレート制限が含まれています（IP毎に100リクエスト/分）。共有環境での乱用を防止します。
+
+## 次のステップ
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem;">
+  <a href="/ja/reference/nodes/exporter/" style="display: block; padding: 1rem; background: var(--surface-2); border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); text-decoration: none;">
+    <strong>エクスポート形式</strong>
+    <p style="color: #94a3b8; margin: 0.5rem 0 0 0; font-size: 0.875rem;">joblib、pickle、ONNXオプション</p>
+  </a>
+  <a href="/ja/tutorials/track-experiments/" style="display: block; padding: 1rem; background: var(--surface-2); border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); text-decoration: none;">
+    <strong>実験の管理</strong>
+    <p style="color: #94a3b8; margin: 0.5rem 0 0 0; font-size: 0.875rem;">デプロイ済みモデルのバージョン管理</p>
+  </a>
+</div>

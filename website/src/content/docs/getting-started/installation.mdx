@@ -1,0 +1,103 @@
+---
+title: Installation
+description: Download and install MLOps Desktop on macOS.
+---
+
+import { Tabs, TabItem, Steps, Aside } from '@astrojs/starlight/components';
+
+MLOps Desktop is a native macOS application. Download the appropriate version for your Mac below.
+
+## System Requirements
+
+- **macOS** 12.0 (Monterey) or later
+- **Python** 3.9 or later
+- **Disk Space** ~200MB
+
+<Aside type="note">
+Windows and Linux versions are in development. [Join the waitlist](/) to be notified when they're available.
+</Aside>
+
+## Download
+
+<Tabs>
+  <TabItem label="Apple Silicon (M1/M2/M3)">
+    Download the `.dmg` file for Apple Silicon Macs:
+
+    [Download for Apple Silicon →](https://github.com/babushkai/desktop/releases/latest)
+
+    After downloading:
+    1. Open the `.dmg` file
+    2. Drag MLOps Desktop to your Applications folder
+    3. Open from Applications (you may need to right-click → Open the first time)
+  </TabItem>
+  <TabItem label="Intel">
+    Download the `.dmg` file for Intel Macs:
+
+    [Download for Intel →](https://github.com/babushkai/desktop/releases/latest)
+
+    After downloading:
+    1. Open the `.dmg` file
+    2. Drag MLOps Desktop to your Applications folder
+    3. Open from Applications (you may need to right-click → Open the first time)
+  </TabItem>
+</Tabs>
+
+## First Launch
+
+<Steps>
+1. **Open MLOps Desktop** from your Applications folder
+
+2. **Allow the app to run**
+
+   On first launch, macOS may show a security warning. Click "Open" to continue, or go to System Settings → Privacy & Security to allow the app.
+
+3. **Configure Python path**
+
+   MLOps Desktop will auto-detect your Python installation. If it doesn't find Python, see [Python Setup](/getting-started/python-setup/).
+
+4. **Ready to go!**
+
+   You'll see an empty canvas. Head to the [Quickstart](/getting-started/quickstart/) to build your first pipeline.
+</Steps>
+
+## Updating
+
+MLOps Desktop will notify you when updates are available. To update manually:
+
+1. Download the latest version from [GitHub Releases](https://github.com/babushkai/desktop/releases)
+2. Close MLOps Desktop if running
+3. Replace the app in your Applications folder
+
+## Uninstalling
+
+To remove MLOps Desktop:
+
+1. Quit the application
+2. Drag MLOps Desktop from Applications to Trash
+3. (Optional) Remove settings: `rm -rf ~/Library/Application\ Support/com.mlops.desktop`
+
+## Troubleshooting
+
+### "App is damaged and can't be opened"
+
+This is a macOS Gatekeeper issue. Run this command in Terminal:
+
+```bash
+xattr -cr /Applications/MLOps\ Desktop.app
+```
+
+Then try opening the app again.
+
+### App doesn't open
+
+1. Check Console.app for crash logs
+2. Ensure you're running macOS 12+
+3. Try downloading the latest release
+
+### Python not detected
+
+See the [Python Setup](/getting-started/python-setup/) guide for configuring Python paths.
+
+---
+
+Next: [Quickstart](/getting-started/quickstart/) — Build your first pipeline in 5 minutes

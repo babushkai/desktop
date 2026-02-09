@@ -1,0 +1,333 @@
+---
+title: Using with MLflow
+description: Integrate MLOps Desktop with MLflow for experiment tracking and model registry.
+---
+
+import { Aside, Steps } from '@astrojs/starlight/components';
+
+MLflow is an open-source platform for managing the ML lifecycle. This guide shows how to use MLOps Desktop alongside MLflow for enhanced experiment tracking.
+
+<Aside type="note">
+MLOps Desktop and MLflow solve different problems and work great together:
+- **MLOps Desktop**: Visual pipeline building, local training
+- **MLflow**: Experiment tracking, model registry, deployment
+</Aside>
+
+## Why Use Both?
+
+| MLOps Desktop | MLflow |
+|---------------|--------|
+| Visual UI for building pipelines | Centralized experiment tracking |
+| Local-first, no server needed | Collaborative team features |
+| Quick prototyping | Production model registry |
+| Individual workflows | Team-wide visibility |
+
+## Setup
+
+### Install MLflow
+
+```bash
+pip install mlflow
+```
+
+### Start the MLflow Server (Optional)
+
+For the UI and persistent storage:
+
+```bash
+mlflow ui --backend-store-uri sqlite:///mlflow.db
+```
+
+This starts a server at `http://localhost:5000`.
+
+<Aside type="tip">
+You can skip the server and use file-based tracking for personal use.
+</Aside>
+
+## Integration Approaches
+
+### Approach 1: Log from Script Nodes
+
+Add MLflow logging to your Script nodes:
+
+```python
+import mlflow
+
+# Set tracking URI (optional, uses ./mlruns by default)
+mlflow.set_tracking_uri("http://localhost:5000")
+
+# Start a run
+with mlflow.start_run(run_name="random-forest-v1"):
+    # Log parameters (from your Trainer configuration)
+    mlflow.log_params({
+        "model_type": "RandomForestClassifier",
+        "n_estimators": 100,
+        "max_depth": 10,
+        "test_size": 0.2
+    })
+
+    # Train your model (use the model from pipeline)
+    # model.fit(X_train, y_train)
+
+    # Log metrics (from Evaluator results)
+    mlflow.log_metrics({
+        "accuracy": 0.967,
+        "f1_score": 0.965,
+        "precision": 0.968,
+        "recall": 0.967
+    })
+
+    # Log the model
+    mlflow.sklearn.log_model(model, "model")
+
+    # Log artifacts (like SHAP plots)
+    # mlflow.log_artifact("shap_summary.png")
+```
+
+### Approach 2: Post-Export Logging
+
+After exporting from MLOps Desktop:
+
+```python
+import mlflow
+import joblib
+import json
+
+# Load the exported model and metadata
+model = joblib.load("model.joblib")
+with open("model_meta.json") as f:
+    meta = json.load(f)
+
+# Log to MLflow
+with mlflow.start_run(run_name=meta.get("model_type", "model")):
+    mlflow.log_params(meta.get("hyperparameters", {}))
+    mlflow.log_metrics(meta.get("metrics", {}))
+    mlflow.sklearn.log_model(model, "model")
+    mlflow.log_artifact("model_meta.json")
+```
+
+### Approach 3: Batch Logging Script
+
+Create a script to log all your experiments:
+
+```python
+import mlflow
+import joblib
+import json
+from pathlib import Path
+
+def log_experiment(model_path: str, meta_path: str):
+    """Log an MLOps Desktop export to MLflow."""
+    model = joblib.load(model_path)
+    with open(meta_path) as f:
+        meta = json.load(f)
+
+    with mlflow.start_run(run_name=Path(model_path).stem):
+        # Log training date as tag
+        mlflow.set_tag("training_date", meta.get("training_date", "unknown"))
+
+        # Log hyperparameters
+        params = meta.get("hyperparameters", {})
+        mlflow.log_params(params)
+
+        # Log metrics
+        metrics = meta.get("metrics", {})
+        mlflow.log_metrics(metrics)
+
+        # Log feature info
+        mlflow.set_tag("n_features", meta.get("n_features", 0))
+        mlflow.set_tag("n_classes", meta.get("n_classes", 0))
+
+        # Log the model
+        mlflow.sklearn.log_model(
+            model,
+            "model",
+            registered_model_name=meta.get("model_type", "MLOpsModel")
+        )
+
+        # Log metadata file
+        mlflow.log_artifact(meta_path)
+
+    print(f"Logged {model_path} to MLflow")
+
+# Log all models in a directory
+models_dir = Path("./exported_models")
+for model_path in models_dir.glob("*.joblib"):
+    meta_path = model_path.with_name(f"{model_path.stem}_meta.json")
+    if meta_path.exists():
+        log_experiment(str(model_path), str(meta_path))
+```
+
+## Workflow Examples
+
+### Solo Data Scientist
+
+<Steps>
+1. Build and iterate in MLOps Desktop
+   - Quick visual prototyping
+   - Hyperparameter tuning with Optuna
+   - Export best model
+
+2. Log to local MLflow
+   - Track experiments over time
+   - Compare different approaches
+   - Store model artifacts
+
+3. Deploy from MLflow
+   - Use MLflow's deployment tools
+   - Or serve directly from exported model
+</Steps>
+
+### Team Workflow
+
+<Steps>
+1. Each team member uses MLOps Desktop locally
+   - Personal experimentation
+   - Quick prototyping
+
+2. Log successful experiments to shared MLflow server
+   - Team visibility
+   - Experiment comparison
+
+3. Use MLflow Model Registry
+   - Stage models (Staging → Production)
+   - Track model lineage
+   - Coordinate deployments
+</Steps>
+
+## MLflow Features to Use
+
+### Experiment Tracking
+
+View all runs in the MLflow UI:
+
+```
+http://localhost:5000
+```
+
+Compare metrics, parameters, and artifacts across runs.
+
+### Model Registry
+
+Register production models:
+
+```python
+mlflow.register_model(
+    "runs:/run_id/model",
+    "ChurnPredictor"
+)
+```
+
+Transition between stages:
+
+```python
+from mlflow.tracking import MlflowClient
+client = MlflowClient()
+
+client.transition_model_version_stage(
+    name="ChurnPredictor",
+    version=1,
+    stage="Production"
+)
+```
+
+### Model Serving
+
+Serve a registered model:
+
+```bash
+mlflow models serve -m "models:/ChurnPredictor/Production" -p 5001
+```
+
+Call the endpoint:
+
+```bash
+curl -X POST http://localhost:5001/invocations \
+  -H "Content-Type: application/json" \
+  -d '{"inputs": [[5.1, 3.5, 1.4, 0.2]]}'
+```
+
+## Tips
+
+### Naming Conventions
+
+Use consistent names across MLOps Desktop and MLflow:
+
+```
+Pipeline Name: churn-random-forest-v2
+MLflow Run Name: churn-random-forest-v2
+MLflow Model Name: ChurnPredictor
+```
+
+### Artifact Organization
+
+Log additional artifacts from MLOps Desktop:
+
+```python
+# In a Script node
+mlflow.log_artifact("feature_importance.png")
+mlflow.log_artifact("confusion_matrix.png")
+mlflow.log_artifact("shap_summary.png")
+```
+
+### Tags for Organization
+
+Use tags to organize experiments:
+
+```python
+mlflow.set_tags({
+    "source": "mlops_desktop",
+    "dataset": "customer_churn_2024",
+    "team": "data_science",
+    "purpose": "production"
+})
+```
+
+### Filtering Runs
+
+Search runs programmatically:
+
+```python
+from mlflow.tracking import MlflowClient
+client = MlflowClient()
+
+runs = client.search_runs(
+    experiment_ids=["1"],
+    filter_string="tags.source = 'mlops_desktop' AND metrics.accuracy > 0.95"
+)
+
+for run in runs:
+    print(f"{run.info.run_name}: {run.data.metrics['accuracy']}")
+```
+
+## Limitations
+
+### What MLOps Desktop doesn't do (use MLflow for):
+
+- Multi-user collaboration
+- Centralized experiment server
+- Model staging/approval workflows
+- A/B testing infrastructure
+
+### What MLflow doesn't do (use MLOps Desktop for):
+
+- Visual pipeline building
+- Drag-and-drop ML
+- Local-first, offline-capable training
+- No-code model configuration
+
+## Conclusion
+
+MLOps Desktop and MLflow complement each other:
+
+1. **Build and iterate** in MLOps Desktop (visual, fast, local)
+2. **Track and deploy** with MLflow (collaborative, production-ready)
+
+This combination gives you the best of both worlds: rapid local development with enterprise-grade experiment tracking.
+
+---
+
+**Next steps:**
+- [Install MLOps Desktop](/getting-started/installation/)
+- [Train your first model](/tutorials/train-classifier/)
+- [Export and deploy](/tutorials/deploy-model/)

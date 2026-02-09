@@ -1,0 +1,142 @@
+---
+title: Keyboard Shortcuts
+description: Speed up your workflow with keyboard shortcuts.
+---
+
+import { Aside } from '@astrojs/starlight/components';
+
+MLOps Desktop supports keyboard shortcuts for common actions. Learn these to speed up your workflow.
+
+## Canvas Navigation
+
+| Shortcut | Action |
+|----------|--------|
+| **Scroll** or **Two-finger drag** | Pan the canvas |
+| **Pinch** or **Cmd + Scroll** | Zoom in/out |
+| **Cmd + 0** | Reset zoom to 100% |
+| **Cmd + 1** | Fit all nodes in view |
+
+## Node Operations
+
+| Shortcut | Action |
+|----------|--------|
+| **Click** | Select node |
+| **Cmd + Click** | Add to selection |
+| **Drag selection box** | Select multiple nodes |
+| **Cmd + A** | Select all nodes |
+| **Delete** or **Backspace** | Delete selected nodes |
+| **Cmd + D** | Duplicate selected nodes |
+| **Escape** | Deselect all |
+
+## Pipeline Operations
+
+| Shortcut | Action |
+|----------|--------|
+| **Cmd + Enter** | Run pipeline |
+| **Cmd + .** | Stop running pipeline |
+| **Cmd + S** | Save pipeline |
+| **Cmd + O** | Open/load pipeline |
+| **Cmd + N** | New pipeline |
+
+## Editor Shortcuts (Script Node)
+
+When editing code in a Script node, standard Monaco Editor shortcuts apply:
+
+### Basic Editing
+
+| Shortcut | Action |
+|----------|--------|
+| **Cmd + Z** | Undo |
+| **Cmd + Shift + Z** | Redo |
+| **Cmd + X** | Cut line |
+| **Cmd + C** | Copy |
+| **Cmd + V** | Paste |
+| **Cmd + D** | Select next occurrence |
+| **Cmd + Shift + L** | Select all occurrences |
+
+### Navigation
+
+| Shortcut | Action |
+|----------|--------|
+| **Cmd + G** | Go to line |
+| **Cmd + P** | Quick open |
+| **Cmd + Shift + O** | Go to symbol |
+| **Cmd + Home** | Go to start |
+| **Cmd + End** | Go to end |
+| **Cmd + ↑/↓** | Scroll up/down |
+
+### Code Editing
+
+| Shortcut | Action |
+|----------|--------|
+| **Tab** | Indent |
+| **Shift + Tab** | Outdent |
+| **Cmd + /** | Toggle line comment |
+| **Cmd + Shift + /** | Toggle block comment |
+| **Cmd + Shift + K** | Delete line |
+| **Alt + ↑/↓** | Move line up/down |
+| **Alt + Shift + ↑/↓** | Duplicate line up/down |
+| **Cmd + Enter** | Insert line below |
+| **Cmd + Shift + Enter** | Insert line above |
+
+### Multi-Cursor
+
+| Shortcut | Action |
+|----------|--------|
+| **Alt + Click** | Add cursor |
+| **Cmd + Alt + ↑/↓** | Add cursor above/below |
+| **Cmd + D** | Add selection to next match |
+
+## Window Controls
+
+| Shortcut | Action |
+|----------|--------|
+| **Cmd + ,** | Open settings |
+| **Cmd + Q** | Quit application |
+| **Cmd + M** | Minimize window |
+| **Cmd + W** | Close window |
+
+## Panel Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| **Cmd + B** | Toggle sidebar |
+| **Cmd + J** | Toggle output panel |
+| **Cmd + Shift + E** | Focus properties panel |
+
+## Tips
+
+<Aside type="tip">
+**Muscle memory:** Start with the essentials—**Cmd + Enter** (run), **Cmd + S** (save), and **Delete** (remove nodes)—then gradually learn more.
+</Aside>
+
+### Speed Run Workflow
+
+1. **Cmd + N** — New pipeline
+2. Add nodes with toolbar
+3. Configure in properties panel
+4. **Cmd + Enter** — Run
+5. **Cmd + S** — Save when satisfied
+
+### Editing Multiple Nodes
+
+1. **Cmd + A** — Select all
+2. Drag to reposition
+3. **Delete** — Clear canvas
+4. Or **Cmd + Click** to select specific nodes
+
+## Customizing Shortcuts
+
+<Aside type="note">
+Custom keyboard shortcuts are coming in a future release. For now, the default shortcuts cannot be changed.
+</Aside>
+
+## Platform Notes
+
+All shortcuts use the **Cmd** key on macOS. On future Windows/Linux releases, **Cmd** will be replaced with **Ctrl**.
+
+| macOS | Windows/Linux |
+|-------|---------------|
+| Cmd | Ctrl |
+| Option | Alt |
+| Delete | Backspace |

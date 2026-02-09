@@ -1,0 +1,209 @@
+---
+title: 予測の説明
+description: SHAPと特徴量重要度でモデルの判断理由を理解
+---
+
+import { Steps, Aside, Tabs, TabItem } from '@astrojs/starlight/components';
+
+モデルが**なぜ**その予測を行ったかを理解することは、予測結果と同様に重要です。MLOps Desktopは、モデルを解釈するための複数の説明可能性ツールを提供しています。
+
+## 前提条件
+
+- [分類モデルの学習](/ja/tutorials/train-classifier/)を完了済み
+- Pythonパッケージ：`pip install shap matplotlib`
+
+## 説明可能性の重要性
+
+ローン審査モデルで「承認」「却下」を予測する場合を考えます。説明可能性がなければ、以下の質問に答えられません。
+
+- なぜこの申請者は却下されたのか
+- どの特徴量が最も重要か
+- モデルは特定のグループに偏っていないか
+
+説明可能性ツールはこれらの質問に回答します。
+
+## 説明の生成
+
+<Steps>
+1. **学習済みパイプラインを開く**
+
+   TrainerとEvaluatorを含むパイプラインを読み込みます。
+
+2. **パイプラインを実行**
+
+   **Run**をクリックしてモデルを学習します。
+
+3. **Evaluatorノードをクリック**
+
+   学習完了後、Evaluatorノードに結果が表示されます。
+
+4. **Explainタブを開く**
+
+   結果パネルの**Explain**タブをクリックします。
+
+   3種類の可視化が表示されます。
+   - Feature Importance（特徴量重要度）
+   - SHAP Summary（SHAPサマリー）
+   - Partial Dependence（部分依存）
+</Steps>
+
+## 特徴量重要度
+
+**表示内容：** 各特徴量が予測全体にどの程度貢献しているか
+
+```
+Feature Importance (Random Forest)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+petal length (cm)  ████████████████████ 0.45
+petal width (cm)   ██████████████ 0.35
+sepal length (cm)  ████ 0.12
+sepal width (cm)   ███ 0.08
+```
+
+**解釈方法：**
+- 棒が長いほど重要な特徴量
+- Random Forestの場合、各特徴量がすべての木で不純度をどれだけ減少させるかで計算
+
+<Aside type="tip">
+重要度がほぼゼロの特徴量がある場合、削除してモデルを簡素化することを検討してください。
+</Aside>
+
+## SHAP値
+
+**SHAP (SHapley Additive exPlanations)** は、各特徴量が予測をどのように押し上げ/押し下げるかを示すことで、個々の予測を説明します。
+
+### サマリープロット
+
+全予測にわたる特徴量の影響を表示します。
+
+```
+SHAP Summary Plot
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        ← 予測を下げる    予測を上げる →
+petal length  ●●●●●●●○○○○○○○○●●●●●●●●●●
+petal width   ●●●●●○○○○○○○○●●●●●●●
+sepal length  ●●●○○○○○●●●
+sepal width   ●●○○○●●
+```
+
+各点は1つのサンプルを表します。
+- **横位置：** 特徴量が予測に与える影響
+- **色：** 特徴量の値（青=低い、赤=高い）
+
+**プロットの読み方：**
+- 高いpetal length（右側の赤い点）→ 予測を上げる
+- 低いpetal length（左側の青い点）→ 予測を下げる
+
+### ウォーターフォールプロット
+
+単一の予測をステップごとに説明します。
+
+```
+予測: Class 2 (Virginica)
+
+基準値: 0.33（全クラスの平均）
+
+petal length = 5.1  +0.35  ▶▶▶▶▶▶▶
+petal width = 1.8   +0.25  ▶▶▶▶▶
+sepal length = 6.3  +0.05  ▶
+sepal width = 2.5   -0.02  ◀
+
+最終値: 0.96 → Class 2
+```
+
+このサンプルがVirginicaに分類された理由が明確にわかります。
+
+## 部分依存プロット
+
+**表示内容：** 他の特徴量を一定に保ちながら、1つの特徴量を変化させたときに予測がどう変わるか
+
+<Tabs>
+  <TabItem label="1次元プロット">
+    1つの特徴量と予測の関係を表示します。
+
+    ```
+    Partial Dependence: petal length
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    予測
+         │        ╭─────────
+         │       ╱
+         │      ╱
+         │─────╯
+         └────────────────────→ petal length
+           1    3    5    7
+    ```
+
+    解釈: petal lengthが約2.5を超えると、モデルは異なるクラスを予測する
+  </TabItem>
+  <TabItem label="2次元プロット">
+    2つの特徴量の相互作用を表示します。
+
+    ```
+    Partial Dependence: petal length × petal width
+    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    petal width
+         │ ░░░░░████████
+         │ ░░░░░████████
+         │ ░░░░░████████
+         │ ░░░░░░░░░████
+         └──────────────→ petal length
+
+    ░ = Class 0   █ = Class 2
+    ```
+
+    クラス間の決定境界が可視化されます。
+  </TabItem>
+</Tabs>
+
+## 結果の解釈
+
+### 分類の場合
+
+以下の点を確認してください。
+- 重要な特徴量はドメイン知識と一致しているか
+- 予想外に重要でない特徴量はあるか
+- 決定境界は妥当か
+
+### 回帰の場合
+
+以下の点を確認してください。
+- 関係は線形か非線形か
+- 閾値効果（急激な変化）はあるか
+- 特徴量間の相互作用は妥当か
+
+### 注意すべきパターン
+
+| 警告サイン | 考えられる問題 |
+|-----------|---------------|
+| ランダムな特徴量が最重要 | データ漏洩または過学習 |
+| IDカラムの重要度が高い | モデルが丸暗記している |
+| 予期しない特徴量の相互作用 | データ品質の問題 |
+
+## 説明のエクスポート
+
+**Export**をクリックすると、可視化を画像として保存できます。
+
+- `feature_importance.png`
+- `shap_summary.png`
+- `partial_dependence.png`
+
+## 次のステップ
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin-top: 1rem;">
+  <a href="/ja/tutorials/deploy-model/" style="display: block; padding: 1rem; background: var(--surface-2); border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); text-decoration: none;">
+    <strong>モデルのデプロイ</strong>
+    <p style="color: #94a3b8; margin: 0.5rem 0 0 0; font-size: 0.875rem;">HTTP APIとして予測を提供</p>
+  </a>
+  <a href="/ja/tutorials/track-experiments/" style="display: block; padding: 1rem; background: var(--surface-2); border-radius: 0.5rem; border: 1px solid rgba(255,255,255,0.1); text-decoration: none;">
+    <strong>実験の管理</strong>
+    <p style="color: #94a3b8; margin: 0.5rem 0 0 0; font-size: 0.875rem;">実行間で説明結果を比較</p>
+  </a>
+</div>
+
+---
+
+**トラブルシューティング：**
+
+- **「shap が見つかりません」** — `pip install shap`を実行
+- **SHAPが遅い** — 大規模データセットでは時間がかかります。自動的にサンプリングされますが、ツリーベースのモデルを使用するとより高速です
+- **プロットが表示されない** — `matplotlib`がインストールされているか確認：`pip install matplotlib`
